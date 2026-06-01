@@ -310,22 +310,20 @@ function App() {
   return (
     <div className="container">
       {/* Header: compact */}
-      <header className="header" style={{ marginBottom: '0.5rem' }}>
-        <h1 style={{ margin: 0 }}>Gistory</h1>
+      <header className="header">
+        <h1 className="logo">Gistory</h1>
         <div className="header-actions">
           <input 
-            className="thread-name-input" 
-            style={{ width: '100px' }}
+            className="search-input"
             placeholder="Search..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
-          <button className="btn btn-secondary btn-small" onClick={() => setDarkMode(prev => !prev)} title="Toggle dark (/)">
+          <button className="btn-icon" onClick={() => setDarkMode(prev => !prev)} title="Toggle dark (/)">
             {darkMode ? '☀' : '🌙'}
           </button>
           <button 
-            className="btn btn-secondary btn-small" 
-            style={{ padding: '0.25rem 0.5rem', fontSize: '1.25rem', lineHeight: 1 }}
+            className="btn-burger"
             onClick={() => setShowBurger(v => !v)}
           >☰</button>
         </div>
@@ -333,42 +331,36 @@ function App() {
 
       {/* Burger Menu */}
       {showBurger && (
-        <div className="burger-menu" style={{ 
-          position: 'fixed', top: 0, right: 0, bottom: 0, width: '280px', maxWidth: '85%',
-          background: 'var(--surface)', borderLeft: '1px solid var(--border)',
-          zIndex: 100, overflowY: 'auto', padding: '1rem',
-          display: 'flex', flexDirection: 'column', gap: '1rem'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0 }}>Menu</h2>
-            <button className="btn btn-secondary btn-small" onClick={() => setShowBurger(false)}>✕</button>
+        <div className="sidebar">
+          <div className="sidebar-header">
+            <h2 className="sidebar-title">Menu</h2>
+            <button className="btn-icon" onClick={() => setShowBurger(false)}>✕</button>
           </div>
 
           {/* Quick create buttons */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="btn btn-primary btn-small" style={{ flex: 1 }} onClick={() => { setShowNewThread(true); setShowBurger(false); setTimeout(() => document.querySelector<HTMLInputElement>('.thread-name-input')?.focus(), 50) }}>
+          <div className="quick-create">
+            <button className="btn-primary" onClick={() => { setShowNewThread(true); setShowBurger(false); setTimeout(() => document.querySelector<HTMLInputElement>('.thread-name-input')?.focus(), 50) }}>
               + Thread
             </button>
-            <button className="btn btn-secondary btn-small" style={{ flex: 1 }} onClick={() => { setShowNewProject(true); setShowBurger(false) }}>
+            <button className="btn-secondary" onClick={() => { setShowNewProject(true); setShowBurger(false) }}>
               + Project
             </button>
           </div>
           
           {/* Projects with nested threads */}
           {projects.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="project-list">
               {projects.map(project => {
                 const projThreads = getThreadsInProject(project.id)
                 if (projThreads.length === 0) return null
                 return (
-                  <div key={project.id}>
-                    <div className="project-badge" style={{ marginBottom: '0.25rem' }}>{project.name}</div>
-                    <div style={{ paddingLeft: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <div key={project.id} className="project-group">
+                    <div className="project-label">{project.name}</div>
+                    <div className="thread-list">
                       {projThreads.map(t => (
                         <button 
                           key={t.id} 
-                          className="btn btn-secondary btn-small" 
-                          style={{ textAlign: 'left', justifyContent: 'flex-start' }}
+                          className="thread-link"
                           onClick={() => { setCurrentThreadId(t.id); setShowBurger(false) }}
                         >
                           {currentThreadId === t.id ? '● ' : '○ '}{t.name}
@@ -386,14 +378,13 @@ function App() {
             const unassigned = threads.filter(t => t.projectIds.length === 0)
             if (unassigned.length === 0) return null
             return (
-              <div>
-                <div className="project-badge" style={{ marginBottom: '0.25rem', background: 'var(--text-dim)' }}>Not Assigned</div>
-                <div style={{ paddingLeft: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div className="project-group">
+                <div className="project-label project-label-dim">Not Assigned</div>
+                <div className="thread-list">
                   {unassigned.sort((a,b) => b.createdAt - a.createdAt).map(t => (
                     <button 
                       key={t.id} 
-                      className="btn btn-secondary btn-small" 
-                      style={{ textAlign: 'left', justifyContent: 'flex-start' }}
+                      className="thread-link"
                       onClick={() => { setCurrentThreadId(t.id); setShowBurger(false) }}
                     >
                       {currentThreadId === t.id ? '● ' : '○ '}{t.name}
@@ -427,27 +418,6 @@ function App() {
               </>
             )}
           </div>
-        </div>
-      )}
-
-      {/* Projects: clickable tags */}
-      {projects.length > 0 && (
-        <div style={{ marginBottom: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Projects:</span>
-          {projects.map(project => {
-            const count = getThreadsInProject(project.id).length
-            return (
-              <button key={project.id} className="project-badge" style={{ cursor: count > 0 ? 'pointer' : 'default' }}
-                onClick={() => {
-                  const projThreads = threads.filter(t => t.projectIds.includes(project.id))
-                  if (projThreads.length > 0) setCurrentThreadId(projThreads[0].id)
-                }}
-                title={count > 0 ? `Jump to ${project.name}` : 'No threads'}
-              >
-                {project.name} ({count})
-              </button>
-            )
-          })}
         </div>
       )}
 
