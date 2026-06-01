@@ -182,14 +182,15 @@ function App() {
     showToast(`Added to "${proj?.name}"`)
   }
 
-  // Remove thread from project
-  const removeThreadFromProject = (threadId: string, projectId: string) => {
+  /* UNUSED - keeping logic inline if needed later
+  const _removeFromProject = (threadId: string, projectId: string) => {
     setThreads(prev => prev.map(t =>
       t.id === threadId
         ? { ...t, projectIds: t.projectIds.filter(id => id !== projectId) }
         : t
     ))
   }
+*/
 
   // Create new project
   const createProject = () => {
@@ -219,178 +220,87 @@ function App() {
 
   return (
     <div className="container">
-      {/* Header */}
-      <header className="header">
-        <h1>Prompt Keeper</h1>
+      {/* Header: compact with both buttons */}
+      <header className="header" style={{ marginBottom: '0.5rem' }}>
+        <h1 style={{ margin: 0 }}>Gistory</h1>
         <div className="header-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={() => setShowNewProject(!showNewProject)}
-          >
+          <button className="btn btn-secondary" onClick={() => setShowNewThread(t => !t)}>
+            {showNewThread ? 'Cancel' : '+ Thread'}
+          </button>
+          <button className="btn btn-secondary" onClick={() => setShowNewProject(p => !p)}>
             {showNewProject ? 'Cancel' : '+ Project'}
           </button>
         </div>
       </header>
 
       {/* New Project Form */}
-      {showNewProject && (
-        <div className="input-card">
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              className="thread-name-input"
-              placeholder="Project name..."
-              value={newProjectName}
-              onChange={e => setNewProjectName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && createProject()}
-              autoFocus
-            />
-            <button className="btn btn-primary" onClick={createProject}>
-              Create
-            </button>
+      {(showNewThread || showNewProject) && (
+        <div className="input-card" style={{ marginBottom: '0.5rem', padding: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {showNewThread && (
+              <>
+                <input className="thread-name-input" placeholder="Thread name..."
+                  value={newThreadName} onChange={e => setNewThreadName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && createThread()} autoFocus />
+                <button className="btn btn-primary btn-small" onClick={createThread}>Create</button>
+              </>
+            )}
+            {showNewProject && (
+              <>
+                <input className="thread-name-input" placeholder="Project name..."
+                  value={newProjectName} onChange={e => setNewProjectName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && createProject()} autoFocus={!showNewThread} />
+                <button className="btn btn-primary btn-small" onClick={createProject}>+Proj</button>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {/* Projects List */}
+      {/* Projects: clickable tags */}
       {projects.length > 0 && (
-        <div className="projects-section">
-          <div className="projects-header">
-            <h2>Projects</h2>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-            {projects.map(project => (
-              <div key={project.id} style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '1rem',
-                minWidth: '200px'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.5rem'
-                }}>
-                  <strong>{project.name}</strong>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                  {getThreadsInProject(project.id).length} thread(s)
-                </div>
-                <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                  {getThreadsInProject(project.id).map(t => (
-                    <span key={t.id} className="project-badge">
-                      {t.name}
-                      <span
-                        className="remove-project"
-                        onClick={() => removeThreadFromProject(t.id, project.id)}
-                      >
-                        ×
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div style={{ marginBottom: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Projects:</span>
+          {projects.map(project => {
+            const count = getThreadsInProject(project.id).length
+            return (
+              <button key={project.id} className="project-badge" style={{ cursor: count > 0 ? 'pointer' : 'default' }}
+                onClick={() => {
+                  const projThreads = threads.filter(t => t.projectIds.includes(project.id))
+                  if (projThreads.length > 0) setCurrentThreadId(projThreads[0].id)
+                }}
+                title={count > 0 ? `Jump to ${project.name}` : 'No threads'}
+              >
+                {project.name} ({count})
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {/* Thread Selector */}
-      <div className="thread-selector">
-        {threads.length > 0 && (
-          <select
-            value={currentThreadId}
-            onChange={e => setCurrentThreadId(e.target.value)}
-          >
-            <option value="">Select a thread...</option>
-            {threads.sort((a, b) => b.createdAt - a.createdAt).map(thread => (
-              <option key={thread.id} value={thread.id}>
-                {thread.name}
-              </option>
+      {/* Thread selector: compact */}
+      <div className="thread-selector" style={{ marginBottom: '0.75rem' }}>
+        <select style={{ flex: '1 1 120px' }} value={currentThreadId} onChange={e => setCurrentThreadId(e.target.value)}>
+          <option value="">Select thread...</option>
+          {threads.sort((a, b) => b.createdAt - a.createdAt).map(thread => (
+            <option key={thread.id} value={thread.id}>{thread.name}</option>
+          ))}
+        </select>
+        {currentThread && projects.length > 0 && (
+          <select style={{ marginLeft: '0.5rem' }} value="" onChange={e => {
+            if (e.target.value) addThreadToProject(e.target.value)
+            e.target.value = ''
+          }}>
+            <option value="">+ to proj</option>
+            {projects.filter(p => !currentThread.projectIds.includes(p.id)).map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
         )}
-        
-        <button
-          className="new-thread-btn"
-          onClick={() => setShowNewThread(!showNewThread)}
-        >
-          {showNewThread ? 'Cancel' : '+ New Thread'}
-        </button>
-
         {currentThread && (
-          <>
-            <button
-              className="btn btn-danger btn-small"
-              onClick={() => deleteThread(currentThreadId)}
-            >
-              Delete
-            </button>
-            {/* Add to project dropdown */}
-            {projects.length > 0 && (
-              <select
-                className="thread-selector select"
-                style={{ marginLeft: '0.5rem' }}
-                value=""
-                onChange={e => {
-                  if (e.target.value) addThreadToProject(e.target.value)
-                  e.target.value = ''
-                }}
-              >
-                <option value="">+ Add to project</option>
-                {projects
-                  .filter(p => !currentThread.projectIds.includes(p.id))
-                  .map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-              </select>
-            )}
-          </>
+          <button className="btn btn-danger btn-small" onClick={() => deleteThread(currentThreadId)}>Del</button>
         )}
       </div>
-
-      {/* New Thread Form */}
-      {showNewThread && (
-        <div className="input-card">
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <input
-              className="thread-name-input"
-              placeholder="Thread name..."
-              value={newThreadName}
-              onChange={e => setNewThreadName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && createThread()}
-              autoFocus
-            />
-            <button className="btn btn-primary" onClick={createThread}>
-              Create
-            </button>
-          </div>
-          
-          {/* Add to projects */}
-          {projects.length > 0 && (
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-              Add to projects:
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-                {projects.map(p => {
-                  const isAdded = threads.find(t => t.id === currentThreadId)?.projectIds.includes(p.id)
-                  return (
-                    <button
-                      key={p.id}
-                      className="btn btn-secondary btn-small"
-                      onClick={() => addThreadToProject(p.id)}
-                      disabled={isAdded}
-                      style={{ opacity: isAdded ? 0.5 : 1 }}
-                    >
-                      {p.name}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Thread Content */}
       {currentThread ? (
