@@ -77,6 +77,17 @@ body {
 .btn-icon {
   padding: 0.25rem 0.5rem;
   min-width: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-icon:hover {
+  background: var(--bg);
 }
 
 .btn-burger {
@@ -84,6 +95,16 @@ body {
   min-width: auto;
   font-size: 1.25rem;
   line-height: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-burger:hover {
+  background: var(--bg);
 }
 
 /* Sidebar */
@@ -156,6 +177,18 @@ body {
 .thread-link {
   text-align: left;
   justify-content: flex-start;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.thread-link:hover {
+  background: var(--bg);
 }
 
 /* Thread selector */
