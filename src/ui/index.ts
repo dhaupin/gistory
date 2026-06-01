@@ -11,7 +11,8 @@ export { Badge, Button } from './Badge'
 export { useDebounce, useHeartbeat } from './hooks'
 export { useAutoSave } from './AutoSaver'
 
-// Icons from Lucide - re-exported for app-wide usage
+// Sync Module (v2 - Client-First)
+// Export types and class from ./sync/agent.ts - re-exported for app-wide usage
 export {
   MoreHorizontal,
   Copy,

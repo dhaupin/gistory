@@ -10,6 +10,7 @@ import BurgerMenu from './components/BurgerMenu'
 import ThreadView from './components/ThreadView'
 import ProjectsBoard from './components/ProjectsBoard'
 import ProjectDetail from './components/ProjectDetail'
+import SettingsPage from './components/Settings'
 import EmptyState from './components/EmptyState'
 
 export default function App() {
@@ -23,6 +24,38 @@ export default function App() {
   )
   const [route, setRoute] = useState(parseRoute(window.location.hash))
   const [showBurger, setShowBurger] = useState(false)
+  
+  // Sync state
+  const [syncEnabled, setSyncEnabled] = useState(() => 
+    localStorage.getItem('gistory_sync_key') != null
+  )
+  const [syncKey, setSyncKey] = useState<string | null>(() => 
+    localStorage.getItem('gistory_sync_key')
+  )
+  const [chainId, setChainId] = useState<string | null>(() =>
+    localStorage.getItem('gistory_chain_id')
+  )
+
+  // Handler functions
+  const handleEnableSync = (key: string) => {
+    localStorage.setItem('gistory_sync_key', key)
+    setSyncKey(key)
+    setSyncEnabled(true)
+  }
+  const handleDisableSync = () => {
+    localStorage.removeItem('gistory_sync_key')
+    setSyncKey(null)
+    setChainId(null)
+    setSyncEnabled(false)
+  }
+  const handleGenerateToken = async () => {
+    // TODO: integrate with SyncAgent
+    return 'mock-token-' + Date.now()
+  }
+  const handleRefresh = async () => {
+    // TODO: sync pull/push
+    console.log('Sync refresh')
+  }
 
   // Load initial data
   useEffect(() => {
@@ -156,6 +189,22 @@ export default function App() {
       )
     }
     
+    if (path === '/settings') {
+      return (
+        <SettingsPage
+          syncEnabled={syncEnabled}
+          syncKey={syncKey}
+          chainId={chainId}
+          devices={[]}  // TODO: fetch from sync
+          lastSync={null}
+          onEnableSync={handleEnableSync}
+          onDisableSync={handleDisableSync}
+          onGenerateToken={handleGenerateToken}
+          onRefresh={handleRefresh}
+        />
+      )
+    }
+    
     return currentThread ? (
       <ThreadView
         thread={currentThread}
@@ -174,7 +223,7 @@ export default function App() {
 
   return (
     <div className="app">
-      {showBurger && <BurgerMenu threads={threads} projects={projects} currentThreadId={currentThreadId} onSelect={id => { setCurrentThreadId(id); navigate('/'); setShowBurger(false) }} onClose={() => setShowBurger(false)} createThread={createThread} createProject={createProject} />}
+      {showBurger && <BurgerMenu threads={threads} projects={projects} currentThreadId={currentThreadId} onSelect={id => { setCurrentThreadId(id); navigate('/'); setShowBurger(false) }} onClose={() => setShowBurger(false)} createThread={createThread} createProject={createProject} onSettings={() => { navigate('/settings'); setShowBurger(false) }} />}
       <Layout
         title="Gistory"
         darkMode={darkMode}

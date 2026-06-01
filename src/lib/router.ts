@@ -13,7 +13,9 @@ export function parseRoute(hash: string) {
   
   if (path) {
     const parts = path.split('/').filter(Boolean)
-    if (parts[0] === 'projects' && parts[1]) {
+    if (parts[0] === 'settings') {
+      params.id = parts[1] || ''
+    } else if (parts[0] === 'projects' && parts[1]) {
       params.id = parts[1]
     } else if (parts[0] === 'project' && parts[1]) {
       params.id = parts[1]
