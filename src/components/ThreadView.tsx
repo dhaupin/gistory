@@ -1,8 +1,9 @@
 // ThreadView - displays messages in a thread
 
-import { useState } from 'react'
-import { Copy, Edit, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Copy, Edit, Trash2, Save } from 'lucide-react'
 import type { Message, Thread } from '../lib/models'
+import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 
 interface ThreadViewProps {
   thread: Thread
@@ -21,18 +22,26 @@ export default function ThreadView({
   onUpdateMessage,
   onDeleteMessage
 }: ThreadViewProps) {
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(() => loadDraft(thread.id))
   const [editingMsg, setEditingMsg] = useState<Message | null>(null)
   const [editText, setEditText] = useState('')
+
+  // Autosave draft on input change (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => saveDraft(thread.id, input), 800)
+    return () => clearTimeout(timer)
+  }, [input, thread.id])
 
   const filtered = searchQuery
     ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
     : messages
 
+  // Clear draft when message is added
   const handleAdd = () => {
     if (!input.trim()) return
     onAddMessage(input.trim())
     setInput('')
+    clearDraft(thread.id)
   }
 
   const handleCopy = (content: string) => {
@@ -66,8 +75,23 @@ export default function ThreadView({
           onKeyDown={e => e.key === 'Enter' && e.ctrlKey && handleAdd()}
         />
         <div className="input-actions">
-          <button className="btn btn-primary" onClick={handleAdd}>
-            Save
+          <button 
+            className="btn btn-ghost btn-small" 
+            onClick={() => { setInput(''); clearDraft(thread.id) }}
+            title="Clear draft"
+          >
+            <Trash2 size={14} />
+          </button>
+          <button 
+            className="btn btn-ghost btn-small" 
+            onClick={() => handleCopy(input)}
+            disabled={!input}
+            title="Copy input"
+          >
+            <Copy size={14} />
+          </button>
+          <button className="btn btn-primary btn-small" onClick={handleAdd}>
+            <Save size={14} /> Save
           </button>
         </div>
       </div>

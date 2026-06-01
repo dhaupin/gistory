@@ -7,6 +7,10 @@ export { Loading } from './Loading'
 export { EmptyState } from './EmptyState'
 export { Badge, Button } from './Badge'
 
+// Hooks
+export { useDebounce, useHeartbeat } from './hooks'
+export { useAutoSave } from './AutoSaver'
+
 // Icons from Lucide - re-exported for app-wide usage
 export {
   MoreHorizontal,
