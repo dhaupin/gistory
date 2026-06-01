@@ -500,16 +500,6 @@ function App() {
       {/* Thread Content */}
       {currentThread ? (
         <>
-          {/* Edit Thread Name */}
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              className="thread-name-input"
-              style={{ fontWeight: 600, fontSize: '1rem' }}
-              value={currentThread.name}
-              onChange={e => renameThread(currentThreadId, e.target.value)}
-            />
-          </div>
-
           {/* Thread Projects */}
           {threadProjects.length > 0 && (
             <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
