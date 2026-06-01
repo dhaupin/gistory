@@ -1,80 +1,46 @@
-import { useState, useEffect } from 'react'
+// Gistory App - Main Entry Point
 
-interface Message {
-  id: string
-  content: string
-  createdAt: number
-}
+import { useState, useEffect, useCallback } from 'react'
+import { loadData, saveThreads, saveMessages, saveProjects, generateId } from './lib/store'
+import type { Thread, Project, Message, MessagesByThread } from './lib/models'
+import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
+import Header from './components/Header'
+import ThreadView from './components/ThreadView'
+import ProjectsBoard from './components/ProjectsBoard'
+import ProjectDetail from './components/ProjectDetail'
+import EmptyState from './components/EmptyState'
 
-interface Thread {
-  id: string
-  name: string
-  createdAt: number
-  projectIds: string[]
-}
-
-interface Project {
-  id: string
-  name: string
-}
-
-// Generate unique IDs
-const genId = () => Math.random().toString(36).slice(2, 11)
-
-// Storage keys
-const THREADS_KEY = 'pk_threads'
-const MESSAGES_KEY = 'pk_messages'
-const PROJECTS_KEY = 'pk_projects'
-const DRAFT_KEY = 'pk_draft'
-
-// Load draft
-const loadDraft = (): Record<string, string> => {
-  const stored = localStorage.getItem(DRAFT_KEY)
-  return stored ? JSON.parse(stored) : {}
-}
-
-// Load from localStorage
-const loadThreads = (): Thread[] => {
-  const stored = localStorage.getItem(THREADS_KEY)
-  return stored ? JSON.parse(stored) : []
-}
-
-const loadMessages = (): Record<string, Message[]> => {
-  const stored = localStorage.getItem(MESSAGES_KEY)
-  return stored ? JSON.parse(stored) : {}
-}
-
-const loadProjects = (): Project[] => {
-  const stored = localStorage.getItem(PROJECTS_KEY)
-  return stored ? JSON.parse(stored) : []
-}
-
-function App() {
-  // State
-  const [threads, setThreads] = useState<Thread[]>(loadThreads)
-  const [messages, setMessages] = useState<Record<string, Message[]>>(loadMessages)
-  const [projects, setProjects] = useState<Project[]>(loadProjects)
-  
-  const [currentThreadId, setCurrentThreadId] = useState<string>('')
-  const [inputText, setInputText] = useState('')
-  const [newThreadName, setNewThreadName] = useState('')
-  const [newProjectName, setNewProjectName] = useState('')
-  const [showNewThread, setShowNewThread] = useState(false)
-  const [showNewProject, setShowNewProject] = useState(false)
-  const [showThreadMenu, setShowThreadMenu] = useState(false)
-  const [showBurger, setShowBurger] = useState(false)
-  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
-  const [toast, setToast] = useState('')
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const stored = localStorage.getItem('pk_dark')
-    return stored ? JSON.parse(stored) : false
-  })
+export default function App() {
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [messages, setMessages] = useState<MessagesByThread>({})
+  const [projects, setProjects] = useState<Project[]>([])
+  const [currentThreadId, setCurrentThreadId] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [drafts, setDrafts] = useState<Record<string, string>>(loadDraft)
+  const [darkMode, setDarkMode] = useState(() => 
+    localStorage.getItem('gistory_dark') === 'true'
+  )
+  const [route, setRoute] = useState(parseRoute(window.location.hash))
 
-  // Current thread and messages
-  const currentThread = threads.find(t => t.id === currentThreadId)
-  const currentMessages = currentThreadId ? (messages[currentThreadId] || []) : []
+  // Load initial data
+  useEffect(() => {
+    const { threads: t, messages: m, projects: p } = loadData()
+    setThreads(t)
+    setMessages(m)
+    setProjects(p)
+  }, [])
+
+  // Dark mode
+  useEffect(() => {
+    document.body.classList.toggle('dark', darkMode)
+    localStorage.setItem('gistory_dark', String(darkMode))
+  }, [darkMode])
+
+  // Router
+  useEffect(() => {
+    initRouter()
+    const unsub = onRouteChange(setRoute)
+    return () => unsub()
+  }, [])
 
   // Auto-select first thread
   useEffect(() => {
@@ -83,489 +49,132 @@ function App() {
     }
   }, [threads, currentThreadId])
 
-  // Close menus when thread changes
+  // Persist
   useEffect(() => {
-    setShowThreadMenu(false)
-    setShowBurger(false)
-  }, [currentThreadId])
-
-  // Persist to localStorage
-  useEffect(() => {
-    localStorage.setItem(THREADS_KEY, JSON.stringify(threads))
+    if (threads.length > 0) saveThreads(threads)
   }, [threads])
-
   useEffect(() => {
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages))
+    if (Object.keys(messages).length > 0) saveMessages(messages)
   }, [messages])
-
   useEffect(() => {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects))
+    if (projects.length > 0) saveProjects(projects)
   }, [projects])
 
-  // Persist dark mode
-  useEffect(() => {
-    localStorage.setItem('pk_dark', JSON.stringify(darkMode))
-    document.body.classList.toggle('dark', darkMode)
-  }, [darkMode])
-
-  // Persist drafts
-  useEffect(() => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts))
-  }, [drafts])
-
-  // Restore draft when switching threads (after initial load)
-  useEffect(() => {
-    if (!currentThreadId) return
-    // Use setTimeout to ensure drafts state is initialized
-    const timer = setTimeout(() => {
-      setInputText(drafts[currentThreadId] || '')
-    }, 0)
-    return () => clearTimeout(timer)
-  }, [currentThreadId, drafts])
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + S = save message
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault()
-        if (inputText.trim()) saveMessage()
-      }
-      // Ctrl/Cmd + Shift + N = new thread
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
-        e.preventDefault()
-        setShowNewThread(t => !t)
-      }
-      // Ctrl/Cmd + Shift + P = new project
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
-        e.preventDefault()
-        setShowNewProject(p => !p)
-      }
-      // / = toggle dark mode (only when no input focused)
-      if (e.key === '/' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
-        e.preventDefault()
-        setDarkMode(prev => !prev)
-      }
-      // Escape = clear search / close modals
-      if (e.key === 'Escape') {
-        setSearchQuery('')
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [inputText])
-
-  // Helper: show toast
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2000)
-  }
-
-  // Create new thread
-  const createThread = () => {
-    if (!newThreadName.trim()) return
-    
-    const thread: Thread = {
-      id: genId(),
-      name: newThreadName.trim(),
-      createdAt: Date.now(),
-      projectIds: []
-    }
-    
+  // Actions
+  const createThread = useCallback((name: string, projectIds: string[] = []) => {
+    const thread: Thread = { id: generateId('t'), name, projectIds, createdAt: Date.now() }
     setThreads(prev => [thread, ...prev])
     setMessages(prev => ({ ...prev, [thread.id]: [] }))
     setCurrentThreadId(thread.id)
-    setNewThreadName('')
-    setShowNewThread(false)
-    showToast(`Created thread "${thread.name}"`)
-  }
+  }, [])
 
-  // Delete thread
-  const deleteThread = (threadId: string) => {
-    const thread = threads.find(t => t.id === threadId)
-    if (!confirm(`Delete thread "${thread?.name}"?`)) return
-    
-    setThreads(prev => prev.filter(t => t.id !== threadId))
-    setMessages(prev => {
-      const next = { ...prev }
-      delete next[threadId]
-      return next
-    })
-    
-    if (currentThreadId === threadId) {
-      const remaining = threads.filter(t => t.id !== threadId)
-      setCurrentThreadId(remaining[0]?.id || '')
-    }
-    showToast('Thread deleted')
-  }
-
-  // Rename thread
-  const renameThread = (threadId: string, newName: string) => {
-    if (!newName.trim()) return
+  const addThreadToProject = useCallback((threadId: string, projectId: string) => {
     setThreads(prev => prev.map(t => 
-      t.id === threadId ? { ...t, name: newName.trim() } : t
+      t.id === threadId ? { ...t, projectIds: [...t.projectIds, projectId] } : t
     ))
-  }
+  }, [])
 
-  // Save message
-  const saveMessage = () => {
-    if (!inputText.trim() || !currentThreadId) return
-    
-    const message: Message = {
-      id: genId(),
-      content: inputText.trim(),
-      createdAt: Date.now()
-    }
-    
+  const removeThreadFromProject = useCallback((threadId: string, projectId: string) => {
+    setThreads(prev => prev.map(t => 
+      t.id === threadId ? { ...t, projectIds: t.projectIds.filter(id => id !== projectId) } : t
+    ))
+  }, [])
+
+  const addMessage = useCallback((threadId: string, content: string) => {
+    const msg: Message = { id: generateId('m'), threadId, content, createdAt: Date.now() }
     setMessages(prev => ({
       ...prev,
-      [currentThreadId]: [message, ...(prev[currentThreadId] || [])]
+      [threadId]: [...(prev[threadId] || []), msg]
     }))
-    setInputText('')
-    setDrafts(prev => ({ ...prev, [currentThreadId]: '' }))
-    showToast('Saved!')
-  }
+  }, [])
 
-  // Copy text to clipboard
-  const copyText = async (text: string) => {
-    await navigator.clipboard.writeText(text)
-    showToast('Copied!')
-  }
-
-  // Delete message
-  const deleteMessage = (messageId: string) => {
-    if (!confirm('Delete this message?')) return
-    
+  const updateMessage = useCallback((msgId: string, content: string) => {
     setMessages(prev => ({
       ...prev,
-      [currentThreadId]: prev[currentThreadId].filter(m => m.id !== messageId)
+      [currentThreadId]: prev[currentThreadId]?.map(m =>
+        m.id === msgId ? { ...m, content } : m
+      ) || []
     }))
-    showToast('Deleted')
-  }
+  }, [currentThreadId])
 
-  // Update message
-  const updateMessage = (messageId: string, newContent: string) => {
+  const deleteMessage = useCallback((msgId: string) => {
     setMessages(prev => ({
       ...prev,
-      [currentThreadId]: prev[currentThreadId].map(m => 
-        m.id === messageId ? { ...m, content: newContent } : m
-      )
+      [currentThreadId]: prev[currentThreadId]?.filter(m => m.id !== msgId) || []
     }))
-    setEditingMessage(null)
-    showToast('Updated')
-  }
+  }, [currentThreadId])
 
-  // Add thread to project
-  const addThreadToProject = (projectId: string) => {
-    if (!currentThreadId) return
-    const thread = threads.find(t => t.id === currentThreadId)
-    if (thread?.projectIds.includes(projectId)) return
-    
-    setThreads(prev => prev.map(t =>
-      t.id === currentThreadId
-        ? { ...t, projectIds: [...t.projectIds, projectId] }
-        : t
-    ))
-    const proj = projects.find(p => p.id === projectId)
-    showToast(`Added to "${proj?.name}"`)
-  }
-
-  /* UNUSED - keeping logic inline if needed later
-  const _removeFromProject = (threadId: string, projectId: string) => {
-    setThreads(prev => prev.map(t =>
-      t.id === threadId
-        ? { ...t, projectIds: t.projectIds.filter(id => id !== projectId) }
-        : t
-    ))
-  }
-*/
-
-  // Remove thread from project
-  const removeThreadFromProject = (projectId: string) => {
-    if (!currentThreadId) return
-    setThreads(prev => prev.map(t =>
-      t.id === currentThreadId
-        ? { ...t, projectIds: t.projectIds.filter(id => id !== projectId) }
-        : t
-    ))
-    const proj = projects.find(p => p.id === projectId)
-    showToast(`Removed from "${proj?.name}"`)
-  }
-
-  // Create new project
-  const createProject = () => {
-    if (!newProjectName.trim()) return
-    
-    const project: Project = {
-      id: genId(),
-      name: newProjectName.trim()
-    }
-    
+  const createProject = useCallback((name: string) => {
+    const project: Project = { id: generateId('p'), name, createdAt: Date.now() }
     setProjects(prev => [...prev, project])
-    setNewProjectName('')
-    setShowNewProject(false)
-    showToast(`Created project "${project.name}"`)
-  }
+  }, [])
 
-  // Get threads in a project
-  const getThreadsInProject = (projectId: string) => {
-    return threads.filter(t => t.projectIds.includes(projectId))
-      .sort((a, b) => b.createdAt - a.createdAt)
+  const renameProject = useCallback((id: string, name: string) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p))
+  }, [])
+
+  const deleteProject = useCallback((id: string) => {
+    if (!confirm('Delete project?')) return
+    setProjects(prev => prev.filter(p => p.id !== id))
+    setThreads(prev => prev.map(t => ({
+      ...t,
+      projectIds: t.projectIds.filter(pid => pid !== id)
+    })))
+  }, [])
+
+  const currentThread = threads.find(t => t.id === currentThreadId)
+  const getThreadsInProject = (pid: string) => threads.filter(t => t.projectIds.includes(pid))
+
+  const renderPage = () => {
+    switch (route.path) {
+      case '/projects':
+        return (
+          <ProjectsBoard 
+            projects={projects} 
+            threads={threads}
+            onSelect={id => { setCurrentThreadId(id); navigate('/') }}
+            onProjectClick={id => navigate(`/project/${id}`)}
+            onCreate={createProject}
+          />
+        )
+      case '/project/:id':
+        return (
+          <ProjectDetail
+            project={projects.find(p => p.id === route.params.id)}
+            threads={getThreadsInProject(route.params.id)}
+            messages={messages}
+            onSelect={id => { setCurrentThreadId(id); navigate('/') }}
+            onDeleteProject={deleteProject}
+            onRenameProject={renameProject}
+          />
+        )
+      default:
+        return currentThread ? (
+          <ThreadView
+            thread={currentThread}
+            messages={messages[currentThreadId] || []}
+            searchQuery={searchQuery}
+            onAddMessage={content => addMessage(currentThreadId, content)}
+            onUpdateMessage={updateMessage}
+            onDeleteMessage={deleteMessage}
+          />
+        ) : (
+          <EmptyState onCreate={createThread} />
+        )
+    }
   }
 
   return (
-    <div className="container">
-      {/* Header: compact */}
-      <header className="header">
-        <h1 className="logo">Gistory</h1>
-        <div className="header-actions">
-          <input 
-            className="search-input"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
-          <button className="btn-icon" onClick={() => setDarkMode(prev => !prev)} title="Toggle dark (/)">
-            {darkMode ? '☀' : '🌙'}
-          </button>
-          <button 
-            className="btn-burger"
-            onClick={() => setShowBurger(v => !v)}
-          >☰</button>
-        </div>
-      </header>
-
-      {/* Burger Menu */}
-      {showBurger && (
-        <div className="sidebar">
-          <div className="sidebar-header">
-            <h2 className="sidebar-title">Menu</h2>
-            <button className="btn-icon" onClick={() => setShowBurger(false)}>✕</button>
-          </div>
-
-          {/* Quick create buttons */}
-          <div className="quick-create">
-            <button className="btn btn-primary" onClick={() => { setShowNewThread(true); setShowBurger(false); setTimeout(() => document.querySelector<HTMLInputElement>('.thread-name-input')?.focus(), 50) }}>
-              + Thread
-            </button>
-            <button className="btn btn-secondary" onClick={() => { setShowNewProject(true); setShowBurger(false) }}>
-              + Project
-            </button>
-          </div>
-          
-          {/* All Projects with nested threads (sorted alphabetically) */}
-          {[...projects].sort((a, b) => a.name.localeCompare(b.name)).map(project => {
-            const projThreads = getThreadsInProject(project.id)
-            return (
-              <div key={project.id} className="project-group">
-                <div className="project-label">{project.name} {projThreads.length > 0 && `(${projThreads.length})`}</div>
-                {projThreads.length > 0 && (
-                  <div className="thread-list">
-                    {projThreads.map(t => (
-                      <button 
-                        key={t.id} 
-                        className="thread-link"
-                        onClick={() => { setCurrentThreadId(t.id); setShowBurger(false) }}
-                      >
-                        {currentThreadId === t.id ? '● ' : '○ '}{t.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-
-          {/* Not Assigned threads */}
-          {threads.some(t => t.projectIds.length === 0) && (
-            <div className="project-group">
-              <div className="project-label project-label-dim">Not Assigned</div>
-              <div className="thread-list">
-                {threads.filter(t => t.projectIds.length === 0)
-                  .sort((a, b) => b.createdAt - a.createdAt)
-                  .map(t => (
-                    <button 
-                      key={t.id} 
-                      className="thread-link"
-                      onClick={() => { setCurrentThreadId(t.id); setShowBurger(false) }}
-                    >
-                      {currentThreadId === t.id ? '● ' : '○ '}{t.name}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* New Project Form */}
-      {(showNewThread || showNewProject) && (
-        <div className="input-card" style={{ marginBottom: '0.5rem', padding: '0.75rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {showNewThread && (
-              <>
-                <input className="thread-name-input" placeholder="Thread name..."
-                  value={newThreadName} onChange={e => setNewThreadName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && createThread()} autoFocus />
-                <button className="btn btn-primary btn-small" onClick={createThread}>Create</button>
-              </>
-            )}
-            {showNewProject && (
-              <>
-                <input className="thread-name-input" placeholder="Project name..."
-                  value={newProjectName} onChange={e => setNewProjectName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && createProject()} autoFocus={!showNewThread} />
-                <button className="btn btn-primary btn-small" onClick={createProject}>Create</button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Current Thread Title */}
-      {currentThread && (
-        <div className="thread-header">
-          <h3 className="thread-title">{currentThread.name}</h3>
-          <button 
-            className="btn-gear" 
-            onClick={() => setShowThreadMenu(v => !v)}
-          >⚙{showThreadMenu ? ' ▲' : ' ▼'}
-          </button>
-          {showThreadMenu && (
-            <div className="dropdown">
-              <button className="dropdown-item" onClick={() => { 
-                const name = prompt('Rename thread:', currentThread.name)
-                if (name) renameThread(currentThreadId, name)
-                setShowThreadMenu(false)
-              }}>Rename</button>
-              {projects.length > 0 && (
-                <>
-                  <div className="dropdown-divider" />
-                  {projects.map(p => (
-                    <button className="dropdown-item" key={p.id} onClick={() => {
-                      if (currentThread.projectIds.includes(p.id)) {
-                        removeThreadFromProject(p.id)
-                      } else {
-                        addThreadToProject(p.id)
-                      }
-                      setShowThreadMenu(false)
-                    }}>
-                      {currentThread.projectIds.includes(p.id) ? '✓ ' : '○ '} {p.name}
-                    </button>
-                  ))}
-                </>
-              )}
-              <div className="dropdown-divider" />
-              <button className="dropdown-item dropdown-item-danger" onClick={() => { deleteThread(currentThreadId); setShowThreadMenu(false) }}>Delete</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Thread Content */}
-      {currentThread ? (
-        <>
-          {/* Input Card */}
-          <div className="input-card">
-            <textarea
-              placeholder="Write your prompt here..."
-              value={inputText}
-              onChange={e => {
-                setInputText(e.target.value)
-                if (currentThreadId) {
-                  setDrafts(prev => ({ ...prev, [currentThreadId]: e.target.value }))
-                }
-              }}
-            />
-            <div className="input-actions">
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setInputText('')
-                  if (currentThreadId) setDrafts(prev => ({ ...prev, [currentThreadId]: '' }))
-                }}
-                disabled={!inputText.trim()}
-              >
-                Clear
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => copyText(inputText)}
-                disabled={!inputText.trim()}
-              >
-                Copy
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={saveMessage}
-                disabled={!inputText.trim()}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="messages-header">
-            <h2>Saved ({currentMessages.length})</h2>
-          </div>
-          
-          {currentMessages.length > 0 ? (
-            <div className="messages-list">
-              {currentMessages
-                .filter(m => searchQuery ? m.content.toLowerCase().includes(searchQuery.toLowerCase()) : true)
-                .map(message => (
-                <div key={message.id} className="message-card">
-                  {editingMessage?.id === message.id ? (
-                    <div>
-                      <textarea 
-                        defaultValue={message.content}
-                        id={`edit-${message.id}`}
-                        className="input-area"
-                      />
-                      <div className="message-actions">
-                        <button className="btn btn-primary btn-small" onClick={() => {
-                          const el = document.getElementById(`edit-${message.id}`) as HTMLTextAreaElement
-                          updateMessage(message.id, el.value)
-                        }}>Save</button>
-                        <button className="btn btn-secondary btn-small" onClick={() => setEditingMessage(null)}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <p>{message.content}</p>
-                      <div className="message-actions">
-                        <button className="btn btn-secondary btn-small" onClick={() => setEditingMessage(message)}>Edit</button>
-                        <button className="btn btn-secondary btn-small" onClick={() => copyText(message.content)}>Copy</button>
-                        <button className="btn btn-danger btn-small" onClick={() => deleteMessage(message.id)}>Delete</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              No saved messages yet. Write something above to save it!
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="empty-state">
-          <p>No thread selected.</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowNewThread(true)}
-          >
-            Create your first thread
-          </button>
-        </div>
-      )}
-
-      {/* Toast */}
-      {toast && <div className="toast">{toast}</div>}
+    <div className="app">
+      <Header
+        title="Gistory"
+        darkMode={darkMode}
+        onToggleDark={() => setDarkMode(d => !d)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onProjectsClick={() => navigate('/projects')}
+      />
+      {renderPage()}
     </div>
   )
 }
-
-export default App

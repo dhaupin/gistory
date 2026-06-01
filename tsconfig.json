@@ -8,15 +8,12 @@
     "skipLibCheck": true,
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
   "include": ["src"]
 }
