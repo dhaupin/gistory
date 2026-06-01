@@ -314,16 +314,9 @@ function App() {
 
   return (
     <div className="container">
-      {/* Header: compact with both buttons */}
+      {/* Header: compact */}
       <header className="header" style={{ marginBottom: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button 
-            className="btn btn-secondary btn-small" 
-            style={{ padding: '0.25rem 0.5rem', fontSize: '1.25rem', lineHeight: 1 }}
-            onClick={() => setShowBurger(v => !v)}
-          >☰</button>
-          <h1 style={{ margin: 0 }}>Gistory</h1>
-        </div>
+        <h1 style={{ margin: 0 }}>Gistory</h1>
         <div className="header-actions">
           <input 
             className="thread-name-input" 
@@ -335,26 +328,35 @@ function App() {
           <button className="btn btn-secondary btn-small" onClick={() => setDarkMode(prev => !prev)} title="Toggle dark (/)">
             {darkMode ? '☀' : '🌙'}
           </button>
-          <button className="btn btn-secondary" onClick={() => setShowNewThread(t => !t)}>
-            {showNewThread ? '✕' : '+ Thread'}
-          </button>
-          <button className="btn btn-secondary" onClick={() => setShowNewProject(p => !p)}>
-            {showNewProject ? '✕' : '+ Project'}
-          </button>
+          <button 
+            className="btn btn-secondary btn-small" 
+            style={{ padding: '0.25rem 0.5rem', fontSize: '1.25rem', lineHeight: 1 }}
+            onClick={() => setShowBurger(v => !v)}
+          >☰</button>
         </div>
       </header>
 
       {/* Burger Menu */}
       {showBurger && (
         <div className="burger-menu" style={{ 
-          position: 'fixed', top: 0, left: 0, bottom: 0, width: '280px', maxWidth: '85%',
-          background: 'var(--surface)', borderRight: '1px solid var(--border)',
+          position: 'fixed', top: 0, right: 0, bottom: 0, width: '280px', maxWidth: '85%',
+          background: 'var(--surface)', borderLeft: '1px solid var(--border)',
           zIndex: 100, overflowY: 'auto', padding: '1rem',
           display: 'flex', flexDirection: 'column', gap: '1rem'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0 }}>Gistory</h2>
+            <h2 style={{ margin: 0 }}>Menu</h2>
             <button className="btn btn-secondary btn-small" onClick={() => setShowBurger(false)}>✕</button>
+          </div>
+
+          {/* Quick create buttons */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-primary btn-small" style={{ flex: 1 }} onClick={() => { setShowNewThread(true); setShowBurger(false); setTimeout(() => document.querySelector<HTMLInputElement>('.thread-name-input')?.focus(), 50) }}>
+              + Thread
+            </button>
+            <button className="btn btn-secondary btn-small" style={{ flex: 1 }} onClick={() => { setShowNewProject(true); setShowBurger(false) }}>
+              + Project
+            </button>
           </div>
           
           {/* Projects with nested threads */}
