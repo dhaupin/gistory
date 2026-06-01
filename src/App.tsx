@@ -62,6 +62,8 @@ function App() {
   const [showNewThread, setShowNewThread] = useState(false)
   const [showNewProject, setShowNewProject] = useState(false)
   const [showThreadMenu, setShowThreadMenu] = useState(false)
+  const [showBurger, setShowBurger] = useState(false)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
   const [toast, setToast] = useState('')
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const stored = localStorage.getItem('pk_dark')
@@ -235,6 +237,18 @@ function App() {
     showToast('Deleted')
   }
 
+  // Update message
+  const updateMessage = (messageId: string, newContent: string) => {
+    setMessages(prev => ({
+      ...prev,
+      [currentThreadId]: prev[currentThreadId].map(m => 
+        m.id === messageId ? { ...m, content: newContent } : m
+      )
+    }))
+    setEditingMessage(null)
+    showToast('Updated')
+  }
+
   // Add thread to project
   const addThreadToProject = (projectId: string) => {
     if (!currentThreadId) return
@@ -302,7 +316,14 @@ function App() {
     <div className="container">
       {/* Header: compact with both buttons */}
       <header className="header" style={{ marginBottom: '0.5rem' }}>
-        <h1 style={{ margin: 0 }}>Gistory</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-secondary btn-small" 
+            style={{ padding: '0.25rem 0.5rem', fontSize: '1.25rem', lineHeight: 1 }}
+            onClick={() => setShowBurger(v => !v)}
+          >☰</button>
+          <h1 style={{ margin: 0 }}>Gistory</h1>
+        </div>
         <div className="header-actions">
           <input 
             className="thread-name-input" 
@@ -322,6 +343,71 @@ function App() {
           </button>
         </div>
       </header>
+
+      {/* Burger Menu */}
+      {showBurger && (
+        <div className="burger-menu" style={{ 
+          position: 'fixed', top: 0, left: 0, bottom: 0, width: '280px', maxWidth: '85%',
+          background: 'var(--surface)', borderRight: '1px solid var(--border)',
+          zIndex: 100, overflowY: 'auto', padding: '1rem',
+          display: 'flex', flexDirection: 'column', gap: '1rem'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ margin: 0 }}>Gistory</h2>
+            <button className="btn btn-secondary btn-small" onClick={() => setShowBurger(false)}>✕</button>
+          </div>
+          
+          {/* Projects with nested threads */}
+          {projects.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {projects.map(project => {
+                const projThreads = getThreadsInProject(project.id)
+                if (projThreads.length === 0) return null
+                return (
+                  <div key={project.id}>
+                    <div className="project-badge" style={{ marginBottom: '0.25rem' }}>{project.name}</div>
+                    <div style={{ paddingLeft: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      {projThreads.map(t => (
+                        <button 
+                          key={t.id} 
+                          className="btn btn-secondary btn-small" 
+                          style={{ textAlign: 'left', justifyContent: 'flex-start' }}
+                          onClick={() => { setCurrentThreadId(t.id); setShowBurger(false) }}
+                        >
+                          {currentThreadId === t.id ? '● ' : '○ '}{t.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Not assigned threads */}
+          {(() => {
+            const unassigned = threads.filter(t => t.projectIds.length === 0)
+            if (unassigned.length === 0) return null
+            return (
+              <div>
+                <div className="project-badge" style={{ marginBottom: '0.25rem', background: 'var(--text-dim)' }}>Not Assigned</div>
+                <div style={{ paddingLeft: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  {unassigned.sort((a,b) => b.createdAt - a.createdAt).map(t => (
+                    <button 
+                      key={t.id} 
+                      className="btn btn-secondary btn-small" 
+                      style={{ textAlign: 'left', justifyContent: 'flex-start' }}
+                      onClick={() => { setCurrentThreadId(t.id); setShowBurger(false) }}
+                    >
+                      {currentThreadId === t.id ? '● ' : '○ '}{t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
 
       {/* New Project Form */}
       {(showNewThread || showNewProject) && (
@@ -489,21 +575,31 @@ function App() {
                 .filter(m => searchQuery ? m.content.toLowerCase().includes(searchQuery.toLowerCase()) : true)
                 .map(message => (
                 <div key={message.id} className="message-card">
-                  <p>{message.content}</p>
-                  <div className="message-actions">
-                    <button
-                      className="btn btn-secondary btn-small"
-                      onClick={() => copyText(message.content)}
-                    >
-                      Copy
-                    </button>
-                    <button
-                      className="btn btn-danger btn-small"
-                      onClick={() => deleteMessage(message.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {editingMessage?.id === message.id ? (
+                    <div>
+                      <textarea 
+                        defaultValue={message.content}
+                        id={`edit-${message.id}`}
+                        style={{ width: '100%', minHeight: '60px', marginBottom: '0.5rem' }}
+                      />
+                      <div className="message-actions">
+                        <button className="btn btn-primary btn-small" onClick={() => {
+                          const el = document.getElementById(`edit-${message.id}`) as HTMLTextAreaElement
+                          updateMessage(message.id, el.value)
+                        }}>Save</button>
+                        <button className="btn btn-secondary btn-small" onClick={() => setEditingMessage(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p>{message.content}</p>
+                      <div className="message-actions">
+                        <button className="btn btn-secondary btn-small" onClick={() => setEditingMessage(message)}>Edit</button>
+                        <button className="btn btn-secondary btn-small" onClick={() => copyText(message.content)}>Copy</button>
+                        <button className="btn btn-danger btn-small" onClick={() => deleteMessage(message.id)}>Delete</button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
