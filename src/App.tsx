@@ -390,6 +390,13 @@ function App() {
             <div className="input-actions">
               <button
                 className="btn btn-secondary"
+                onClick={() => setInputText('')}
+                disabled={!inputText.trim()}
+              >
+                Clear
+              </button>
+              <button
+                className="btn btn-secondary"
                 onClick={() => copyText(inputText)}
                 disabled={!inputText.trim()}
               >
