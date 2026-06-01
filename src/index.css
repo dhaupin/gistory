@@ -661,3 +661,46 @@ body {
   font-size: 0.75rem;
   color: var(--text-dim);
 }
+
+.footer {
+  margin-top: auto;
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.footer-brand {
+  font-weight: 600;
+}
+
+.footer-divider {
+  opacity: 0.5;
+}
+
+.footer-link {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { loadData, saveThreads, saveMessages, saveProjects, generateId } from './lib/store'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
+import Layout from './components/Layout'
 import Header from './components/Header'
 import BurgerMenu from './components/BurgerMenu'
 import ThreadView from './components/ThreadView'
@@ -169,7 +170,7 @@ export default function App() {
   return (
     <div className="app">
       {showBurger && <BurgerMenu threads={threads} projects={projects} currentThreadId={currentThreadId} onSelect={id => { setCurrentThreadId(id); navigate('/'); setShowBurger(false) }} onClose={() => setShowBurger(false)} createThread={createThread} createProject={createProject} />}
-      <Header
+      <Layout
         title="Gistory"
         darkMode={darkMode}
         onToggleDark={() => setDarkMode(d => !d)}
@@ -177,8 +178,9 @@ export default function App() {
         onSearchChange={setSearchQuery}
         onProjectsClick={() => navigate('/projects')}
         onMenuClick={!route.path.startsWith('/project') && !route.path.startsWith('/projects') ? () => setShowBurger(v => !v) : undefined}
-      />
-      {renderPage()}
+      >
+        {renderPage()}
+      </Layout>
     </div>
   )
 }
