@@ -167,6 +167,9 @@ export default function App() {
     }
   }
 
+  const isOnProjects = route.path.startsWith('/projects') || route.path.startsWith('/project')
+  const showBurgerBtn = !isOnProjects
+
   return (
     <div className="app">
       {showBurger && <BurgerMenu threads={threads} projects={projects} currentThreadId={currentThreadId} onSelect={id => { setCurrentThreadId(id); navigate('/'); setShowBurger(false) }} onClose={() => setShowBurger(false)} createThread={createThread} createProject={createProject} />}
@@ -177,7 +180,7 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onProjectsClick={() => navigate('/projects')}
-        onMenuClick={currentThreadId ? () => setShowBurger(v => !v) : undefined}
+        onMenuClick={showBurgerBtn ? () => setShowBurger(v => !v) : undefined}
       >
         {renderPage()}
       </Layout>
