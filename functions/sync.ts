@@ -1,6 +1,9 @@
 // Gistory Sync - CF Pages Function
 // Blind encrypted storage - server never sees plaintext or keys
-// Falls back to in-memory in dev, stores to R2/KV in prod
+
+interface PagesFunction {
+  (context: { request: Request; env: Record<string, unknown> }): Promise<Response>
+}
 
 interface Env {
   SYNC_KV?: KVNamespace
@@ -33,6 +36,13 @@ export const onRequest: PagesFunction = async (context) => {
   }
   
   try {
+    const debug = {
+      url: url.href,
+      path: path,
+      method: request.method,
+      envKeys: Object.keys(env || {}),
+    }
+    
     if (path === '/sync/handshake' && request.method === 'POST') {
       return handleHandshake(request, storage, corsHeaders)
     }
@@ -43,12 +53,19 @@ export const onRequest: PagesFunction = async (context) => {
       return handlePull(request, storage, corsHeaders)
     }
     
-    return new Response(JSON.stringify({ error: 'Not found' }), {
+    // Debug route - return info
+    if (path === '/sync/debug') {
+      return new Response(JSON.stringify(debug), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    
+    return new Response(JSON.stringify({ error: 'Not found', debug }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: String(err), stack: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
