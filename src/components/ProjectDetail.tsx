@@ -1,5 +1,6 @@
 // ProjectDetail - single project view
 import { useState } from 'react'
+import { Folder, MoreHorizontal } from 'lucide-react'
 import type { Project, Thread, MessagesByThread } from '../lib/models'
 
 interface ProjectDetailProps {
@@ -57,9 +58,9 @@ export default function ProjectDetail({
           </div>
         ) : (
           <div className="page-title-row">
-            <h2>📁 {project.name}</h2>
+            <h2><Folder size={20} /> {project.name}</h2>
             <button className="btn-gear" onClick={() => setShowMenu(!showMenu)}>
-              ⋮
+              <MoreHorizontal size={16} />
             </button>
           </div>
         )}

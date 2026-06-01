@@ -1,5 +1,6 @@
 // BurgerMenu - sidebar with threads/projects
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
 
 interface BurgerMenuProps {
@@ -49,7 +50,7 @@ export default function BurgerMenu({
       <div className="sidebar" onClick={e => e.stopPropagation()}>
         <div className="sidebar-header">
           <h3>Menu</h3>
-          <button className="btn-icon" onClick={onClose}>✕</button>
+          <button className="btn-icon" onClick={onClose}><X size={16} /></button>
         </div>
 
         {/* Quick create */}

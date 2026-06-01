@@ -1,4 +1,5 @@
 // ActionMenu - dropdown menu component
+import { MoreHorizontal } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
 export interface ActionItem {
@@ -36,7 +37,7 @@ export default function ActionMenu({ items, trigger }: ActionMenuProps) {
         onClick={() => setOpen(!open)}
         aria-label="Actions"
       >
-        {trigger || '⋮'}
+        {trigger || <MoreHorizontal size={16} />}
       </button>
       
       {open && (

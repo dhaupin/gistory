@@ -1,6 +1,6 @@
 // ProjectsBoard - grid of project cards
-
 import { useState } from 'react'
+import { Folder, Edit, Trash2, MoreHorizontal } from 'lucide-react'
 import type { Project, Thread } from '../lib/models'
 
 interface ProjectsBoardProps {
@@ -78,7 +78,7 @@ export default function ProjectsBoard({
               onClick={() => onProjectClick(project.id)}
             >
               <div className="project-card-header">
-                <span className="project-icon">📁</span>
+                <Folder size={24} />
                 <span className="project-name">{project.name}</span>
               </div>
               <div className="project-stats">
