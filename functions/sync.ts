@@ -36,32 +36,34 @@ export const onRequest: PagesFunction = async (context) => {
   }
   
   try {
-    const debug = {
-      url: url.href,
-      path: path,
-      method: request.method,
-      envKeys: Object.keys(env || {}),
+    // Normalize path 
+    let pathClean = path.replace(/^\/+/, '').replace(/\/+$/, '')
+    
+    // Handle OPTIONS - return OK for any route we'd handle
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders })
     }
     
-    if (path === '/sync/handshake' && request.method === 'POST') {
+    // Debug info
+    const debug = { path, pathClean, method: request.method }
+    
+    // POST to any /sync* route - check path
+    if (pathClean.startsWith('sync') && request.method === 'POST') {
+      // Has "push" in path - push handler
+      if (pathClean.includes('push')) {
+        return handlePush(request, storage, corsHeaders)
+      }
+      // Default - handshake
       return handleHandshake(request, storage, corsHeaders)
     }
-    if (path === '/sync/push' && request.method === 'POST') {
-      return handlePush(request, storage, corsHeaders)
-    }
-    if (path === '/sync/pull' && request.method === 'GET') {
+    
+    // GET to /sync*
+    if (pathClean.startsWith('sync') && request.method === 'GET') {
       return handlePull(request, storage, corsHeaders)
     }
     
-    // Debug route - return info
-    if (path === '/sync/debug') {
-      return new Response(JSON.stringify(debug), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-    
-    return new Response(JSON.stringify({ error: 'Not found', debug }), {
-      status: 404,
+    // Debug: show what we got
+    return new Response(JSON.stringify({ note: 'fallback-no-match', debug }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
