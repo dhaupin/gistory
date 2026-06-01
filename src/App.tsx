@@ -55,6 +55,11 @@ function App() {
   const [showNewThread, setShowNewThread] = useState(false)
   const [showNewProject, setShowNewProject] = useState(false)
   const [toast, setToast] = useState('')
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const stored = localStorage.getItem('pk_dark')
+    return stored ? JSON.parse(stored) : false
+  })
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Current thread and messages
   const currentThread = threads.find(t => t.id === currentThreadId)
@@ -79,6 +84,44 @@ function App() {
   useEffect(() => {
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects))
   }, [projects])
+
+  // Persist dark mode
+  useEffect(() => {
+    localStorage.setItem('pk_dark', JSON.stringify(darkMode))
+    document.body.classList.toggle('dark', darkMode)
+  }, [darkMode])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + S = save message
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        if (inputText.trim()) saveMessage()
+      }
+      // Ctrl/Cmd + Shift + N = new thread
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
+        e.preventDefault()
+        setShowNewThread(t => !t)
+      }
+      // Ctrl/Cmd + Shift + P = new project
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+        e.preventDefault()
+        setShowNewProject(p => !p)
+      }
+      // / = toggle dark mode (only when no input focused)
+      if (e.key === '/' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
+        e.preventDefault()
+        setDarkMode(prev => !prev)
+      }
+      // Escape = clear search / close modals
+      if (e.key === 'Escape') {
+        setSearchQuery('')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [inputText])
 
   // Helper: show toast
   const showToast = (msg: string) => {
@@ -224,11 +267,21 @@ function App() {
       <header className="header" style={{ marginBottom: '0.5rem' }}>
         <h1 style={{ margin: 0 }}>Gistory</h1>
         <div className="header-actions">
+          <input 
+            className="thread-name-input" 
+            style={{ width: '100px' }}
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          <button className="btn btn-secondary btn-small" onClick={() => setDarkMode(prev => !prev)} title="Toggle dark (/)">
+            {darkMode ? '☀' : '🌙'}
+          </button>
           <button className="btn btn-secondary" onClick={() => setShowNewThread(t => !t)}>
-            {showNewThread ? 'Cancel' : '+ Thread'}
+            {showNewThread ? '✕' : '+ Thread'}
           </button>
           <button className="btn btn-secondary" onClick={() => setShowNewProject(p => !p)}>
-            {showNewProject ? 'Cancel' : '+ Project'}
+            {showNewProject ? '✕' : '+ Project'}
           </button>
         </div>
       </header>
@@ -359,7 +412,9 @@ function App() {
           
           {currentMessages.length > 0 ? (
             <div className="messages-list">
-              {currentMessages.map(message => (
+              {currentMessages
+                .filter(m => searchQuery ? m.content.toLowerCase().includes(searchQuery.toLowerCase()) : true)
+                .map(message => (
                 <div key={message.id} className="message-card">
                   <p>{message.content}</p>
                   <div className="message-actions">
