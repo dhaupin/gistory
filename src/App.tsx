@@ -129,42 +129,45 @@ export default function App() {
   const getThreadsInProject = (pid: string) => threads.filter(t => t.projectIds.includes(pid))
 
   const renderPage = () => {
-    switch (route.path) {
-      case '/projects':
-        return (
-          <ProjectsBoard 
-            projects={projects} 
-            threads={threads}
-            onSelect={id => { setCurrentThreadId(id); navigate('/') }}
-            onProjectClick={id => navigate(`/project/${id}`)}
-            onCreate={createProject}
-          />
-        )
-      case '/project/:id':
-        return (
-          <ProjectDetail
-            project={projects.find(p => p.id === route.params.id)}
-            threads={getThreadsInProject(route.params.id)}
-            messages={messages}
-            onSelect={id => { setCurrentThreadId(id); navigate('/') }}
-            onDeleteProject={deleteProject}
-            onRenameProject={renameProject}
-          />
-        )
-      default:
-        return currentThread ? (
-          <ThreadView
-            thread={currentThread}
-            messages={messages[currentThreadId] || []}
-            searchQuery={searchQuery}
-            onAddMessage={content => addMessage(currentThreadId, content)}
-            onUpdateMessage={updateMessage}
-            onDeleteMessage={deleteMessage}
-          />
-        ) : (
-          <EmptyState onCreate={createThread} />
-        )
+    const path = route.path
+    
+    if (path === '/projects') {
+      return (
+        <ProjectsBoard 
+          projects={projects} 
+          threads={threads}
+          onSelect={id => { setCurrentThreadId(id); navigate('/') }}
+          onProjectClick={id => navigate(`/project/${id}`)}
+          onCreate={createProject}
+        />
+      )
     }
+    
+    if (path.startsWith('/project/')) {
+      return (
+        <ProjectDetail
+          project={projects.find(p => p.id === route.params.id)}
+          threads={getThreadsInProject(route.params.id)}
+          messages={messages}
+          onSelect={id => { setCurrentThreadId(id); navigate('/') }}
+          onDeleteProject={deleteProject}
+          onRenameProject={renameProject}
+        />
+      )
+    }
+    
+    return currentThread ? (
+      <ThreadView
+        thread={currentThread}
+        messages={messages[currentThreadId] || []}
+        searchQuery={searchQuery}
+        onAddMessage={content => addMessage(currentThreadId, content)}
+        onUpdateMessage={updateMessage}
+        onDeleteMessage={deleteMessage}
+      />
+    ) : (
+      <EmptyState onCreate={createThread} />
+    )
   }
 
   const showBurgerBtn = true
