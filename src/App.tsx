@@ -25,6 +25,13 @@ const genId = () => Math.random().toString(36).slice(2, 11)
 const THREADS_KEY = 'pk_threads'
 const MESSAGES_KEY = 'pk_messages'
 const PROJECTS_KEY = 'pk_projects'
+const DRAFT_KEY = 'pk_draft'
+
+// Load draft
+const loadDraft = (): Record<string, string> => {
+  const stored = localStorage.getItem(DRAFT_KEY)
+  return stored ? JSON.parse(stored) : {}
+}
 
 // Load from localStorage
 const loadThreads = (): Thread[] => {
@@ -60,6 +67,7 @@ function App() {
     return stored ? JSON.parse(stored) : false
   })
   const [searchQuery, setSearchQuery] = useState('')
+  const [drafts, setDrafts] = useState<Record<string, string>>(loadDraft)
 
   // Current thread and messages
   const currentThread = threads.find(t => t.id === currentThreadId)
@@ -90,6 +98,21 @@ function App() {
     localStorage.setItem('pk_dark', JSON.stringify(darkMode))
     document.body.classList.toggle('dark', darkMode)
   }, [darkMode])
+
+  // Persist drafts
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts))
+  }, [drafts])
+
+  // Restore draft when switching threads (after initial load)
+  useEffect(() => {
+    if (!currentThreadId) return
+    // Use setTimeout to ensure drafts state is initialized
+    const timer = setTimeout(() => {
+      setInputText(drafts[currentThreadId] || '')
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [currentThreadId, drafts])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -190,6 +213,7 @@ function App() {
       [currentThreadId]: [message, ...(prev[currentThreadId] || [])]
     }))
     setInputText('')
+    setDrafts(prev => ({ ...prev, [currentThreadId]: '' }))
     showToast('Saved!')
   }
 
@@ -385,12 +409,20 @@ function App() {
             <textarea
               placeholder="Write your prompt here..."
               value={inputText}
-              onChange={e => setInputText(e.target.value)}
+              onChange={e => {
+                setInputText(e.target.value)
+                if (currentThreadId) {
+                  setDrafts(prev => ({ ...prev, [currentThreadId]: e.target.value }))
+                }
+              }}
             />
             <div className="input-actions">
               <button
                 className="btn btn-secondary"
-                onClick={() => setInputText('')}
+                onClick={() => {
+                  setInputText('')
+                  if (currentThreadId) setDrafts(prev => ({ ...prev, [currentThreadId]: '' }))
+                }}
                 disabled={!inputText.trim()}
               >
                 Clear
