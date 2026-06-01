@@ -320,12 +320,33 @@ function App() {
         </button>
 
         {currentThread && (
-          <button
-            className="btn btn-danger btn-small"
-            onClick={() => deleteThread(currentThreadId)}
-          >
-            Delete
-          </button>
+          <>
+            <button
+              className="btn btn-danger btn-small"
+              onClick={() => deleteThread(currentThreadId)}
+            >
+              Delete
+            </button>
+            {/* Add to project dropdown */}
+            {projects.length > 0 && (
+              <select
+                className="thread-selector select"
+                style={{ marginLeft: '0.5rem' }}
+                value=""
+                onChange={e => {
+                  if (e.target.value) addThreadToProject(e.target.value)
+                  e.target.value = ''
+                }}
+              >
+                <option value="">+ Add to project</option>
+                {projects
+                  .filter(p => !currentThread.projectIds.includes(p.id))
+                  .map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+              </select>
+            )}
+          </>
         )}
       </div>
 
