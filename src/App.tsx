@@ -5,6 +5,7 @@ import { loadData, saveThreads, saveMessages, saveProjects, generateId } from '.
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
 import Header from './components/Header'
+import BurgerMenu from './components/BurgerMenu'
 import ThreadView from './components/ThreadView'
 import ProjectsBoard from './components/ProjectsBoard'
 import ProjectDetail from './components/ProjectDetail'
@@ -20,6 +21,7 @@ export default function App() {
     localStorage.getItem('gistory_dark') === 'true'
   )
   const [route, setRoute] = useState(parseRoute(window.location.hash))
+  const [showBurger, setShowBurger] = useState(false)
 
   // Load initial data
   useEffect(() => {
@@ -166,6 +168,7 @@ export default function App() {
 
   return (
     <div className="app">
+      {showBurger && <BurgerMenu threads={threads} projects={projects} currentThreadId={currentThreadId} onSelect={id => { setCurrentThreadId(id); navigate('/'); setShowBurger(false) }} onClose={() => setShowBurger(false)} createThread={createThread} createProject={createProject} />}
       <Header
         title="Gistory"
         darkMode={darkMode}
@@ -173,6 +176,7 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onProjectsClick={() => navigate('/projects')}
+        onMenuClick={!route.path.startsWith('/project') && !route.path.startsWith('/projects') ? () => setShowBurger(v => !v) : undefined}
       />
       {renderPage()}
     </div>

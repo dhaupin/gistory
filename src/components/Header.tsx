@@ -6,6 +6,7 @@ interface HeaderProps {
   searchQuery: string
   onSearchChange: (q: string) => void
   onProjectsClick: () => void
+  onMenuClick?: () => void
 }
 
 export default function Header({
@@ -14,14 +15,15 @@ export default function Header({
   onToggleDark,
   searchQuery,
   onSearchChange,
-  onProjectsClick
+  onProjectsClick,
+  onMenuClick
 }: HeaderProps) {
   return (
     <header className="header">
       <h1 className="logo">{title}</h1>
       <div className="header-actions">
         <button className="btn-project" onClick={onProjectsClick} title="Projects">
-          📁
+          📁 Projects
         </button>
         <input
           className="search-input"
@@ -32,6 +34,9 @@ export default function Header({
         <button className="btn-icon" onClick={onToggleDark} title="Toggle dark">
           {darkMode ? '☀' : '🌙'}
         </button>
+        {onMenuClick && (
+          <button className="btn-burger" onClick={onMenuClick}>☰</button>
+        )}
       </div>
     </header>
   )
