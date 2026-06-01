@@ -61,6 +61,7 @@ function App() {
   const [newProjectName, setNewProjectName] = useState('')
   const [showNewThread, setShowNewThread] = useState(false)
   const [showNewProject, setShowNewProject] = useState(false)
+  const [showThreadMenu, setShowThreadMenu] = useState(false)
   const [toast, setToast] = useState('')
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const stored = localStorage.getItem('pk_dark')
@@ -259,6 +260,18 @@ function App() {
   }
 */
 
+  // Remove thread from project
+  const removeThreadFromProject = (projectId: string) => {
+    if (!currentThreadId) return
+    setThreads(prev => prev.map(t =>
+      t.id === currentThreadId
+        ? { ...t, projectIds: t.projectIds.filter(id => id !== projectId) }
+        : t
+    ))
+    const proj = projects.find(p => p.id === projectId)
+    showToast(`Removed from "${proj?.name}"`)
+  }
+
   // Create new project
   const createProject = () => {
     if (!newProjectName.trim()) return
@@ -356,7 +369,7 @@ function App() {
       )}
 
       {/* Thread selector: compact */}
-      <div className="thread-selector" style={{ marginBottom: '0.75rem' }}>
+      <div className="thread-selector" style={{ marginBottom: '0.75rem', position: 'relative' }}>
         <select style={{ flex: '1 1 120px' }} value={currentThreadId} onChange={e => setCurrentThreadId(e.target.value)}>
           <option value="">Select thread...</option>
           {threads.sort((a, b) => b.createdAt - a.createdAt).map(thread => (
@@ -374,8 +387,40 @@ function App() {
             ))}
           </select>
         )}
+        {showThreadMenu && currentThread && (
+          <div className="dropdown-menu" style={{ position: 'absolute', zIndex: 10 }}>
+            <button onClick={() => { 
+              const name = prompt('Rename thread:', currentThread.name)
+              if (name) renameThread(currentThreadId, name)
+              setShowThreadMenu(false)
+            }}>Rename</button>
+            {projects.length > 0 && (
+              <>
+                <div className="dropdown-divider" />
+                {projects.map(p => (
+                  <button key={p.id} onClick={() => {
+                    if (currentThread.projectIds.includes(p.id)) {
+                      removeThreadFromProject(p.id)
+                    } else {
+                      addThreadToProject(p.id)
+                    }
+                    setShowThreadMenu(false)
+                  }}>
+                    {currentThread.projectIds.includes(p.id) ? '✓ ' : '○ '} {p.name}
+                  </button>
+                ))}
+              </>
+            )}
+            <div className="dropdown-divider" />
+            <button onClick={() => { deleteThread(currentThreadId); setShowThreadMenu(false) }} style={{ color: 'var(--danger)' }}>Delete</button>
+          </div>
+        )}
         {currentThread && (
-          <button className="btn btn-danger btn-small" onClick={() => deleteThread(currentThreadId)}>Del</button>
+          <button 
+            className="btn btn-secondary btn-small" 
+            style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', marginLeft: showThreadMenu ? '0' : '0.5rem' }}
+            onClick={() => setShowThreadMenu(!showThreadMenu)}
+          >⚙</button>
         )}
       </div>
 
