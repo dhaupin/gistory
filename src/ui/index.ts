@@ -4,6 +4,8 @@
 export { default as ActionMenu } from '../components/ActionMenu'
 export { default as Tooltip } from './Tooltip'
 export { Loading } from './Loading'
+export { EmptyState } from './EmptyState'
+export { Badge, Button } from './Badge'
 
 // Icons from Lucide - re-exported for app-wide usage
 export {
@@ -26,7 +28,8 @@ export {
   Grid,
   Loader2,
   ExternalLink,
-  Check
+  Check,
+  FileX
 } from 'lucide-react'
 
 // Icon types

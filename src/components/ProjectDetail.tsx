@@ -1,6 +1,6 @@
 // ProjectDetail - single project view
 import { useState } from 'react'
-import { Folder, MoreHorizontal } from 'lucide-react'
+import { Folder, MoreHorizontal, Edit, Trash2 } from 'lucide-react'
 import type { Project, Thread, MessagesByThread } from '../lib/models'
 
 interface ProjectDetailProps {
@@ -69,10 +69,10 @@ export default function ProjectDetail({
       {showMenu && !renaming && (
         <div className="dropdown-menu">
           <button className="dropdown-item" onClick={() => { setRenaming(true); setNewName(project.name); setShowMenu(false) }}>
-            ✏️ Rename
+            <Edit size={14} /> Rename
           </button>
           <button className="dropdown-item danger" onClick={() => { onDeleteProject(project.id); setShowMenu(false) }}>
-            🗑️ Delete
+            <Trash2 size={14} /> Delete
           </button>
         </div>
       )}

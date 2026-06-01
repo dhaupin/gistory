@@ -1,6 +1,7 @@
 // ThreadView - displays messages in a thread
 
 import { useState } from 'react'
+import { Copy, Edit, Trash2 } from 'lucide-react'
 import type { Message, Thread } from '../lib/models'
 
 interface ThreadViewProps {
@@ -98,19 +99,19 @@ export default function ThreadView({
                     className="btn btn-secondary btn-small" 
                     onClick={() => handleCopy(msg.content)}
                   >
-                    📋 Copy
+                    <Copy size={14} /> Copy
                   </button>
                   <button 
                     className="btn btn-secondary btn-small" 
                     onClick={() => startEdit(msg)}
                   >
-                    ✏️ Edit
+                    <Edit size={14} /> Edit
                   </button>
                   <button 
                     className="btn btn-danger btn-small" 
                     onClick={() => onDeleteMessage(msg.id)}
                   >
-                    🗑️
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
