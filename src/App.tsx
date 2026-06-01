@@ -1,9 +1,10 @@
 // Gistory App - Main Entry Point
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { loadData, saveThreads, saveMessages, saveProjects, generateId } from './lib/store'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
+import { SyncAgent, generatePairingToken } from './sync/agent'
 import Layout from './components/Layout'
 import Header from './components/Header'
 import BurgerMenu from './components/BurgerMenu'
@@ -35,26 +36,78 @@ export default function App() {
   const [chainId, setChainId] = useState<string | null>(() =>
     localStorage.getItem('gistory_chain_id')
   )
+  const [initialSync, setInitialSync] = useState(false)
 
   // Handler functions
-  const handleEnableSync = (key: string) => {
+  const syncAgentRef = React.useRef<SyncAgent | null>(null)
+  
+  const handleEnableSync = async (key: string) => {
+    // Save key locally
     localStorage.setItem('gistory_sync_key', key)
     setSyncKey(key)
+    
+    // Initialize sync agent
+    const agent = new SyncAgent({
+      workerUrl: '/sync',  // CF Worker route
+      syncKey: key,
+      deviceName: 'My Device',
+    })
+    
+    await agent.init()
+    await agent.handshake()
+    
+    // Save agent reference
+    syncAgentRef.current = agent
+    setChainId(agent.getStatus().chainId || null)
     setSyncEnabled(true)
+    setInitialSync(true)  // Flag to trigger initial push
   }
-  const handleDisableSync = () => {
+  
+  // Handle initial sync push when data loads and sync enabled
+  useEffect(() => {
+    if (initialSync && syncAgentRef.current && threads.length > 0) {
+      syncAgentRef.current.push({ threads, messages, projects })
+        .then(() => setInitialSync(false))
+        .catch(console.error)
+    }
+  }, [initialSync, threads.length])
+  
+  const handleDisableSync = async () => {
+    syncAgentRef.current = null
     localStorage.removeItem('gistory_sync_key')
+    localStorage.removeItem('gistory_chain_id')
     setSyncKey(null)
     setChainId(null)
     setSyncEnabled(false)
   }
+  
   const handleGenerateToken = async () => {
-    // TODO: integrate with SyncAgent
-    return 'mock-token-' + Date.now()
+    if (!syncAgentRef.current) {
+      // Need to initialize first
+      const key = syncKey || localStorage.getItem('gistory_sync_key')
+      if (!key) throw new Error('Sync not enabled')
+      
+      const agent = new SyncAgent({
+        workerUrl: '/sync',
+        syncKey: key,
+        deviceName: 'My Device',
+      })
+      await agent.init()
+      await agent.handshake()
+      syncAgentRef.current = agent
+    }
+    
+    // Generate pairing token and wrap for QR
+    const token = generatePairingToken()
+    return `#join:${token}`
   }
+  
   const handleRefresh = async () => {
-    // TODO: sync pull/push
-    console.log('Sync refresh')
+    if (!syncAgentRef.current) return
+    
+    const changes = await syncAgentRef.current.pull()
+    // TODO: Merge changes into local state
+    console.log('Got sync changes:', changes)
   }
 
   // Load initial data

@@ -1,7 +1,8 @@
 // Settings Page - user preferences, sync chains, devices
 
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Link, Smartphone, Trash2, RefreshCw, Check, X, Copy, ExternalLink } from 'lucide-react'
+import { Settings as SettingsIcon, Link, Smartphone, Trash2, RefreshCw, Check, X, Copy } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { Badge, Button } from '../ui'
 
 // Types
@@ -218,9 +219,14 @@ function PairingModal(props: { token: string; onClose: () => void }) {
         <div className="modal-body">
           <p>Scan this QR code on your other device, or enter the code manually:</p>
           
-          {/* TODO: Add QR component */}
-          <div className="qr-placeholder">
-            QR will appear here
+          {/* QR Code */}
+          <div className="qr-display">
+            <QRCodeSVG 
+              value={props.token} 
+              size={180}
+              level="M"
+              includeMargin
+            />
           </div>
           
           <div className="token-display">

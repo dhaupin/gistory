@@ -135,7 +135,7 @@ function hash(data: string): string {
   =================
 */
 
-function generatePairingToken(): string {
+export function generatePairingToken(): string {
   // 256-bit random as base64url
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   return buf2base64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
