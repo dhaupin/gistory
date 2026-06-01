@@ -72,6 +72,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
+  color: var(--text);
   font-size: 0.875rem;
   cursor: pointer;
 }
@@ -83,6 +84,12 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 0.875rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.thread-name-input::placeholder {
+  color: var(--text-dim);
 }
 
 /* New thread button in selector area */
@@ -119,6 +126,8 @@ body {
   font-family: inherit;
   resize: vertical;
   margin-bottom: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .input-card textarea:focus {
@@ -168,7 +177,8 @@ body {
 }
 
 .btn-danger:hover {
-  background: #fef2f2;
+  background: var(--danger);
+  color: white;
 }
 
 .btn-small {
@@ -238,11 +248,11 @@ body {
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: var(--primary);
+  border: 1px solid var(--primary);
   border-radius: 999px;
   font-size: 0.75rem;
-  color: #1e40af;
+  color: white;
 }
 
 .remove-project {
@@ -260,8 +270,8 @@ body {
   bottom: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
-  background: #1a1a1a;
-  color: white;
+  background: var(--text);
+  color: var(--bg);
   padding: 0.75rem 1.5rem;
   border-radius: 999px;
   font-size: 0.875rem;
