@@ -186,8 +186,50 @@ body {
   font-size: 0.75rem;
 }
 
-/* Dropdown menu */
-.dropdown-menu {
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.25rem 0;
+}
+
+/* Thread header */
+.thread-header {
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.thread-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.btn-gear {
+  padding: 0.25rem 0.5rem;
+  min-width: auto;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.btn-gear:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* Dropdown */
+.dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  margin-top: 0.25rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -196,7 +238,7 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.dropdown-menu button {
+.dropdown-item {
   display: block;
   width: 100%;
   text-align: left;
@@ -209,14 +251,12 @@ body {
   border-radius: 4px;
 }
 
-.dropdown-menu button:hover {
-  background: var(--bg);
+.dropdown-item:hover {
+  background: var(--border);
 }
 
-.dropdown-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 0.25rem 0;
+.dropdown-item-danger {
+  color: var(--danger);
 }
 
 /* Messages list */

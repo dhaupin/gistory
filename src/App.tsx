@@ -453,17 +453,16 @@ function App() {
 
       {/* Current Thread Title */}
       {currentThread && (
-        <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ margin: 0 }}>{currentThread.name}</h3>
+        <div className="thread-header">
+          <h3 className="thread-title">{currentThread.name}</h3>
           <button 
-            className="btn btn-secondary btn-small" 
-            style={{ padding: '0.25rem 0.5rem', minWidth: 'auto' }}
+            className="btn-gear" 
             onClick={() => setShowThreadMenu(v => !v)}
           >⚙{showThreadMenu ? ' ▲' : ' ▼'}
           </button>
           {showThreadMenu && (
-            <div className="dropdown-menu" style={{ position: 'absolute', top: '100%', right: 0, zIndex: 10, marginTop: '0.25rem' }}>
-              <button onClick={() => { 
+            <div className="dropdown">
+              <button className="dropdown-item" onClick={() => { 
                 const name = prompt('Rename thread:', currentThread.name)
                 if (name) renameThread(currentThreadId, name)
                 setShowThreadMenu(false)
@@ -472,7 +471,7 @@ function App() {
                 <>
                   <div className="dropdown-divider" />
                   {projects.map(p => (
-                    <button key={p.id} onClick={() => {
+                    <button className="dropdown-item" key={p.id} onClick={() => {
                       if (currentThread.projectIds.includes(p.id)) {
                         removeThreadFromProject(p.id)
                       } else {
@@ -486,7 +485,7 @@ function App() {
                 </>
               )}
               <div className="dropdown-divider" />
-              <button onClick={() => { deleteThread(currentThreadId); setShowThreadMenu(false) }} style={{ color: 'var(--danger)' }}>Delete</button>
+              <button className="dropdown-item dropdown-item-danger" onClick={() => { deleteThread(currentThreadId); setShowThreadMenu(false) }}>Delete</button>
             </div>
           )}
         </div>
