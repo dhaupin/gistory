@@ -376,19 +376,15 @@ function App() {
             <option key={thread.id} value={thread.id}>{thread.name}</option>
           ))}
         </select>
-        {currentThread && projects.length > 0 && (
-          <select style={{ marginLeft: '0.5rem' }} value="" onChange={e => {
-            if (e.target.value) addThreadToProject(e.target.value)
-            e.target.value = ''
-          }}>
-            <option value="">+ to proj</option>
-            {projects.filter(p => !currentThread.projectIds.includes(p.id)).map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+        {currentThread && (
+          <button 
+            className="btn btn-secondary btn-small" 
+            style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', marginLeft: '0.5rem' }}
+            onClick={() => setShowThreadMenu(v => !v)}
+          >⚙{showThreadMenu ? ' ▲' : ' ▼'}</button>
         )}
         {showThreadMenu && currentThread && (
-          <div className="dropdown-menu" style={{ position: 'absolute', zIndex: 10 }}>
+          <div className="dropdown-menu" style={{ position: 'absolute', top: '100%', right: 0, zIndex: 10, marginTop: '0.25rem' }}>
             <button onClick={() => { 
               const name = prompt('Rename thread:', currentThread.name)
               if (name) renameThread(currentThreadId, name)
@@ -414,13 +410,6 @@ function App() {
             <div className="dropdown-divider" />
             <button onClick={() => { deleteThread(currentThreadId); setShowThreadMenu(false) }} style={{ color: 'var(--danger)' }}>Delete</button>
           </div>
-        )}
-        {currentThread && (
-          <button 
-            className="btn btn-secondary btn-small" 
-            style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', marginLeft: showThreadMenu ? '0' : '0.5rem' }}
-            onClick={() => setShowThreadMenu(!showThreadMenu)}
-          >⚙</button>
         )}
       </div>
 
