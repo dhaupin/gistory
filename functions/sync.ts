@@ -18,60 +18,18 @@ export const onRequest: PagesFunction = async (context) => {
   const url = new URL(request.url)
   const path = url.pathname
   
-  // Helper to get/set from dev store
-  const getDev = (key: string) => devStore.get(key)
-  const setDev = (key: string, val: string) => devStore.set(key, val)
-  const storage = env.SYNC_KV ? { get: (k: string) => env.SYNC_KV!.get(k), put: (k: string, v: string) => env.SYNC_KV!.put(k, v) } 
-              : { get: getDev, put: setDev }
-  
-  // CORS
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  }
-  
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
-  
-  try {
-    // Normalize path 
-    let pathClean = path.replace(/^\/+/, '').replace(/\/+$/, '')
-    
-    // Handle OPTIONS - return OK for any route we'd handle
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders })
-    }
-    
-    // Debug info
-    const debug = { path, pathClean, method: request.method }
-    
-    // POST to any /sync* route - check path
-    if (pathClean.startsWith('sync') && request.method === 'POST') {
-      // Has "push" in path - push handler
-      if (pathClean.includes('push')) {
-        return handlePush(request, storage, corsHeaders)
-      }
-      // Default - handshake
-      return handleHandshake(request, storage, corsHeaders)
-    }
-    
-    // GET to /sync*
-    if (pathClean.startsWith('sync') && request.method === 'GET') {
-      return handlePull(request, storage, corsHeaders)
-    }
-    
-    // Debug: show what we got
-    return new Response(JSON.stringify({ note: 'fallback-no-match', debug }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err), stack: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
+  // DEBUG - just return fixed response
+  return new Response(JSON.stringify({ 
+    got: path,
+    method: request.method,
+    isFunctionRunning: "YES!"
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+  })
 }
 
 async function handleHandshake(request: Request, storage: { get: (k: string) => Promise<string | null>, put: (k: string, v: string) => Promise<void> }, corsHeaders: Record<string, string>) {
