@@ -37,7 +37,9 @@ export default function Layout({
         onMenuClick={onMenuClick}
       />
       <main className="main-content">
-        {children}
+        <div className="page-wrapper">
+          {children}
+        </div>
       </main>
       <Footer />
     </div>

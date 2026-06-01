@@ -177,7 +177,7 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onProjectsClick={() => navigate('/projects')}
-        onMenuClick={!route.path.startsWith('/project') && !route.path.startsWith('/projects') ? () => setShowBurger(v => !v) : undefined}
+        onMenuClick={currentThreadId ? () => setShowBurger(v => !v) : undefined}
       >
         {renderPage()}
       </Layout>
