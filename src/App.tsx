@@ -307,11 +307,6 @@ function App() {
       .sort((a, b) => b.createdAt - a.createdAt)
   }
 
-  // Get projects for current thread
-  const threadProjects = currentThread
-    ? projects.filter(p => currentThread.projectIds.includes(p.id))
-    : []
-
   return (
     <div className="container">
       {/* Header: compact */}
@@ -500,18 +495,6 @@ function App() {
       {/* Thread Content */}
       {currentThread ? (
         <>
-          {/* Thread Projects */}
-          {threadProjects.length > 0 && (
-            <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>In:</span>
-              {threadProjects.map(p => (
-                <span key={p.id} className="project-badge">
-                  {p.name}
-                </span>
-              ))}
-            </div>
-          )}
-
           {/* Input Card */}
           <div className="input-card">
             <textarea
