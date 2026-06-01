@@ -14,20 +14,11 @@ interface Env {
 const devStore = new Map<string, string>()
 
 export const onRequest: PagesFunction = async (context) => {
-  const { request, env } = context as { request: Request; env: Env }
-  const url = new URL(request.url)
-  const path = url.pathname
-  
-  // DEBUG - just return fixed response
-  return new Response(JSON.stringify({ 
-    got: path,
-    method: request.method,
-    isFunctionRunning: "YES!"
-  }), {
+  const url = new URL(context.request.url)
+  return new Response("OK", {
     status: 200,
     headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Content-Type': 'text/plain',
     },
   })
 }
