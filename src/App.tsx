@@ -167,8 +167,7 @@ export default function App() {
     }
   }
 
-  const isOnProjects = route.path.startsWith('/projects') || route.path.startsWith('/project')
-  const showBurgerBtn = !isOnProjects
+  const showBurgerBtn = true
 
   return (
     <div className="app">
