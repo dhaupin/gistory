@@ -83,6 +83,12 @@ function App() {
     }
   }, [threads, currentThreadId])
 
+  // Close menus when thread changes
+  useEffect(() => {
+    setShowThreadMenu(false)
+    setShowBurger(false)
+  }, [currentThreadId])
+
   // Persist to localStorage
   useEffect(() => {
     localStorage.setItem(THREADS_KEY, JSON.stringify(threads))
@@ -409,7 +415,7 @@ function App() {
                 <input className="thread-name-input" placeholder="Project name..."
                   value={newProjectName} onChange={e => setNewProjectName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && createProject()} autoFocus={!showNewThread} />
-                <button className="btn btn-primary btn-small" onClick={createProject}>+Proj</button>
+                <button className="btn btn-primary btn-small" onClick={createProject}>Create</button>
               </>
             )}
           </div>
@@ -515,7 +521,7 @@ function App() {
                       <textarea 
                         defaultValue={message.content}
                         id={`edit-${message.id}`}
-                        style={{ width: '100%', minHeight: '60px', marginBottom: '0.5rem' }}
+                        className="input-area"
                       />
                       <div className="message-actions">
                         <button className="btn btn-primary btn-small" onClick={() => {
