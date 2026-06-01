@@ -339,49 +339,45 @@ function App() {
 
           {/* Quick create buttons */}
           <div className="quick-create">
-            <button className="btn-primary" onClick={() => { setShowNewThread(true); setShowBurger(false); setTimeout(() => document.querySelector<HTMLInputElement>('.thread-name-input')?.focus(), 50) }}>
+            <button className="btn btn-primary" onClick={() => { setShowNewThread(true); setShowBurger(false); setTimeout(() => document.querySelector<HTMLInputElement>('.thread-name-input')?.focus(), 50) }}>
               + Thread
             </button>
-            <button className="btn-secondary" onClick={() => { setShowNewProject(true); setShowBurger(false) }}>
+            <button className="btn btn-secondary" onClick={() => { setShowNewProject(true); setShowBurger(false) }}>
               + Project
             </button>
           </div>
           
-          {/* Projects with nested threads */}
-          {projects.length > 0 && (
-            <div className="project-list">
-              {projects.map(project => {
-                const projThreads = getThreadsInProject(project.id)
-                if (projThreads.length === 0) return null
-                return (
-                  <div key={project.id} className="project-group">
-                    <div className="project-label">{project.name}</div>
-                    <div className="thread-list">
-                      {projThreads.map(t => (
-                        <button 
-                          key={t.id} 
-                          className="thread-link"
-                          onClick={() => { setCurrentThreadId(t.id); setShowBurger(false) }}
-                        >
-                          {currentThreadId === t.id ? '● ' : '○ '}{t.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Not assigned threads */}
-          {(() => {
-            const unassigned = threads.filter(t => t.projectIds.length === 0)
-            if (unassigned.length === 0) return null
+          {/* All Projects with nested threads (sorted alphabetically) */}
+          {[...projects].sort((a, b) => a.name.localeCompare(b.name)).map(project => {
+            const projThreads = getThreadsInProject(project.id)
             return (
-              <div className="project-group">
-                <div className="project-label project-label-dim">Not Assigned</div>
-                <div className="thread-list">
-                  {unassigned.sort((a,b) => b.createdAt - a.createdAt).map(t => (
+              <div key={project.id} className="project-group">
+                <div className="project-label">{project.name} {projThreads.length > 0 && `(${projThreads.length})`}</div>
+                {projThreads.length > 0 && (
+                  <div className="thread-list">
+                    {projThreads.map(t => (
+                      <button 
+                        key={t.id} 
+                        className="thread-link"
+                        onClick={() => { setCurrentThreadId(t.id); setShowBurger(false) }}
+                      >
+                        {currentThreadId === t.id ? '● ' : '○ '}{t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Not Assigned threads */}
+          {threads.some(t => t.projectIds.length === 0) && (
+            <div className="project-group">
+              <div className="project-label project-label-dim">Not Assigned</div>
+              <div className="thread-list">
+                {threads.filter(t => t.projectIds.length === 0)
+                  .sort((a, b) => b.createdAt - a.createdAt)
+                  .map(t => (
                     <button 
                       key={t.id} 
                       className="thread-link"
@@ -390,10 +386,9 @@ function App() {
                       {currentThreadId === t.id ? '● ' : '○ '}{t.name}
                     </button>
                   ))}
-                </div>
               </div>
-            )
-          })()}
+            </div>
+          )}
         </div>
       )}
 
