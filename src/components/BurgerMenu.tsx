@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { X, Edit, Trash2, Folder, FolderOpen, Check } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
 import ActionMenu, { ActionItem } from './ActionMenu'
+import ConfirmDialog from './ConfirmDialog'
 
 interface BurgerMenuProps {
   threads: Thread[]
@@ -43,6 +44,7 @@ export default function BurgerMenu({
   const [showNewProject, setShowNewProject] = useState('')
   const [editingThread, setEditingThread] = useState<{id: string, name: string} | null>(null)
   const [editingProject, setEditingProject] = useState<{id: string, name: string} | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'thread' | 'project'; id: string; name: string } | null>(null)
 
   const getThreadsInProject = (pid: string) => threads.filter(t => t.projectIds.includes(pid))
   const unassigned = threads.filter(t => t.projectIds.length === 0)
@@ -77,9 +79,27 @@ export default function BurgerMenu({
   }
 
   const handleDeleteThread = (id: string) => {
-    if (confirm('Delete this thread?')) {
-      onDeleteThread?.(id)
+    const thread = threads.find(t => t.id === id)
+    if (thread) {
+      setDeleteConfirm({ type: 'thread', id, name: thread.name })
     }
+  }
+
+  const handleDeleteProject = (id: string) => {
+    const project = projects.find(p => p.id === id)
+    if (project) {
+      setDeleteConfirm({ type: 'project', id, name: project.name })
+    }
+  }
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return
+    if (deleteConfirm.type === 'thread') {
+      onDeleteThread?.(deleteConfirm.id)
+    } else {
+      onDeleteProject?.(deleteConfirm.id)
+    }
+    setDeleteConfirm(null)
   }
 
   const buildThreadMenuItems = (thread: Thread): ActionItem[] => {
@@ -118,12 +138,6 @@ export default function BurgerMenu({
       onRenameProject?.(editingProject.id, editingProject.name.trim())
     }
     setEditingProject(null)
-  }
-
-  const handleDeleteProject = (id: string) => {
-    if (confirm('Delete this project?')) {
-      onDeleteProject?.(id)
-    }
   }
 
   const buildProjectMenuItems = (project: Project): ActionItem[] => {
@@ -281,6 +295,18 @@ export default function BurgerMenu({
           </div>
         )}
       </div>
+
+      {deleteConfirm && (
+        <ConfirmDialog
+          open
+          title={`Delete ${deleteConfirm.type}?`}
+          message={`Are you sure you want to delete "${deleteConfirm.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
     </div>
   )
 }

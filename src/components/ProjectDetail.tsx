@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Folder, Edit, Trash2 } from 'lucide-react'
 import type { Project, Thread, MessagesByThread } from '../lib/models'
 import ActionMenu, { ActionItem } from './ActionMenu'
+import ConfirmDialog from './ConfirmDialog'
 
 interface ProjectDetailProps {
   project: Project | undefined
@@ -35,10 +36,15 @@ export default function ProjectDetail({
     setRenaming(false)
   }
 
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+
   const handleDelete = () => {
-    if (confirm('Delete this project?')) {
-      onDeleteProject(project.id)
-    }
+    setDeleteConfirm(true)
+  }
+
+  const confirmDelete = () => {
+    onDeleteProject(project.id)
+    setDeleteConfirm(false)
   }
 
   const buildMenuItems = (): ActionItem[] => [
@@ -90,6 +96,18 @@ export default function ProjectDetail({
           </button>
         ))}
       </div>
+
+      {deleteConfirm && (
+        <ConfirmDialog
+          open
+          title="Delete project?"
+          message={`Are you sure you want to delete "${project.name}"? Threads will be kept but unassigned. This cannot be undone.`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteConfirm(false)}
+        />
+      )}
     </div>
   )
 }
