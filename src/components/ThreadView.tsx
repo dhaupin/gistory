@@ -51,8 +51,8 @@ export default function ThreadView({
   }, [input, thread.id])
 
   const filtered = searchQuery
-    ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
-    : messages
+    ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => b.createdAt - a.createdAt)
+    : [...messages].sort((a, b) => b.createdAt - a.createdAt)
 
   // Clear draft when message is added
   const handleAdd = () => {
