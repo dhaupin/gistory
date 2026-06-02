@@ -168,6 +168,21 @@ body {
   opacity: 0.7;
 }
 
+.project-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.project-label-row .project-label {
+  cursor: pointer;
+}
+
+.project-label-row .project-label:hover {
+  opacity: 0.8;
+}
+
 .thread-list {
   padding-left: 0.5rem;
   display: flex;
@@ -186,10 +201,23 @@ body {
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .thread-link:hover {
   background: var(--bg);
+}
+
+.thread-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.thread-link-row .thread-link {
+  flex: 1;
 }
 
 /* Thread selector */
@@ -564,6 +592,9 @@ body {
   color: var(--text);
   cursor: pointer;
   font-size: 0.875rem;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .thread-link:hover {

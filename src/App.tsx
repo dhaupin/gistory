@@ -169,6 +169,23 @@ export default function App() {
     ))
   }, [])
 
+  const renameThread = useCallback((id: string, name: string) => {
+    setThreads(prev => prev.map(t => t.id === id ? { ...t, name } : t))
+  }, [])
+
+  const deleteThread = useCallback((id: string) => {
+    if (!confirm('Delete thread and all its messages?')) return
+    setThreads(prev => prev.filter(t => t.id !== id))
+    setMessages(prev => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    if (currentThreadId === id) {
+      setCurrentThreadId(threads.find(t => t.id !== id)?.id || '')
+    }
+  }, [currentThreadId, threads])
+
   const addMessage = useCallback((threadId: string, content: string) => {
     const msg: Message = { id: generateId('m'), threadId, content, createdAt: Date.now() }
     setMessages(prev => ({
@@ -263,9 +280,14 @@ export default function App() {
         thread={currentThread}
         messages={messages[currentThreadId] || []}
         searchQuery={searchQuery}
+        projects={projects}
         onAddMessage={content => addMessage(currentThreadId, content)}
         onUpdateMessage={updateMessage}
         onDeleteMessage={deleteMessage}
+        onRenameThread={renameThread}
+        onDeleteThread={deleteThread}
+        onAddToProject={addThreadToProject}
+        onRemoveFromProject={removeThreadFromProject}
       />
     ) : (
       <EmptyState onCreate={createThread} />
@@ -276,7 +298,22 @@ export default function App() {
 
   return (
     <div className="app">
-      {showBurger && <BurgerMenu threads={threads} projects={projects} currentThreadId={currentThreadId} onSelect={id => { setCurrentThreadId(id); navigate('/'); setShowBurger(false) }} onClose={() => setShowBurger(false)} createThread={createThread} createProject={createProject} onSettings={() => { navigate('/settings'); setShowBurger(false) }} />}
+      {showBurger && <BurgerMenu 
+        threads={threads} 
+        projects={projects} 
+        currentThreadId={currentThreadId} 
+        onSelect={id => { setCurrentThreadId(id); navigate('/'); setShowBurger(false) }} 
+        onClose={() => setShowBurger(false)} 
+        createThread={createThread} 
+        createProject={createProject} 
+        onSettings={() => { navigate('/settings'); setShowBurger(false) }}
+        onRenameThread={renameThread}
+        onDeleteThread={deleteThread}
+        onAddToProject={addThreadToProject}
+        onRemoveFromProject={removeThreadFromProject}
+        onRenameProject={renameProject}
+        onDeleteProject={deleteProject}
+      />}
       <Layout
         title="Gistory"
         darkMode={darkMode}

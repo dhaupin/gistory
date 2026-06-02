@@ -1,7 +1,8 @@
 // BurgerMenu - sidebar with threads/projects
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Edit, Trash2, FolderPlus, FolderMinus } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
+import ActionMenu, { ActionItem } from './ActionMenu'
 
 interface BurgerMenuProps {
   threads: Thread[]
@@ -12,6 +13,12 @@ interface BurgerMenuProps {
   createThread: (name: string, projectIds?: string[]) => void
   createProject: (name: string) => void
   onSettings?: () => void
+  onRenameThread?: (id: string, name: string) => void
+  onDeleteThread?: (id: string) => void
+  onAddToProject?: (threadId: string, projectId: string) => void
+  onRemoveFromProject?: (threadId: string, projectId: string) => void
+  onRenameProject?: (id: string, name: string) => void
+  onDeleteProject?: (id: string) => void
 }
 
 export default function BurgerMenu({
@@ -22,12 +29,20 @@ export default function BurgerMenu({
   onClose,
   createThread,
   createProject,
-  onSettings
+  onSettings,
+  onRenameThread,
+  onDeleteThread,
+  onAddToProject,
+  onRemoveFromProject,
+  onRenameProject,
+  onDeleteProject
 }: BurgerMenuProps) {
   const [newThreadName, setNewThreadName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
   const [showNewThread, setShowNewThread] = useState(false)
-  const [showNewProject, setShowNewProject] = useState(false)
+  const [showNewProject, setShowNewProject] = useState('')
+  const [editingThread, setEditingThread] = useState<{id: string, name: string} | null>(null)
+  const [editingProject, setEditingProject] = useState<{id: string, name: string} | null>(null)
 
   const getThreadsInProject = (pid: string) => threads.filter(t => t.projectIds.includes(pid))
   const unassigned = threads.filter(t => t.projectIds.length === 0)
@@ -44,7 +59,85 @@ export default function BurgerMenu({
     if (!newProjectName.trim()) return
     createProject(newProjectName.trim())
     setNewProjectName('')
-    setShowNewProject(false)
+    setShowNewProject('')
+  }
+
+  const handleRenameThread = (id: string) => {
+    const thread = threads.find(t => t.id === id)
+    if (thread) {
+      setEditingThread({ id, name: thread.name })
+    }
+  }
+
+  const handleSaveRename = () => {
+    if (editingThread && editingThread.name.trim()) {
+      onRenameThread?.(editingThread.id, editingThread.name.trim())
+    }
+    setEditingThread(null)
+  }
+
+  const handleDeleteThread = (id: string) => {
+    if (confirm('Delete this thread?')) {
+      onDeleteThread?.(id)
+    }
+  }
+
+  const buildThreadMenuItems = (thread: Thread): ActionItem[] => {
+    const items: ActionItem[] = [
+      { label: 'Rename', icon: '✏️', onClick: () => handleRenameThread(thread.id) },
+    ]
+    // Add to project options
+    const notInProjects = projects.filter(p => !thread.projectIds.includes(p.id))
+    notInProjects.forEach(p => {
+      items.push({ 
+        label: `Add to "${p.name}"`, 
+        icon: '📁', 
+        onClick: () => onAddToProject?.(thread.id, p.id) 
+      })
+    })
+    // Remove from project options
+    const inProjects = projects.filter(p => thread.projectIds.includes(p.id))
+    inProjects.forEach(p => {
+      items.push({ 
+        label: `Remove from "${p.name}"`, 
+        icon: '📁', 
+        onClick: () => onRemoveFromProject?.(thread.id, p.id) 
+      })
+    })
+    items.push({ 
+      label: 'Delete', 
+      icon: '🗑️', 
+      onClick: () => handleDeleteThread(thread.id),
+      variant: 'danger'
+    })
+    return items
+  }
+
+  const handleRenameProject = (id: string) => {
+    const proj = projects.find(p => p.id === id)
+    if (proj) {
+      setEditingProject({ id, name: proj.name })
+    }
+  }
+
+  const handleSaveProjectRename = () => {
+    if (editingProject && editingProject.name.trim()) {
+      onRenameProject?.(editingProject.id, editingProject.name.trim())
+    }
+    setEditingProject(null)
+  }
+
+  const handleDeleteProject = (id: string) => {
+    if (confirm('Delete this project?')) {
+      onDeleteProject?.(id)
+    }
+  }
+
+  const buildProjectMenuItems = (project: Project): ActionItem[] => {
+    return [
+      { label: 'Rename', icon: '✏️', onClick: () => handleRenameProject(project.id) },
+      { label: 'Delete', icon: '🗑️', onClick: () => handleDeleteProject(project.id), variant: 'danger' },
+    ]
   }
 
   return (
@@ -82,7 +175,7 @@ export default function BurgerMenu({
           ) : (
             <button className="btn btn-primary btn-small" onClick={() => setShowNewThread(true)}>+ Thread</button>
           )}
-          <button className="btn btn-secondary btn-small" onClick={() => setShowNewProject(!showNewProject)}>
+          <button className="btn btn-secondary btn-small" onClick={() => setShowNewProject(showNewProject ? '' : 'new')}>
             + Project
           </button>
         </div>
@@ -105,15 +198,57 @@ export default function BurgerMenu({
           const projThreads = getThreadsInProject(project.id)
           return (
             <div key={project.id} className="project-group">
-              <div className="project-label">{project.name} ({projThreads.length})</div>
+              {editingProject?.id === project.id ? (
+                <div className="form-inline">
+                  <input
+                    className="input-name"
+                    value={editingProject.name}
+                    onChange={e => setEditingProject({ ...editingProject, name: e.target.value })}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveProjectRename()}
+                    autoFocus
+                  />
+                  <button className="btn btn-primary btn-small" onClick={handleSaveProjectRename}>Save</button>
+                  <button className="btn btn-secondary btn-small" onClick={() => setEditingProject(null)}>Cancel</button>
+                </div>
+              ) : (
+                <div className="project-label-row">
+                  <div 
+                    className="project-label" 
+                    onClick={() => onSelect(projThreads[0]?.id || '')}
+                  >
+                    {project.name} ({projThreads.length})
+                  </div>
+                  {(onRenameProject || onDeleteProject) && (
+                    <ActionMenu items={buildProjectMenuItems(project)} />
+                  )}
+                </div>
+              )}
               {projThreads.map(thread => (
-                <button
-                  key={thread.id}
-                  className={`thread-link ${currentThreadId === thread.id ? 'active' : ''}`}
-                  onClick={() => onSelect(thread.id)}
-                >
-                  {thread.name}
-                </button>
+                editingThread?.id === thread.id ? (
+                  <div key={thread.id} className="form-inline">
+                    <input
+                      className="input-name"
+                      value={editingThread.name}
+                      onChange={e => setEditingThread({ ...editingThread, name: e.target.value })}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveRename()}
+                      autoFocus
+                    />
+                    <button className="btn btn-primary btn-small" onClick={handleSaveRename}>Save</button>
+                    <button className="btn btn-secondary btn-small" onClick={() => setEditingThread(null)}>Cancel</button>
+                  </div>
+                ) : (
+                  <div key={thread.id} className="thread-link-row">
+                    <button
+                      className={`thread-link ${currentThreadId === thread.id ? 'active' : ''}`}
+                      onClick={() => onSelect(thread.id)}
+                    >
+                      {thread.name}
+                    </button>
+                    {(onRenameThread || onDeleteThread) && (
+                      <ActionMenu items={buildThreadMenuItems(thread)} />
+                    )}
+                  </div>
+                )
               ))}
             </div>
           )
@@ -124,13 +259,31 @@ export default function BurgerMenu({
           <div className="project-group">
             <div className="project-label project-label-dim">Unassigned ({unassigned.length})</div>
             {unassigned.map(thread => (
-              <button
-                key={thread.id}
-                className={`thread-link ${currentThreadId === thread.id ? 'active' : ''}`}
-                onClick={() => onSelect(thread.id)}
-              >
-                {thread.name}
-              </button>
+              editingThread?.id === thread.id ? (
+                <div key={thread.id} className="form-inline">
+                  <input
+                    className="input-name"
+                    value={editingThread.name}
+                    onChange={e => setEditingThread({ ...editingThread, name: e.target.value })}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveRename()}
+                    autoFocus
+                  />
+                  <button className="btn btn-primary btn-small" onClick={handleSaveRename}>Save</button>
+                  <button className="btn btn-secondary btn-small" onClick={() => setEditingThread(null)}>Cancel</button>
+                </div>
+              ) : (
+                <div key={thread.id} className="thread-link-row">
+                  <button
+                    className={`thread-link ${currentThreadId === thread.id ? 'active' : ''}`}
+                    onClick={() => onSelect(thread.id)}
+                  >
+                    {thread.name}
+                  </button>
+                  {(onRenameThread || onDeleteThread) && (
+                    <ActionMenu items={buildThreadMenuItems(thread)} />
+                  )}
+                </div>
+              )
             ))}
           </div>
         )}

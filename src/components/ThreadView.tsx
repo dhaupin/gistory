@@ -1,30 +1,48 @@
 // ThreadView - displays messages in a thread
 
 import { useState, useEffect } from 'react'
-import { Copy, Edit, Trash2, Save } from 'lucide-react'
-import type { Message, Thread } from '../lib/models'
+import { Copy, Edit, Trash2, Save, MoreHorizontal } from 'lucide-react'
+import type { Message, Thread, Project } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
+import ActionMenu, { ActionItem } from './ActionMenu'
 
 interface ThreadViewProps {
   thread: Thread
   messages: Message[]
   searchQuery: string
+  projects: Project[]
   onAddMessage: (content: string) => void
   onUpdateMessage: (msgId: string, content: string) => void
   onDeleteMessage: (msgId: string) => void
+  onRenameThread?: (id: string, name: string) => void
+  onDeleteThread?: (id: string) => void
+  onAddToProject?: (threadId: string, projectId: string) => void
+  onRemoveFromProject?: (threadId: string, projectId: string) => void
 }
 
 export default function ThreadView({
   thread,
   messages,
   searchQuery,
+  projects,
   onAddMessage,
   onUpdateMessage,
-  onDeleteMessage
+  onDeleteMessage,
+  onRenameThread,
+  onDeleteThread,
+  onAddToProject,
+  onRemoveFromProject
 }: ThreadViewProps) {
   const [input, setInput] = useState(() => loadDraft(thread.id))
   const [editingMsg, setEditingMsg] = useState<Message | null>(null)
   const [editText, setEditText] = useState('')
+  const [editingThread, setEditingThread] = useState(false)
+  const [threadName, setThreadName] = useState(thread.name)
+
+  // Sync thread name when thread prop changes
+  useEffect(() => {
+    setThreadName(thread.name)
+  }, [thread.name])
 
   // Autosave draft on input change (debounced)
   useEffect(() => {
@@ -60,10 +78,60 @@ export default function ThreadView({
     setEditText('')
   }
 
+  const handleSaveThread = () => {
+    if (threadName.trim() && threadName !== thread.name) {
+      onRenameThread?.(thread.id, threadName.trim())
+    }
+    setEditingThread(false)
+  }
+
+  const handleDeleteThread = () => {
+    if (confirm('Delete this thread and all messages?')) {
+      onDeleteThread?.(thread.id)
+    }
+  }
+
+  const buildMenuItems = (): ActionItem[] => {
+    const items: ActionItem[] = [
+      { label: 'Rename', icon: '✏️', onClick: () => setEditingThread(true) },
+    ]
+    // Add to project
+    const notIn = projects.filter(p => !thread.projectIds.includes(p.id))
+    notIn.forEach(p => {
+      items.push({ label: `Add to "${p.name}"`, icon: '📁', onClick: () => onAddToProject?.(thread.id, p.id) })
+    })
+    // Remove from project
+    const inProj = projects.filter(p => thread.projectIds.includes(p.id))
+    inProj.forEach(p => {
+      items.push({ label: `Remove from "${p.name}"`, icon: '📁', onClick: () => onRemoveFromProject?.(thread.id, p.id) })
+    })
+    items.push({ label: 'Delete', icon: '🗑️', onClick: handleDeleteThread, variant: 'danger' })
+    return items
+  }
+
   return (
     <div className="container">
       <div className="thread-header">
-        <h3 className="thread-title">{thread.name}</h3>
+        {editingThread ? (
+          <div className="form-inline">
+            <input
+              className="input-name"
+              value={threadName}
+              onChange={e => setThreadName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSaveThread()}
+              autoFocus
+            />
+            <button className="btn btn-primary btn-small" onClick={handleSaveThread}>Save</button>
+            <button className="btn btn-secondary btn-small" onClick={() => { setEditingThread(false); setThreadName(thread.name) }}>Cancel</button>
+          </div>
+        ) : (
+          <>
+            <h3 className="thread-title">{thread.name}</h3>
+            {(onRenameThread || onDeleteThread) && (
+              <ActionMenu items={buildMenuItems()} />
+            )}
+          </>
+        )}
       </div>
 
       <div className="input-card">
