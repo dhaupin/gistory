@@ -5,6 +5,7 @@ import { Copy, Edit, Trash2, Save, MoreHorizontal } from 'lucide-react'
 import type { Message, Thread, Project } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 import ActionMenu, { ActionItem } from './ActionMenu'
+import ConfirmDialog from './ConfirmDialog'
 
 interface ThreadViewProps {
   thread: Thread
@@ -38,6 +39,7 @@ export default function ThreadView({
   const [editText, setEditText] = useState('')
   const [editingThread, setEditingThread] = useState(false)
   const [threadName, setThreadName] = useState(thread.name)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'thread'; id: string } | null>(null)
 
   // Sync thread name when thread prop changes
   useEffect(() => {
@@ -86,9 +88,21 @@ export default function ThreadView({
   }
 
   const handleDeleteThread = () => {
-    if (confirm('Delete this thread and all messages?')) {
-      onDeleteThread?.(thread.id)
+    setDeleteConfirm({ type: 'thread', id: thread.id })
+  }
+
+  const handleDeleteMessage = (msgId: string) => {
+    setDeleteConfirm({ type: 'message', id: msgId })
+  }
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return
+    if (deleteConfirm.type === 'message') {
+      onDeleteMessage(deleteConfirm.id)
+    } else {
+      onDeleteThread?.(deleteConfirm.id)
     }
+    setDeleteConfirm(null)
   }
 
   const buildMenuItems = (): ActionItem[] => {
@@ -202,7 +216,7 @@ export default function ThreadView({
                   </button>
                   <button 
                     className="btn btn-danger btn-small" 
-                    onClick={() => onDeleteMessage(msg.id)}
+                    onClick={() => handleDeleteMessage(msg.id)}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -212,6 +226,20 @@ export default function ThreadView({
           </div>
         ))}
       </div>
+
+      {deleteConfirm && (
+        <ConfirmDialog
+          open
+          title={deleteConfirm.type === 'message' ? 'Delete message?' : 'Delete thread?'}
+          message={deleteConfirm.type === 'message' 
+            ? 'This will permanently delete this message.' 
+            : 'This will permanently delete this thread and all its messages.'}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
     </div>
   )
 }

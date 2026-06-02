@@ -977,6 +977,25 @@ body {
   font-weight: 600;
 }
 
+.modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: var(--warning, #dc2626);
+}
+
+.modal-message {
+  margin: 0 0 1.5rem;
+  color: var(--text-dim);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
 /* Button variants */
 .btn-secondary {
   background: var(--surface);
