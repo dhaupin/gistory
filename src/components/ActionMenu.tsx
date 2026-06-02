@@ -1,12 +1,13 @@
 // ActionMenu - dropdown menu component
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Folder, Check } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
 export interface ActionItem {
   label: string
-  icon?: string
+  icon?: React.ReactNode
   onClick: () => void
   variant?: 'default' | 'danger'
+  checked?: boolean
 }
 
 interface ActionMenuProps {
@@ -51,7 +52,12 @@ export default function ActionMenu({ items, trigger }: ActionMenuProps) {
                 setOpen(false)
               }}
             >
-              {item.icon && <span className="action-menu-icon">{item.icon}</span>}
+              {item.checked !== undefined && (
+                <span className="action-menu-check">
+                  {item.checked ? <Check size={14} /> : <Folder size={14} />}
+                </span>
+              )}
+              {item.icon && !item.checked && <span className="action-menu-icon">{item.icon}</span>}
               {item.label}
             </button>
           ))}

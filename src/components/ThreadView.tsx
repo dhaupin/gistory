@@ -93,19 +93,20 @@ export default function ThreadView({
 
   const buildMenuItems = (): ActionItem[] => {
     const items: ActionItem[] = [
-      { label: 'Rename', icon: '✏️', onClick: () => setEditingThread(true) },
+      { label: 'Rename', icon: <Edit size={14} />, onClick: () => setEditingThread(true) },
     ]
-    // Add to project
-    const notIn = projects.filter(p => !thread.projectIds.includes(p.id))
-    notIn.forEach(p => {
-      items.push({ label: `Add to "${p.name}"`, icon: '📁', onClick: () => onAddToProject?.(thread.id, p.id) })
+    // Project toggle options - show all projects with checkbox
+    projects.forEach(p => {
+      const isInProject = thread.projectIds.includes(p.id)
+      items.push({ 
+        label: p.name, 
+        checked: isInProject,
+        onClick: () => isInProject 
+          ? onRemoveFromProject?.(thread.id, p.id) 
+          : onAddToProject?.(thread.id, p.id) 
+      })
     })
-    // Remove from project
-    const inProj = projects.filter(p => thread.projectIds.includes(p.id))
-    inProj.forEach(p => {
-      items.push({ label: `Remove from "${p.name}"`, icon: '📁', onClick: () => onRemoveFromProject?.(thread.id, p.id) })
-    })
-    items.push({ label: 'Delete', icon: '🗑️', onClick: handleDeleteThread, variant: 'danger' })
+    items.push({ label: 'Delete', icon: <Trash2 size={14} />, onClick: handleDeleteThread, variant: 'danger' })
     return items
   }
 

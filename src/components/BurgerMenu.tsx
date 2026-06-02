@@ -1,6 +1,6 @@
 // BurgerMenu - sidebar with threads/projects
 import { useState } from 'react'
-import { X, Edit, Trash2, FolderPlus, FolderMinus } from 'lucide-react'
+import { X, Edit, Trash2, Folder, FolderOpen, Check } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
 import ActionMenu, { ActionItem } from './ActionMenu'
 
@@ -84,29 +84,22 @@ export default function BurgerMenu({
 
   const buildThreadMenuItems = (thread: Thread): ActionItem[] => {
     const items: ActionItem[] = [
-      { label: 'Rename', icon: '✏️', onClick: () => handleRenameThread(thread.id) },
+      { label: 'Rename', icon: <Edit size={14} />, onClick: () => handleRenameThread(thread.id) },
     ]
-    // Add to project options
-    const notInProjects = projects.filter(p => !thread.projectIds.includes(p.id))
-    notInProjects.forEach(p => {
+    // Project toggle options - show all projects with checkbox
+    projects.forEach(p => {
+      const isInProject = thread.projectIds.includes(p.id)
       items.push({ 
-        label: `Add to "${p.name}"`, 
-        icon: '📁', 
-        onClick: () => onAddToProject?.(thread.id, p.id) 
-      })
-    })
-    // Remove from project options
-    const inProjects = projects.filter(p => thread.projectIds.includes(p.id))
-    inProjects.forEach(p => {
-      items.push({ 
-        label: `Remove from "${p.name}"`, 
-        icon: '📁', 
-        onClick: () => onRemoveFromProject?.(thread.id, p.id) 
+        label: p.name, 
+        checked: isInProject,
+        onClick: () => isInProject 
+          ? onRemoveFromProject?.(thread.id, p.id) 
+          : onAddToProject?.(thread.id, p.id) 
       })
     })
     items.push({ 
       label: 'Delete', 
-      icon: '🗑️', 
+      icon: <Trash2 size={14} />, 
       onClick: () => handleDeleteThread(thread.id),
       variant: 'danger'
     })
@@ -135,8 +128,8 @@ export default function BurgerMenu({
 
   const buildProjectMenuItems = (project: Project): ActionItem[] => {
     return [
-      { label: 'Rename', icon: '✏️', onClick: () => handleRenameProject(project.id) },
-      { label: 'Delete', icon: '🗑️', onClick: () => handleDeleteProject(project.id), variant: 'danger' },
+      { label: 'Rename', icon: <Edit size={14} />, onClick: () => handleRenameProject(project.id) },
+      { label: 'Delete', icon: <Trash2 size={14} />, onClick: () => handleDeleteProject(project.id), variant: 'danger' },
     ]
   }
 
