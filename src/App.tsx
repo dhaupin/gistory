@@ -174,7 +174,6 @@ export default function App() {
   }, [])
 
   const deleteThread = useCallback((id: string) => {
-    if (!confirm('Delete thread and all its messages?')) return
     setThreads(prev => prev.filter(t => t.id !== id))
     setMessages(prev => {
       const next = { ...prev }
@@ -220,7 +219,6 @@ export default function App() {
   }, [])
 
   const deleteProject = useCallback((id: string) => {
-    if (!confirm('Delete project?')) return
     setProjects(prev => prev.filter(p => p.id !== id))
     setThreads(prev => prev.map(t => ({
       ...t,
