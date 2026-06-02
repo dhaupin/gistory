@@ -1,7 +1,8 @@
 // ProjectDetail - single project view
 import { useState } from 'react'
-import { Folder, MoreHorizontal, Edit, Trash2 } from 'lucide-react'
+import { Folder, Edit, Trash2 } from 'lucide-react'
 import type { Project, Thread, MessagesByThread } from '../lib/models'
+import ActionMenu, { ActionItem } from './ActionMenu'
 
 interface ProjectDetailProps {
   project: Project | undefined
@@ -20,7 +21,6 @@ export default function ProjectDetail({
   onDeleteProject,
   onRenameProject
 }: ProjectDetailProps) {
-  const [showMenu, setShowMenu] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState(project?.name || '')
 
@@ -34,6 +34,17 @@ export default function ProjectDetail({
     }
     setRenaming(false)
   }
+
+  const handleDelete = () => {
+    if (confirm('Delete this project?')) {
+      onDeleteProject(project.id)
+    }
+  }
+
+  const buildMenuItems = (): ActionItem[] => [
+    { label: 'Rename', icon: <Edit size={14} />, onClick: () => { setRenaming(true); setNewName(project.name) } },
+    { label: 'Delete', icon: <Trash2 size={14} />, onClick: handleDelete, variant: 'danger' },
+  ]
 
   const sorted = [...threads].sort((a, b) => b.createdAt - a.createdAt)
 
@@ -59,23 +70,10 @@ export default function ProjectDetail({
         ) : (
           <div className="page-title-row">
             <h2><Folder size={20} /> {project.name}</h2>
-            <button className="btn-gear" onClick={() => setShowMenu(!showMenu)}>
-              <MoreHorizontal size={16} />
-            </button>
+            <ActionMenu items={buildMenuItems()} />
           </div>
         )}
       </div>
-
-      {showMenu && !renaming && (
-        <div className="dropdown-menu">
-          <button className="dropdown-item" onClick={() => { setRenaming(true); setNewName(project.name); setShowMenu(false) }}>
-            <Edit size={14} /> Rename
-          </button>
-          <button className="dropdown-item danger" onClick={() => { onDeleteProject(project.id); setShowMenu(false) }}>
-            <Trash2 size={14} /> Delete
-          </button>
-        </div>
-      )}
 
       <div className="threads-list">
         <h3>{sorted.length} Thread{sorted.length !== 1 ? 's' : ''}</h3>
