@@ -106,8 +106,65 @@ export default function App() {
     if (!syncAgentRef.current) return
     
     const changes = await syncAgentRef.current.pull()
-    // TODO: Merge changes into local state
     console.log('Got sync changes:', changes)
+    
+    // Merge changes: last-write-wins based on timestamp
+    for (const change of changes) {
+      const c = change as any
+      if (c.threads) {
+        setThreads(prev => {
+          const merged = [...prev]
+          for (const t of c.threads) {
+            const idx = merged.findIndex(x => x.id === t.id)
+            if (idx >= 0) {
+              // Keep newer version
+              if (t.updatedAt > merged[idx].updatedAt) {
+                merged[idx] = t
+              }
+            } else {
+              merged.push(t)
+            }
+          }
+          return merged
+        })
+      }
+      if (c.messages) {
+        setMessages(prev => {
+          const next = { ...prev }
+          for (const [threadId, msgs] of Object.entries(c.messages)) {
+            const current = next[threadId] || []
+            for (const m of msgs as Message[]) {
+              const idx = current.findIndex(x => x.id === m.id)
+              if (idx >= 0) {
+                if (m.createdAt > current[idx].createdAt) {
+                  current[idx] = m
+                }
+              } else {
+                current.push(m)
+              }
+            }
+            next[threadId] = current
+          }
+          return next
+        })
+      }
+      if (c.projects) {
+        setProjects(prev => {
+          const merged = [...prev]
+          for (const p of c.projects) {
+            const idx = merged.findIndex(x => x.id === p.id)
+            if (idx >= 0) {
+              if (p.updatedAt > merged[idx].updatedAt) {
+                merged[idx] = p
+              }
+            } else {
+              merged.push(p)
+            }
+          }
+          return merged
+        })
+      }
+    }
   }
 
   // Load initial data
@@ -170,7 +227,7 @@ export default function App() {
   }, [])
 
   const renameThread = useCallback((id: string, name: string) => {
-    setThreads(prev => prev.map(t => t.id === id ? { ...t, name } : t))
+    setThreads(prev => prev.map(t => t.id === id ? { ...t, name, updatedAt: Date.now() } : t))
   }, [])
 
   const deleteThread = useCallback((id: string) => {
@@ -215,7 +272,7 @@ export default function App() {
   }, [])
 
   const renameProject = useCallback((id: string, name: string) => {
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p))
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, name, updatedAt: Date.now() } : p))
   }, [])
 
   const deleteProject = useCallback((id: string) => {

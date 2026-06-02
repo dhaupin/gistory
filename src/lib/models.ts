@@ -1,17 +1,19 @@
 // Core data models for Gistory
 
-export interface Project {
-  id: string
-  name: string
-  createdAt: number
-  archivedAt?: number
-}
-
 export interface Thread {
   id: string
   name: string
   projectIds: string[]
   createdAt: number
+  updatedAt?: number
+}
+
+export interface Project {
+  id: string
+  name: string
+  createdAt: number
+  updatedAt?: number
+  archivedAt?: number
 }
 
 export interface Message {
