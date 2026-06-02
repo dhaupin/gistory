@@ -213,18 +213,16 @@ export class SyncAgent {
     // Increment sequence
     this.lastSeq++
     
-    // Encrypt payload
-    const payload = await encrypt(data, this.key)
+    // Encrypt payload - include sender deviceId for merge tie-breaking
+    const payload = await encrypt({ ...data, senderDeviceId: this.identity.id }, this.key)
     const payloadHash = hash(JSON.stringify(data))
     
-    const blob: SyncBlob = {
-      key: this.identity.id,
-      chain: this.chain.id,
+    // Include deviceId for filtering on other devices' pulls
+    const blob = {
+      chainId: this.chain.id,
       seq: this.lastSeq,
-      nonce: '',  // embedded in encrypted payload
       data: payload,
-      hash: payloadHash,
-      timestamp: Date.now(),
+      deviceId: this.identity.id,
     }
     
     await fetch(`${this.config.workerUrl}/sync/push`, {
@@ -239,20 +237,20 @@ export class SyncAgent {
   
   // Pull - download + decrypt
   async pull(): Promise<object[]> {
-    if (!this.key || !this.chain) {
+    if (!this.key || !this.chain || !this.identity) {
       throw new Error('Not initialized')
     }
     
-    // Get last sequence
+    // Get last sequence I saw (global seen)
     const lastSeqStr = localStorage.getItem(`gistory_seq_${this.chain.id}`)
     const sinceSeq = lastSeqStr ? Number(lastSeqStr) : 0
     
-    // Fetch blobs
+    // Fetch blobs from OTHER devices only
     const response = await fetch(
-      `${this.config.workerUrl}/sync/pull?chain=${this.chain.id}&since=${sinceSeq}`,
+      `${this.config.workerUrl}/sync/pull?chain=${this.chain.id}&since=${sinceSeq}&deviceId=${this.identity.id}`,
     )
     
-    const blobs: SyncBlob[] = await response.json()
+    const { blobs, serverSeq } = await response.json() as { blobs: { seq: number; data: string }[]; serverSeq: number }
     const results: object[] = []
     
     for (const blob of blobs) {
@@ -260,14 +258,18 @@ export class SyncAgent {
         const decrypted = await decrypt(blob.data, this.key!)
         results.push(decrypted)
         
-        // Update sequence
+        // Update global seq tracking
         if (blob.seq > this.lastSeq) {
           this.lastSeq = blob.seq
         }
       } catch {
-        // Skip decryption failures (wrong key?)
         console.warn('Failed to decrypt blob', blob.seq)
       }
+    }
+    
+    // Store global seen seq (others' changes we've consumed)
+    if (sinceSeq > 0) {
+      localStorage.setItem(`gistory_seq_${this.chain.id}`, String(this.lastSeq))
     }
     
     return results
@@ -280,6 +282,11 @@ export class SyncAgent {
       chainId: this.chain?.id,
       lastSeq: this.lastSeq,
     }
+  }
+
+  // Get my deviceId
+  getDeviceId(): string | undefined {
+    return this.identity?.id
   }
 }
 

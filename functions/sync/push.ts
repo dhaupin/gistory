@@ -9,7 +9,8 @@ const cors = {
 }
 
 export const onRequestPost = async (context) => {
-  const body = await context.request.json() as { chainId: string; seq: number; data: string }
+  const body = await context.request.json() as { chainId: string; seq: number; data: string; deviceId: string }
+  // Store deviceId along with blob for filtering
   devStore.set(`blob:${body.chainId}:${body.seq}`, body.data)
   devStore.set(`seq:${body.chainId}`, String(body.seq))
   return new Response(JSON.stringify({ ok: true, seq: body.seq }), {

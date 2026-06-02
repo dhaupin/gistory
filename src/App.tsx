@@ -108,17 +108,22 @@ export default function App() {
     const changes = await syncAgentRef.current.pull()
     console.log('Got sync changes:', changes)
     
-    // Merge changes: last-write-wins based on timestamp
+    const myDeviceId = syncAgentRef.current.getDeviceId()
+    
+    // Merge changes: last-write-wins based on timestamp + deviceId tie-breaker
     for (const change of changes) {
       const c = change as any
+      const senderDeviceId = c.senderDeviceId
+      
       if (c.threads) {
         setThreads(prev => {
           const merged = [...prev]
           for (const t of c.threads) {
             const idx = merged.findIndex(x => x.id === t.id)
             if (idx >= 0) {
-              // Keep newer version
-              if (t.updatedAt > merged[idx].updatedAt) {
+              // Keep newer version, or use deviceId as tie-breaker
+              if (t.updatedAt > merged[idx].updatedAt || 
+                  (t.updatedAt === merged[idx].updatedAt && senderDeviceId > myDeviceId)) {
                 merged[idx] = t
               }
             } else {
@@ -136,7 +141,8 @@ export default function App() {
             for (const m of msgs as Message[]) {
               const idx = current.findIndex(x => x.id === m.id)
               if (idx >= 0) {
-                if (m.createdAt > current[idx].createdAt) {
+                if (m.createdAt > current[idx].createdAt ||
+                    (m.createdAt === current[idx].createdAt && senderDeviceId > myDeviceId)) {
                   current[idx] = m
                 }
               } else {
@@ -154,7 +160,8 @@ export default function App() {
           for (const p of c.projects) {
             const idx = merged.findIndex(x => x.id === p.id)
             if (idx >= 0) {
-              if (p.updatedAt > merged[idx].updatedAt) {
+              if (p.updatedAt > merged[idx].updatedAt ||
+                  (p.updatedAt === merged[idx].updatedAt && senderDeviceId > myDeviceId)) {
                 merged[idx] = p
               }
             } else {

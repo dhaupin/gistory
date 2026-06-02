@@ -11,6 +11,7 @@ export const onRequestGet = async ({ request }: Params) => {
   const url = new URL(request.url)
   const chainId = url.searchParams.get('chain')
   const since = Number(url.searchParams.get('since') || 0)
+  const deviceId = url.searchParams.get('deviceId') || ''
   
   if (!chainId) {
     return new Response(JSON.stringify({ error: 'chain required' }), {
@@ -19,16 +20,28 @@ export const onRequestGet = async ({ request }: Params) => {
     })
   }
   
-  const latestSeqStr = devStore.get(`seq:${chainId}`)
-  const latestSeq = latestSeqStr ? Number(latestSeqStr) : since
+  const serverSeq = Number(devStore.get(`seq:${chainId}`) || 0)
   const blobs: Array<{ seq: number; data: string }> = []
   
-  for (let seq = since + 1; seq <= latestSeq; seq++) {
-    const data = devStore.get(`blob:${chainId}:${seq}`)
-    if (data) blobs.push({ seq, data })
+  // Get blobs AFTER my since, but ONLY from OTHER devices
+  for (let seq = since + 1; seq <= serverSeq; seq++) {
+    const stored = devStore.get(`blob:${chainId}:${seq}`)
+    if (!stored) continue
+    
+    // Parse to get deviceId from blob meta
+    try {
+      const blobData = JSON.parse(stored)
+      // Filter: skip if this is from my own device
+      if (deviceId && blobData.deviceId === deviceId) continue
+      
+      blobs.push({ seq, data: stored })
+    } catch {
+      // Legacy format without deviceId - include it
+      blobs.push({ seq, data: stored })
+    }
   }
   
-  return new Response(JSON.stringify({ blobs, latestSeq }), {
+  return new Response(JSON.stringify({ blobs, serverSeq }), {
     headers: { 'Content-Type': 'application/json' },
   })
 }
