@@ -9,6 +9,7 @@ import Layout from './components/Layout'
 import Header from './components/Header'
 import BurgerMenu from './components/BurgerMenu'
 import ThreadView from './components/ThreadView'
+import HomeBoard from './components/HomeBoard'
 import ProjectsBoard from './components/ProjectsBoard'
 import ProjectDetail from './components/ProjectDetail'
 import SettingsPage from './components/Settings'
@@ -346,22 +347,84 @@ export default function App() {
       )
     }
     
-    return currentThread ? (
-      <ThreadView
-        thread={currentThread}
-        messages={messages[currentThreadId] || []}
-        searchQuery={searchQuery}
-        projects={projects}
-        onAddMessage={content => addMessage(currentThreadId, content)}
-        onUpdateMessage={updateMessage}
-        onDeleteMessage={deleteMessage}
-        onRenameThread={renameThread}
-        onDeleteThread={deleteThread}
-        onAddToProject={addThreadToProject}
-        onRemoveFromProject={removeThreadFromProject}
-      />
-    ) : (
-      <EmptyState onCreate={createThread} />
+    // Home page - threads list + projects
+    if (path === '/') {
+      // If a thread is selected, show it inline
+      if (currentThreadId && currentThread) {
+        return (
+          <>
+            <HomeBoard
+              threads={threads}
+              projects={projects}
+              sort={sort}
+              onSortChange={setSort}
+              onSelectThread={setCurrentThreadId}
+              onProjectClick={id => navigate(`/project/${id}`)}
+              onCreateThread={createThread}
+              onCreateProject={createProject}
+              onRenameThread={renameThread}
+              onDeleteThread={deleteThread}
+              onRenameProject={renameProject}
+              onDeleteProject={deleteProject}
+            />
+            <div className="thread-panel">
+              <ThreadView
+                thread={currentThread}
+                messages={messages[currentThreadId] || []}
+                searchQuery={searchQuery}
+                projects={projects}
+                onAddMessage={content => addMessage(currentThreadId, content)}
+                onUpdateMessage={updateMessage}
+                onDeleteMessage={deleteMessage}
+                onRenameThread={renameThread}
+                onDeleteThread={deleteThread}
+                onAddToProject={addThreadToProject}
+                onRemoveFromProject={removeThreadFromProject}
+              />
+            </div>
+          </>
+        )
+      }
+      
+      // Otherwise show just the board
+      return (
+        <HomeBoard
+          threads={threads}
+          projects={projects}
+          sort={sort}
+          onSortChange={setSort}
+          onSelectThread={setCurrentThreadId}
+          onProjectClick={id => navigate(`/project/${id}`)}
+          onCreateThread={createThread}
+          onCreateProject={createProject}
+          onRenameThread={renameThread}
+          onDeleteThread={deleteThread}
+          onRenameProject={renameProject}
+          onDeleteProject={deleteProject}
+        />
+      )
+    }
+    
+    // No threads at all - show welcome
+    return (
+      threads.length === 0 ? (
+        <EmptyState onCreate={createThread} />
+      ) : (
+        <HomeBoard
+          threads={threads}
+          projects={projects}
+          sort={sort}
+          onSortChange={setSort}
+          onSelectThread={setCurrentThreadId}
+          onProjectClick={id => navigate(`/project/${id}`)}
+          onCreateThread={createThread}
+          onCreateProject={createProject}
+          onRenameThread={renameThread}
+          onDeleteThread={deleteThread}
+          onRenameProject={renameProject}
+          onDeleteProject={deleteProject}
+        />
+      )
     )
   }
 

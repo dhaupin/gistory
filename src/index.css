@@ -1052,3 +1052,113 @@ body {
   color: var(--text);
   cursor: pointer;
 }
+
+.home-board .home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.home-board .header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.home-board .header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.home-board .threads-section,
+.home-board .projects-section {
+  margin-top: 1.5rem;
+}
+.home-board .threads-grid,
+.home-board .projects-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.home-board .thread-item,
+.home-board .project-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.home-board .thread-link,
+.home-board .project-link {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.home-board .thread-link:hover,
+.home-board .project-link:hover {
+  background: var(--bg);
+}
+.home-board .project-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.home-board .new-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.home-board .new-form input {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+.home-board .project-tag {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  background: var(--primary);
+  color: white;
+  border-radius: 9999px;
+}
+
+.home-board h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.home-board h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.home-board .empty-text {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+.thread-panel {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.btn-icon {
+  padding: 0.375rem;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.btn-icon:hover {
+  background: var(--border);
+  color: var(--text);
+}
+.btn-icon.danger {
+  color: var(--danger);
+}
