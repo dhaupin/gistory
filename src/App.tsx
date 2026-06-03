@@ -200,12 +200,19 @@ export default function App() {
     return () => unsub()
   }, [])
 
-  // Auto-select first thread
+  // Auto-select first thread (only when no route and no selection)
   useEffect(() => {
-    if (!currentThreadId && threads.length > 0) {
+    if (!currentThreadId && threads.length > 0 && !route.params.threadId) {
       setCurrentThreadId(threads[0].id)
     }
-  }, [threads, currentThreadId])
+  }, [threads, currentThreadId, route.params.threadId])
+
+  // Sync currentThreadId from route
+  useEffect(() => {
+    if (route.params.threadId && route.params.threadId !== currentThreadId) {
+      setCurrentThreadId(route.params.threadId)
+    }
+  }, [route.params.threadId])
 
   // Persist
   useEffect(() => {
@@ -349,51 +356,13 @@ export default function App() {
     
     // Home page - threads list + projects
     if (path === '/') {
-      // If a thread is selected, show it inline
-      if (currentThreadId && currentThread) {
-        return (
-          <>
-            <HomeBoard
-              threads={threads}
-              projects={projects}
-              sort={sort}
-              onSortChange={setSort}
-              onSelectThread={setCurrentThreadId}
-              onProjectClick={id => navigate(`/project/${id}`)}
-              onCreateThread={createThread}
-              onCreateProject={createProject}
-              onRenameThread={renameThread}
-              onDeleteThread={deleteThread}
-              onRenameProject={renameProject}
-              onDeleteProject={deleteProject}
-            />
-            <div className="thread-panel">
-              <ThreadView
-                thread={currentThread}
-                messages={messages[currentThreadId] || []}
-                searchQuery={searchQuery}
-                projects={projects}
-                onAddMessage={content => addMessage(currentThreadId, content)}
-                onUpdateMessage={updateMessage}
-                onDeleteMessage={deleteMessage}
-                onRenameThread={renameThread}
-                onDeleteThread={deleteThread}
-                onAddToProject={addThreadToProject}
-                onRemoveFromProject={removeThreadFromProject}
-              />
-            </div>
-          </>
-        )
-      }
-      
-      // Otherwise show just the board
       return (
         <HomeBoard
           threads={threads}
           projects={projects}
           sort={sort}
           onSortChange={setSort}
-          onSelectThread={setCurrentThreadId}
+          onSelectThread={id => { setCurrentThreadId(id); navigate('/' + id) }}
           onProjectClick={id => navigate(`/project/${id}`)}
           onCreateThread={createThread}
           onCreateProject={createProject}
@@ -401,6 +370,25 @@ export default function App() {
           onDeleteThread={deleteThread}
           onRenameProject={renameProject}
           onDeleteProject={deleteProject}
+        />
+      )
+    }
+    
+    // Thread view page
+    if (currentThreadId && currentThread) {
+      return (
+        <ThreadView
+          thread={currentThread}
+          messages={messages[currentThreadId] || []}
+          searchQuery={searchQuery}
+          projects={projects}
+          onAddMessage={content => addMessage(currentThreadId, content)}
+          onUpdateMessage={updateMessage}
+          onDeleteMessage={deleteMessage}
+          onRenameThread={renameThread}
+          onDeleteThread={deleteThread}
+          onAddToProject={addThreadToProject}
+          onRemoveFromProject={removeThreadFromProject}
         />
       )
     }

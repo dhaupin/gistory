@@ -19,6 +19,9 @@ export function parseRoute(hash: string) {
       params.id = parts[1]
     } else if (parts[0] === 'project' && parts[1]) {
       params.id = parts[1]
+    } else if (parts[0]) {
+      // Assume it's a thread ID
+      params.threadId = parts[0]
     }
   }
   
