@@ -1,0 +1,7 @@
+name = "gistory-sync"
+main = "functions/sync/index.ts"
+compatibility_date = "2025-06-02"
+
+[[kv_namespaces]]
+binding = "GISTRY_KV"
+id = ""

@@ -1,13 +1,15 @@
-// /sync/pull handler
+// /sync/pull handler - uses KV for persistence
 
-const devStore = new Map<string, string>()
+interface Env {
+  GISTRY_KV: KVNamespace
+}
 
 interface Params {
   request: Request
-  env: Record<string, unknown>
+  env: Env
 }
 
-export const onRequestGet = async ({ request }: Params) => {
+export const onRequestGet = async ({ request, env }: Params) => {
   const url = new URL(request.url)
   const chainId = url.searchParams.get('chain')
   const since = Number(url.searchParams.get('since') || 0)
@@ -20,12 +22,21 @@ export const onRequestGet = async ({ request }: Params) => {
     })
   }
   
-  const serverSeq = Number(devStore.get(`seq:${chainId}`) || 0)
+  if (!env.GISTRY_KV) {
+    return new Response(JSON.stringify({ error: 'KV not configured' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+  
+  // Get sequence from KV
+  const seqStr = await env.GISTRY_KV.get(`seq:${chainId}`)
+  const serverSeq = seqStr ? Number(seqStr) : 0
   const blobs: Array<{ seq: number; data: string }> = []
   
   // Get blobs AFTER my since, but ONLY from OTHER devices
   for (let seq = since + 1; seq <= serverSeq; seq++) {
-    const stored = devStore.get(`blob:${chainId}:${seq}`)
+    const stored = await env.GISTRY_KV.get(`blob:${chainId}:${seq}`)
     if (!stored) continue
     
     // Parse to get deviceId from blob meta
