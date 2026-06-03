@@ -46,6 +46,11 @@ export default function ThreadView({
     setThreadName(thread.name)
   }, [thread.name])
 
+  // Load draft when switching threads
+  useEffect(() => {
+    setInput(loadDraft(thread.id))
+  }, [thread.id])
+
   // Autosave draft on input change (debounced)
   useEffect(() => {
     const timer = setTimeout(() => saveDraft(thread.id, input), 800)
