@@ -22,11 +22,11 @@
 
 ### §2. Copyright & Ownership
 
-**© 2026 Gistory Holdings, LLC** and **The Contributors.**
+**© 2026 Creadev.org** and **The Contributors.**
 
 Gistory is an open-source project with copyright held by the maintainer and contributors collectively.
 
-- **Maintainer:** **Gistory Holdings, LLC** (travel & tour technology company)
+- **Maintainer:** **Creadev.org** (independent open-source maintainer)
 - **Contributor License:** **CLA-C** (Contributor License Agreement - Copyright) - By submitting PRs, contributors agree to license contributions under this document's terms
 
 **No IP Transfer Required:** Contributors retain copyright to their contributions. License is non-exclusive, worldwide, royalty-free.
