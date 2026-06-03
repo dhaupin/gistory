@@ -34,14 +34,14 @@ export default function ThreadView({
   onAddToProject,
   onRemoveFromProject
 }: ThreadViewProps) {
-  const [input, setInput] = useState(() => loadDraft(thread.id))
+  const [input, setInput] = useState('')
   const [editingMsg, setEditingMsg] = useState<Message | null>(null)
   const [editText, setEditText] = useState('')
   const [editingThread, setEditingThread] = useState(false)
   const [threadName, setThreadName] = useState(thread.name)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'thread'; id: string } | null>(null)
 
-  // Sync thread name when thread prop changes
+  // Sync thread name when thread changes
   useEffect(() => {
     setThreadName(thread.name)
   }, [thread.name])
