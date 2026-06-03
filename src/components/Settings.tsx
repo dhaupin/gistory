@@ -297,13 +297,6 @@ function DataSettings() {
   const [selectedThread, setSelectedThread] = useState<string>('')
   const [selectedProject, setSelectedProject] = useState<string>('')
   
-  // Metadata editing state
-  const [editMode, setEditMode] = useState(false)
-  const [metaTags, setMetaTags] = useState('')
-  const [metaCategory, setMetaCategory] = useState('')
-  const [metaRating, setMetaRating] = useState(0)
-  const [metaNotes, setMetaNotes] = useState('')
-  
   // Load data from store for dropdowns
   const [threads, setThreads] = useState<{id: string, name: string, metadata?: PromptMetadata}[]>([])
   const [projects, setProjects] = useState<{id: string, name: string}[]>([])
@@ -316,50 +309,6 @@ function DataSettings() {
       setProjects(data.projects.map((p: {id: string, name: string}) => ({id: p.id, name: p.name})))
     })
   }, [])
-  
-  // Load selected thread metadata
-  useEffect(() => {
-    if (!selectedThread) {
-      setMetaTags('')
-      setMetaCategory('')
-      setMetaRating(0)
-      setMetaNotes('')
-      return
-    }
-    const thread = threads.find(t => t.id === selectedThread)
-    if (thread?.metadata) {
-      setMetaTags(thread.metadata.tags?.join(', ') || '')
-      setMetaCategory(thread.metadata.category || '')
-      setMetaRating(thread.metadata.rating || 0)
-      setMetaNotes(thread.metadata.notes || '')
-    } else {
-      setMetaTags('')
-      setMetaCategory('')
-      setMetaRating(0)
-      setMetaNotes('')
-    }
-  }, [selectedThread, threads])
-  
-  const handleSaveMeta = async () => {
-    const { saveThreads, loadData } = await import('../lib/store')
-    const data = loadData()
-    const updated = data.threads.map(t => {
-      if (t.id !== selectedThread) return t
-      return {
-        ...t,
-        metadata: {
-          tags: metaTags.split(',').map(x => x.trim()).filter(Boolean),
-          category: metaCategory as any,
-          rating: metaRating || undefined,
-          notes: metaNotes || undefined,
-        }
-      }
-    })
-    saveThreads(updated)
-    setEditMode(false)
-    // Reload
-    window.location.reload()
-  }
   
   const handleExportAll = () => {
     const data = exportAll()
@@ -461,69 +410,6 @@ function DataSettings() {
           Choose JSON file
         </label>
         {importStatus && <p className="import-status">{importStatus}</p>}
-      </div>
-      
-      <h3>Thread Metadata</h3>
-      <div className="metadata-section">
-        <select 
-          value={selectedThread}
-          onChange={e => setSelectedThread(e.target.value)}
-        >
-          <option value="">Select thread to edit...</option>
-          {threads.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
-        
-        {selectedThread && (
-          <div className="metadata-fields">
-            <label>
-              Tags (comma-separated)
-              <input 
-                type="text" 
-                value={metaTags}
-                onChange={e => setMetaTags(e.target.value)}
-                placeholder="coding, summarization, translation"
-              />
-            </label>
-            
-            <label>
-              Category
-              <select value={metaCategory} onChange={e => setMetaCategory(e.target.value)}>
-                <option value="">None</option>
-                <option value="productivity">Productivity</option>
-                <option value="creative">Creative</option>
-                <option value="technical">Technical</option>
-                <option value="general">General</option>
-              </select>
-            </label>
-            
-            <label>
-              Rating
-              <select value={metaRating} onChange={e => setMetaRating(Number(e.target.value))}>
-                <option value={0}>None</option>
-                <option value={1}>1 - Poor</option>
-                <option value={2}>2 - Fair</option>
-                <option value={3}>3 - Good</option>
-                <option value={4}>4 - Great</option>
-                <option value={5}>5 - Excellent</option>
-              </select>
-            </label>
-            
-            <label>
-              Notes
-              <textarea 
-                value={metaNotes}
-                onChange={e => setMetaNotes(e.target.value)}
-                placeholder="Additional notes..."
-              />
-            </label>
-            
-            <button className="btn-primary" onClick={handleSaveMeta}>
-              Save Metadata
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )
