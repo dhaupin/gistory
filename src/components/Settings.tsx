@@ -64,7 +64,7 @@ function SettingsPage(props: SettingsProps) {
           className={`tab ${activeTab === 'data' ? 'active' : ''}`}
           onClick={() => setActiveTab('data')}
         >
-          Data
+          Snapshot
         </button>
       </div>
       

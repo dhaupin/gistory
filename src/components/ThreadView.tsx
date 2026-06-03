@@ -147,6 +147,25 @@ export default function ThreadView({
             )}
           </>
         )}
+        
+        {/* Display metadata - tags, category, rating */}
+        {thread.metadata && (
+          <div className="thread-meta">
+            {thread.metadata.tags?.length > 0 && (
+              <div className="meta-tags">
+                {thread.metadata.tags.map(tag => (
+                  <span key={tag} className="tag">{tag}</span>
+                ))}
+              </div>
+            )}
+            {thread.metadata.category && (
+              <span className="meta-category">{thread.metadata.category}</span>
+            )}
+            {thread.metadata.rating && (
+              <span className="meta-rating">{'★'.repeat(thread.metadata.rating)}</span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="input-card">
