@@ -426,6 +426,8 @@ export default function App() {
         threads={threads} 
         projects={projects} 
         currentThreadId={currentThreadId} 
+        sort={sort}
+        onSortChange={setSort}
         onSelect={id => { setCurrentThreadId(id); navigate('/' + id); setShowBurger(false) }} 
         onClose={() => setShowBurger(false)} 
         createThread={createThread} 

@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { X, Edit, Trash2, Folder, FolderOpen, Check } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
+import { sortThreads, type SortState } from '../ui/sort'
 import ActionMenu, { ActionItem } from './ActionMenu'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -9,6 +10,8 @@ interface BurgerMenuProps {
   threads: Thread[]
   projects: Project[]
   currentThreadId: string
+  sort?: SortState
+  onSortChange?: (sort: SortState) => void
   onSelect: (id: string) => void
   onClose: () => void
   createThread: (name: string, projectIds?: string[]) => void
@@ -26,6 +29,8 @@ export default function BurgerMenu({
   threads,
   projects,
   currentThreadId,
+  sort,
+  onSortChange,
   onSelect,
   onClose,
   createThread,
@@ -46,9 +51,11 @@ export default function BurgerMenu({
   const [editingProject, setEditingProject] = useState<{id: string, name: string} | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'thread' | 'project'; id: string; name: string } | null>(null)
 
-  const getThreadsInProject = (pid: string) => threads.filter(t => t.projectIds.includes(pid))
-  const unassigned = threads.filter(t => t.projectIds.length === 0)
-  const sortedProjects = [...projects].sort((a, b) => a.name.localeCompare(b.name))
+  // Sort threads globally (must declare before getThreadsInProject usage)
+  const sortedThreads = sortThreads(threads, sort || { field: 'createdAt', dir: 'desc' })
+  const sortedProjectsList = [...projects].sort((a, b) => a.name.localeCompare(b.name))
+  const getThreadsInProject = (pid: string) => sortedThreads.filter(t => t.projectIds.includes(pid))
+  const unassigned = sortedThreads.filter(t => t.projectIds.length === 0)
 
   const handleCreateThread = () => {
     if (!newThreadName.trim()) return
@@ -201,7 +208,7 @@ export default function BurgerMenu({
         )}
 
         {/* Projects with threads */}
-        {sortedProjects.map(project => {
+        {sortedProjectsList.map(project => {
           const projThreads = getThreadsInProject(project.id)
           return (
             <div key={project.id} className="project-group">
