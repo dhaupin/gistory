@@ -106,6 +106,7 @@ export default function HomeBoard({
       {showNewThread && (
         <div className="new-form">
           <input
+            className="input"
             autoFocus
             placeholder="Thread name..."
             value={newThreadName}
@@ -121,6 +122,7 @@ export default function HomeBoard({
       {showNewProject && (
         <div className="new-form">
           <input
+            className="input"
             autoFocus
             placeholder="Project name..."
             value={newProjectName}

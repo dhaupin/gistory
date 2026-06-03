@@ -146,6 +146,7 @@ function SyncSettings(props: SettingsProps) {
           
           <div className="input-group">
             <input
+              className="input"
               type="password"
               placeholder="Enter sync key or passphrase"
               value={keyInput}

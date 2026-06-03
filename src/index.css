@@ -318,6 +318,56 @@ body {
   gap: 0.5rem;
 }
 
+/* Base input styles */
+.input,
+input[type="text"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="url"],
+textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus,
+input[type="text"]:focus,
+input[type="search"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="url"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-dim);
+}
+
+/* Input small variant */
+.input-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+/* Input large variant */
+.input-lg {
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+}
+
 /* Buttons */
 .btn {
   padding: 0.5rem 1rem;
