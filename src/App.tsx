@@ -13,6 +13,7 @@ import ProjectsBoard from './components/ProjectsBoard'
 import ProjectDetail from './components/ProjectDetail'
 import SettingsPage from './components/Settings'
 import EmptyState from './components/EmptyState'
+import { parseSort, toSortParam, type SortState } from './ui/sort'
 
 export default function App() {
   const [threads, setThreads] = useState<Thread[]>([])
@@ -22,6 +23,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [darkMode, setDarkMode] = useState(() => 
     localStorage.getItem('gistory_dark') === 'true'
+  )
+  const [sort, setSort] = useState<SortState>(() => 
+    parseSort(localStorage.getItem('gistory_sort'))
   )
   const [route, setRoute] = useState(parseRoute(window.location.hash))
   const [showBurger, setShowBurger] = useState(false)
@@ -212,6 +216,9 @@ export default function App() {
   useEffect(() => {
     if (projects.length > 0) saveProjects(projects)
   }, [projects])
+  useEffect(() => {
+    localStorage.setItem('gistory_sort', toSortParam(sort))
+  }, [sort])
 
   // Actions
   const createThread = useCallback((name: string, projectIds: string[] = []) => {
@@ -314,6 +321,8 @@ export default function App() {
           project={projects.find(p => p.id === route.params.id)}
           threads={getThreadsInProject(route.params.id)}
           messages={messages}
+          sort={sort}
+          onSortChange={setSort}
           onSelect={id => { setCurrentThreadId(id); navigate('/') }}
           onDeleteProject={deleteProject}
           onRenameProject={renameProject}

@@ -11,6 +11,9 @@ export { Badge, Button } from './Badge'
 export { useDebounce, useHeartbeat } from './hooks'
 export { useAutoSave } from './AutoSaver'
 
+// Sort utilities
+export { sortThreads, parseSort, toSortParam, toggleSortDir, type SortState, type SortField, type SortDir } from './sort'
+
 // Sync Module (v2 - Client-First)
 // Export types and class from ./sync/agent.ts - re-exported for app-wide usage
 export {

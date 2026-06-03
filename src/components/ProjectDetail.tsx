@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Folder, Edit, Trash2 } from 'lucide-react'
 import type { Project, Thread, MessagesByThread } from '../lib/models'
+import { sortThreads, type SortState } from '../ui/sort'
 import ActionMenu, { ActionItem } from './ActionMenu'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -9,6 +10,8 @@ interface ProjectDetailProps {
   project: Project | undefined
   threads: Thread[]
   messages: MessagesByThread
+  sort: SortState
+  onSortChange: (sort: SortState) => void
   onSelect: (threadId: string) => void
   onDeleteProject: (id: string) => void
   onRenameProject: (id: string, name: string) => void
@@ -18,6 +21,8 @@ export default function ProjectDetail({
   project,
   threads,
   messages,
+  sort,
+  onSortChange,
   onSelect,
   onDeleteProject,
   onRenameProject
@@ -52,7 +57,7 @@ export default function ProjectDetail({
     { label: 'Delete', icon: <Trash2 size={14} />, onClick: handleDelete, variant: 'danger' },
   ]
 
-  const sorted = [...threads].sort((a, b) => b.createdAt - a.createdAt)
+  const sorted = sortThreads(threads, sort)
 
   return (
     <div className="container">
@@ -82,7 +87,22 @@ export default function ProjectDetail({
       </div>
 
       <div className="threads-list">
-        <h3>{sorted.length} Thread{sorted.length !== 1 ? 's' : ''}</h3>
+        <div className="threads-header">
+          <h3>{sorted.length} Thread{sorted.length !== 1 ? 's' : ''}</h3>
+          <select 
+            value={`${sort.field}_${sort.dir}`}
+            onChange={e => {
+              const [field, dir] = e.target.value.split('_') as [SortState['field'], SortState['dir']]
+              onSortChange({ field, dir })
+            }}
+            className="sort-select"
+          >
+            <option value="createdAt_desc">Newest</option>
+            <option value="createdAt_asc">Oldest</option>
+            <option value="name_asc">Name A-Z</option>
+            <option value="name_desc">Name Z-A</option>
+          </select>
+        </div>
         {sorted.map(thread => (
           <button
             key={thread.id}
