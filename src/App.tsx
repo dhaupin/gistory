@@ -382,6 +382,8 @@ export default function App() {
           messages={messages[currentThreadId] || []}
           searchQuery={searchQuery}
           projects={projects}
+          sort={sort}
+          onSortChange={setSort}
           onAddMessage={content => addMessage(currentThreadId, content)}
           onUpdateMessage={updateMessage}
           onDeleteMessage={deleteMessage}

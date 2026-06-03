@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Copy, Edit, Trash2, Save, MoreHorizontal } from 'lucide-react'
 import type { Message, Thread, Project } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
+import { type SortState } from '../ui/sort'
 import ActionMenu, { ActionItem } from './ActionMenu'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -12,6 +13,8 @@ interface ThreadViewProps {
   messages: Message[]
   searchQuery: string
   projects: Project[]
+  sort?: SortState
+  onSortChange?: (sort: SortState) => void
   onAddMessage: (content: string) => void
   onUpdateMessage: (msgId: string, content: string) => void
   onDeleteMessage: (msgId: string) => void
@@ -26,6 +29,8 @@ export default function ThreadView({
   messages,
   searchQuery,
   projects,
+  sort,
+  onSortChange,
   onAddMessage,
   onUpdateMessage,
   onDeleteMessage,
@@ -40,6 +45,18 @@ export default function ThreadView({
   const [editingThread, setEditingThread] = useState(false)
   const [threadName, setThreadName] = useState(thread.name)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'thread'; id: string } | null>(null)
+
+  // Sort messages
+  const sortedMessages = sort 
+    ? [...messages].sort((a, b) => {
+        const field = sort.field === 'name' ? 'createdAt' : sort.field
+        const av = a[field] ?? a.createdAt
+        const bv = b[field] ?? b.createdAt
+        if (av < bv) return sort.dir === 'asc' ? -1 : 1
+        if (av > bv) return sort.dir === 'asc' ? 1 : -1
+        return 0
+      })
+    : messages
 
   // Sync thread name when thread changes
   useEffect(() => {
@@ -58,8 +75,8 @@ export default function ThreadView({
   }, [input, thread.id])
 
   const filtered = searchQuery
-    ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => b.createdAt - a.createdAt)
-    : [...messages].sort((a, b) => b.createdAt - a.createdAt)
+    ? sortedMessages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+    : sortedMessages
 
   // Clear draft when message is added
   const handleAdd = () => {
@@ -146,10 +163,27 @@ export default function ThreadView({
           </div>
         ) : (
           <>
-            <h3 className="thread-title">{thread.name}</h3>
-            {(onRenameThread || onDeleteThread) && (
-              <ActionMenu items={buildMenuItems()} />
-            )}
+            <div className="thread-title-row">
+              <h3 className="thread-title">{thread.name}</h3>
+              {onSortChange && (
+                <select 
+                  value={`${sort?.field || 'createdAt'}_${sort?.dir || 'desc'}`}
+                  onChange={e => {
+                    const [field, dir] = e.target.value.split('_') as ['createdAt' | 'updatedAt' | 'name', 'asc' | 'desc']
+                    onSortChange({ field, dir })
+                  }}
+                  className="sort-select"
+                >
+                  <option value="createdAt_desc">Newest first</option>
+                  <option value="createdAt_asc">Oldest first</option>
+                  <option value="updatedAt_desc">Recently updated</option>
+                  <option value="updatedAt_asc">Least updated</option>
+                </select>
+              )}
+              {(onRenameThread || onDeleteThread) && (
+                <ActionMenu items={buildMenuItems()} />
+              )}
+            </div>
           </>
         )}
         
