@@ -1162,3 +1162,352 @@ body {
 .btn-icon.danger {
   color: var(--danger);
 }
+
+/* Button sizes */
+.btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+/* Header layouts */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.help-text {
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+}
+
+/* Form groups */
+.input-group {
+  margin-bottom: 1rem;
+}
+
+.new-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* Modal parts */
+.modal-body {
+  padding: 1rem;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modal-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Project items */
+.project-item {
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.project-stats {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.project-count {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* Thread item */
+.thread-item {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.thread-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.thread-projects {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+/* Meta info */
+.meta-category {
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.meta-rating {
+  color: #f59e0b;
+  font-size: 0.75rem;
+}
+
+.meta-tags {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+/* Device list */
+.devices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.device-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.device-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.device-name {
+  font-weight: 500;
+}
+
+.device-last-seen {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* Empty state text */
+.empty-text {
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+/* Sync */
+.last-sync {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.export-section {
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.import-section {
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.import-status {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.export-options {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* Settings layout */
+.data-settings {
+  max-width: 600px;
+}
+
+.setting-desc {
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.setting-row {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-content {
+  max-width: 600px;
+}
+
+.settings-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.settings-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.settings-section {
+  margin-bottom: 1.5rem;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+/* Sync setup/status */
+.sync-setup {
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 0.75rem;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.sync-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Toggle */
+.toggle {
+  width: 40px;
+  height: 22px;
+  background: var(--border);
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle.on {
+  background: var(--primary);
+}
+
+.toggle-knob {
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+
+.toggle.on .toggle-knob {
+  transform: translateX(18px);
+}
+
+/* Badge */
+.badge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.badge-default {
+  background: var(--border);
+  color: var(--text);
+}
+
+.badge-danger {
+  background: #fef2f2;
+  color: var(--danger);
+}
+
+.badge-success {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.badge-warning {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+/* Status indicator */
+.status-good {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Token display */
+.token-display {
+  font-family: monospace;
+  font-size: 0.75rem;
+  background: var(--bg);
+  padding: 0.5rem;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+/* QR display */
+.qr-display {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* You badge */
+.you-badge {
+  background: var(--primary);
+  color: white;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* Page wrapper */
+.page-wrapper {
+  padding: 1rem;
+}
