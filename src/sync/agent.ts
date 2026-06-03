@@ -205,9 +205,25 @@ export class SyncAgent {
   }
   
   // Push - encrypt + upload
-  async push(data: object): Promise<void> {
+  async push(data: object, autoPull = false): Promise<void> {
     if (!this.key || !this.identity || !this.chain) {
       throw new Error('Not initialized')
+    }
+    
+    // Auto-check if server has new changes (from other devices)
+    if (autoPull) {
+      try {
+        const response = await fetch(`${this.config.workerUrl}/sync/status?chain=${this.chain.id}`)
+        const { serverSeq } = await response.json() as { serverSeq: number }
+        
+        if (serverSeq > this.lastSeq) {
+          // Pull first for other device changes
+          console.log('Server has updates, pulling first...')
+          await this.pull()
+        }
+      } catch (err) {
+        console.warn('Could not check status:', err)
+      }
     }
     
     // Increment sequence
@@ -281,6 +297,24 @@ export class SyncAgent {
       initialized: !!this.identity,
       chainId: this.chain?.id,
       lastSeq: this.lastSeq,
+    }
+  }
+
+  // Check server status
+  async checkStatus(): Promise<{ serverSeq: number; hasUpdates: boolean } | null> {
+    if (!this.chain) return null
+    
+    try {
+      const response = await fetch(`${this.config.workerUrl}/sync/status?chain=${this.chain.id}`)
+      const { serverSeq } = await response.json() as { serverSeq: number }
+      
+      return {
+        serverSeq,
+        hasUpdates: serverSeq > this.lastSeq,
+      }
+    } catch (err) {
+      console.error('Failed to check status:', err)
+      return null
     }
   }
 
