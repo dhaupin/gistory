@@ -1,6 +1,6 @@
 # License Agreement & Legal Framework
 > **⚠️ This document provides legally binding terms for using, forking, and building upon Gistory.**
-> **Last Updated: 2026-06-02** | **Version: 1.0** | **[Gistory](https://github.com/dhaupin/gistory)**
+> **Last Updated: 2026-06-02** | **Version: 1.1** | **[Gistory](https://github.com/dhaupin/gistory)**
 
 ---
 
@@ -17,6 +17,8 @@
 1. **Attribution** - Modified or unmodified versions must retain LEGAL.md and cite Gistory as originating work
 2. **No Gistory Branding** - Derivatives may NOT use "Gistory" name in product/project names without written permission
 3. **No Commercial Service** - Gistory may NOT be used to provide commercial SAAS/platform services to third parties (see §15)
+
+Gistory may serve as: front-end UI, orchestrator, prompt keeper, chat logger, audit trail, annotation tool, or similar AI workflow companion.
 
 ---
 
@@ -82,7 +84,8 @@ If any party brings a patent infringement claim against Gistory, Contributors ma
 The term "Gistory" was chosen as a descriptive technical designation:
 
 - **Gi** - Short for "gift" or "given" (receiving from AI)
-- **History** - Tracking conversation history
+- **Gist** - The essence or main point of something (a summary, core idea)
+- **History** - Tracking conversation/computation history
 
 This naming is a descriptive technical designation, NOT a commercial brand attempt, and is explicitly **separate** from any registered corporate trademarks.
 
@@ -269,20 +272,21 @@ License terminates IMMEDIATELY upon:
 
 | Category | Classification |
 |----------|----------------|
-| **Type** | Client-side encrypted prompt keeper with multi-device sync |
+| **Type** | AI workflow companion - prompt history, logging, orchestration, auditing |
+| **Variants** | May serve as front-end, orchestrator, audit logger, annotation tool |
 | **License** | MIT + supplemental terms |
 | **Commercial Use** | Restricted (§16) |
-| **Target Users** | Developers and power users managing AI prompts |
-| **Production Ready** | Yes (beta - see README for caveats) |
+| **Target Users** | Developers and power users managing AI interactions |
+| **Production Ready** | Yes (see README for caveats) |
 
 Gistory is NOT:
 
 - A cloud-hosted service
-- A React alternative (built with React)
+- A specific AI model or provider
 - A security product (encryption tool)
 - A SAAS platform
 - A managed service
-- An enterprise compliance tool
+- An enterprise compliance tool (though may assist with auditing)
 
 ---
 
