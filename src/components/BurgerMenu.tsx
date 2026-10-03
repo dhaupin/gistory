@@ -1,8 +1,11 @@
 // BurgerMenu - sidebar with threads/projects
 import { useState } from 'react'
-import { X, Edit, Trash2, Folder, FolderOpen, Check } from 'lucide-react'
+import { X, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
-import { sortThreads, type SortState } from '../ui/sort'
+import { sortThreads, sortProjects, sortStateFromValue, THREAD_SORT_OPTIONS, type SortState } from '../ui/sort'
+import { useViewState } from '../ui/view-state'
+import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
+import { useSubmitLock } from '../ui/hooks'
 import ActionMenu, { ActionItem } from './ActionMenu'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -23,7 +26,11 @@ interface BurgerMenuProps {
   onRemoveFromProject?: (threadId: string, projectId: string) => void
   onRenameProject?: (id: string, name: string) => void
   onDeleteProject?: (id: string) => void
+  onTogglePin?: (id: string) => void
+  onTogglePinProject?: (id: string) => void
 }
+
+const UNASSIGNED = 'group:unassigned'
 
 export default function BurgerMenu({
   threads,
@@ -41,24 +48,35 @@ export default function BurgerMenu({
   onAddToProject,
   onRemoveFromProject,
   onRenameProject,
-  onDeleteProject
+  onDeleteProject,
+  onTogglePin,
+  onTogglePinProject
 }: BurgerMenuProps) {
   const [newThreadName, setNewThreadName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
   const [showNewThread, setShowNewThread] = useState(false)
-  const [showNewProject, setShowNewProject] = useState('')
+  const [showNewProject, setShowNewProject] = useState(false)
   const [editingThread, setEditingThread] = useState<{id: string, name: string} | null>(null)
   const [editingProject, setEditingProject] = useState<{id: string, name: string} | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'thread' | 'project'; id: string; name: string } | null>(null)
+  const { view, isCollapsed, toggleCollapse, reorder } = useViewState()
 
   // Sort threads globally (must declare before getThreadsInProject usage)
-  const sortedThreads = sortThreads(threads, sort || { field: 'createdAt', dir: 'desc' })
-  const sortedProjectsList = [...projects].sort((a, b) => a.name.localeCompare(b.name))
+  const sortedThreads = sortThreads(
+    threads,
+    sort || { field: 'createdAt', dir: 'desc' },
+    t => view[t.id]?.rank,
+  )
+  const sortedProjectsList = sortProjects(projects, p => view[p.id]?.rank)
   const getThreadsInProject = (pid: string) => sortedThreads.filter(t => t.projectIds.includes(pid))
   const unassigned = sortedThreads.filter(t => t.projectIds.length === 0)
 
+  const tryCreateThread = useSubmitLock(showNewThread)
+  const tryCreateProject = useSubmitLock(showNewProject)
+
   const handleCreateThread = () => {
     if (!newThreadName.trim()) return
+    if (!tryCreateThread()) return
     createThread(newThreadName.trim())
     setNewThreadName('')
     setShowNewThread(false)
@@ -66,9 +84,10 @@ export default function BurgerMenu({
 
   const handleCreateProject = () => {
     if (!newProjectName.trim()) return
+    if (!tryCreateProject()) return
     createProject(newProjectName.trim())
     setNewProjectName('')
-    setShowNewProject('')
+    setShowNewProject(false)
   }
 
   const handleRenameThread = (id: string) => {
@@ -110,23 +129,29 @@ export default function BurgerMenu({
   }
 
   const buildThreadMenuItems = (thread: Thread): ActionItem[] => {
-    const items: ActionItem[] = [
-      { label: 'Rename', icon: <Edit size={14} />, onClick: () => handleRenameThread(thread.id) },
-    ]
+    const items: ActionItem[] = []
+    if (onTogglePin) {
+      items.push({
+        label: thread.pinned ? 'Unpin' : 'Pin to top',
+        icon: thread.pinned ? <PinOff size={14} /> : <Pin size={14} />,
+        onClick: () => onTogglePin(thread.id),
+      })
+    }
+    items.push({ label: 'Rename', icon: <Edit size={14} />, onClick: () => handleRenameThread(thread.id) })
     // Project toggle options - show all projects with checkbox
     projects.forEach(p => {
       const isInProject = thread.projectIds.includes(p.id)
-      items.push({ 
-        label: p.name, 
+      items.push({
+        label: p.name,
         checked: isInProject,
-        onClick: () => isInProject 
-          ? onRemoveFromProject?.(thread.id, p.id) 
-          : onAddToProject?.(thread.id, p.id) 
+        onClick: () => isInProject
+          ? onRemoveFromProject?.(thread.id, p.id)
+          : onAddToProject?.(thread.id, p.id)
       })
     })
-    items.push({ 
-      label: 'Delete', 
-      icon: <Trash2 size={14} />, 
+    items.push({
+      label: 'Delete',
+      icon: <Trash2 size={14} />,
       onClick: () => handleDeleteThread(thread.id),
       variant: 'danger'
     })
@@ -148,11 +173,56 @@ export default function BurgerMenu({
   }
 
   const buildProjectMenuItems = (project: Project): ActionItem[] => {
-    return [
+    const items: ActionItem[] = []
+    if (onTogglePinProject) {
+      items.push({
+        label: project.pinned ? 'Unpin' : 'Pin to top',
+        icon: project.pinned ? <PinOff size={14} /> : <Pin size={14} />,
+        onClick: () => onTogglePinProject(project.id),
+      })
+    }
+    items.push(
       { label: 'Rename', icon: <Edit size={14} />, onClick: () => handleRenameProject(project.id) },
       { label: 'Delete', icon: <Trash2 size={14} />, onClick: () => handleDeleteProject(project.id), variant: 'danger' },
-    ]
+    )
+    return items
   }
+
+  const renderThreadRow = (thread: Thread) => (
+    <SortableRow
+      key={thread.id}
+      id={thread.id}
+      className={editingThread?.id === thread.id ? 'form-inline' : `thread-link-row${thread.pinned ? ' pinned' : ''}`}
+    >
+      {editingThread?.id === thread.id ? (
+        <>
+          <input
+            className="input-name"
+            value={editingThread.name}
+            onChange={e => setEditingThread({ ...editingThread, name: e.target.value })}
+            onKeyDown={e => e.key === 'Enter' && handleSaveRename()}
+            autoFocus
+          />
+          <button className="btn btn-primary btn-small" onClick={handleSaveRename}>Save</button>
+          <button className="btn btn-secondary btn-small" onClick={() => setEditingThread(null)}>Cancel</button>
+        </>
+      ) : (
+        <>
+          <SortableHandle label={thread.name} />
+          <button
+            className={`thread-link ${currentThreadId === thread.id ? 'active' : ''}`}
+            onClick={() => onSelect(thread.id)}
+          >
+            {thread.pinned && <Pin size={12} className="pin-indicator" aria-hidden="true" />}
+            {thread.name}
+          </button>
+          {(onRenameThread || onDeleteThread || onTogglePin) && (
+            <ActionMenu items={buildThreadMenuItems(thread)} />
+          )}
+        </>
+      )}
+    </SortableRow>
+  )
 
   return (
     <div className="sidebar-overlay" onClick={onClose}>
@@ -181,7 +251,12 @@ export default function BurgerMenu({
                 placeholder="Thread name..."
                 value={newThreadName}
                 onChange={e => setNewThreadName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleCreateThread()}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleCreateThread()
+                  // This form has no Cancel button, so Escape is the only way
+                  // out without creating anything.
+                  if (e.key === 'Escape') { setShowNewThread(false); setNewThreadName('') }
+                }}
                 autoFocus
               />
               <button className="btn btn-primary btn-small" onClick={handleCreateThread}>Create</button>
@@ -189,7 +264,7 @@ export default function BurgerMenu({
           ) : (
             <button className="btn btn-primary btn-small" onClick={() => setShowNewThread(true)}>+ Thread</button>
           )}
-          <button className="btn btn-secondary btn-small" onClick={() => setShowNewProject(showNewProject ? '' : 'new')}>
+          <button className="btn btn-secondary btn-small" onClick={() => setShowNewProject(!showNewProject)}>
             + Project
           </button>
         </div>
@@ -201,15 +276,36 @@ export default function BurgerMenu({
               placeholder="Project name..."
               value={newProjectName}
               onChange={e => setNewProjectName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreateProject()}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleCreateProject()
+                if (e.key === 'Escape') { setShowNewProject(false); setNewProjectName('') }
+              }}
+              autoFocus
             />
             <button className="btn btn-primary btn-small" onClick={handleCreateProject}>Create</button>
+          </div>
+        )}
+
+        {/* Sort control — mirrors the board so the sidebar is not a dead end */}
+        {onSortChange && (
+          <div className="sidebar-sort">
+            <select
+              value={`${(sort?.field) || 'createdAt'}_${(sort?.dir) || 'desc'}`}
+              onChange={e => onSortChange(sortStateFromValue(e.target.value))}
+              className="sort-select"
+              aria-label="Sort threads"
+            >
+              {THREAD_SORT_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
         )}
 
         {/* Projects with threads */}
         {sortedProjectsList.map(project => {
           const projThreads = getThreadsInProject(project.id)
+          const groupCollapsed = isCollapsed('project:' + project.id)
           return (
             <div key={project.id} className="project-group">
               {editingProject?.id === project.id ? (
@@ -226,44 +322,31 @@ export default function BurgerMenu({
                 </div>
               ) : (
                 <div className="project-label-row">
-                  <div 
-                    className="project-label" 
+                  <button
+                    className="collapse-toggle"
+                    onClick={() => toggleCollapse('project:' + project.id)}
+                    aria-expanded={!groupCollapsed}
+                    aria-label={`${groupCollapsed ? 'Expand' : 'Collapse'} ${project.name}`}
+                  >
+                    {groupCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  <div
+                    className="project-label"
                     onClick={() => onSelect(projThreads[0]?.id || '')}
                   >
+                    {project.pinned && <Pin size={12} className="pin-indicator" aria-hidden="true" />}
                     {project.name} ({projThreads.length})
                   </div>
-                  {(onRenameProject || onDeleteProject) && (
+                  {(onRenameProject || onDeleteProject || onTogglePinProject) && (
                     <ActionMenu items={buildProjectMenuItems(project)} />
                   )}
                 </div>
               )}
-              {projThreads.map(thread => (
-                editingThread?.id === thread.id ? (
-                  <div key={thread.id} className="form-inline">
-                    <input
-                      className="input-name"
-                      value={editingThread.name}
-                      onChange={e => setEditingThread({ ...editingThread, name: e.target.value })}
-                      onKeyDown={e => e.key === 'Enter' && handleSaveRename()}
-                      autoFocus
-                    />
-                    <button className="btn btn-primary btn-small" onClick={handleSaveRename}>Save</button>
-                    <button className="btn btn-secondary btn-small" onClick={() => setEditingThread(null)}>Cancel</button>
-                  </div>
-                ) : (
-                  <div key={thread.id} className="thread-link-row">
-                    <button
-                      className={`thread-link ${currentThreadId === thread.id ? 'active' : ''}`}
-                      onClick={() => onSelect(thread.id)}
-                    >
-                      {thread.name}
-                    </button>
-                    {(onRenameThread || onDeleteThread) && (
-                      <ActionMenu items={buildThreadMenuItems(thread)} />
-                    )}
-                  </div>
-                )
-              ))}
+              {!groupCollapsed && (
+                <SortableProvider ids={projThreads.map(t => t.id)} onReorder={reorder}>
+                  {projThreads.map(renderThreadRow)}
+                </SortableProvider>
+              )}
             </div>
           )
         })}
@@ -271,34 +354,22 @@ export default function BurgerMenu({
         {/* Unassigned threads */}
         {unassigned.length > 0 && (
           <div className="project-group">
-            <div className="project-label project-label-dim">Unassigned ({unassigned.length})</div>
-            {unassigned.map(thread => (
-              editingThread?.id === thread.id ? (
-                <div key={thread.id} className="form-inline">
-                  <input
-                    className="input-name"
-                    value={editingThread.name}
-                    onChange={e => setEditingThread({ ...editingThread, name: e.target.value })}
-                    onKeyDown={e => e.key === 'Enter' && handleSaveRename()}
-                    autoFocus
-                  />
-                  <button className="btn btn-primary btn-small" onClick={handleSaveRename}>Save</button>
-                  <button className="btn btn-secondary btn-small" onClick={() => setEditingThread(null)}>Cancel</button>
-                </div>
-              ) : (
-                <div key={thread.id} className="thread-link-row">
-                  <button
-                    className={`thread-link ${currentThreadId === thread.id ? 'active' : ''}`}
-                    onClick={() => onSelect(thread.id)}
-                  >
-                    {thread.name}
-                  </button>
-                  {(onRenameThread || onDeleteThread) && (
-                    <ActionMenu items={buildThreadMenuItems(thread)} />
-                  )}
-                </div>
-              )
-            ))}
+            <div className="project-label-row">
+              <button
+                className="collapse-toggle"
+                onClick={() => toggleCollapse(UNASSIGNED)}
+                aria-expanded={!isCollapsed(UNASSIGNED)}
+                aria-label={`${isCollapsed(UNASSIGNED) ? 'Expand' : 'Collapse'} unassigned threads`}
+              >
+                {isCollapsed(UNASSIGNED) ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+              </button>
+              <div className="project-label project-label-dim">Unassigned ({unassigned.length})</div>
+            </div>
+            {!isCollapsed(UNASSIGNED) && (
+              <SortableProvider ids={unassigned.map(t => t.id)} onReorder={reorder}>
+                {unassigned.map(renderThreadRow)}
+              </SortableProvider>
+            )}
           </div>
         )}
       </div>
@@ -307,7 +378,11 @@ export default function BurgerMenu({
         <ConfirmDialog
           open
           title={`Delete ${deleteConfirm.type}?`}
-          message={`Are you sure you want to delete "${deleteConfirm.name}"? This cannot be undone.`}
+          message={
+            deleteConfirm.type === 'thread'
+              ? `Are you sure you want to delete "${deleteConfirm.name}" and all its messages? This cannot be undone.`
+              : `Are you sure you want to delete "${deleteConfirm.name}"? Threads will be kept but unassigned. This cannot be undone.`
+          }
           confirmLabel="Delete"
           destructive
           onConfirm={confirmDelete}

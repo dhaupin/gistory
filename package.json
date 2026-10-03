@@ -12,6 +12,10 @@
     "ui:browsers": "node scripts/ui-browsers.mjs",
     "db:init:local": "npx --yes wrangler d1 execute GISTRY_DB --local --file=schema.sql",
     "db:init:remote": "npx --yes wrangler d1 execute GISTRY_DB --remote --config wrangler.deploy.toml --file=schema.sql",
+    "db:migrate:local": "node scripts/db-migrate.mjs --local",
+    "db:migrate:remote": "node scripts/db-migrate.mjs --remote",
+    "db:migrate:status": "node scripts/db-migrate.mjs --local --status",
+    "db:migrate:check": "node scripts/db-migrate.mjs --check",
     "preview": "vite preview"
   },
   "dependencies": {

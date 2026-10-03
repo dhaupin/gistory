@@ -1,8 +1,10 @@
 // ProjectDetail - single project view
 import { useState } from 'react'
-import { Folder, Edit, Trash2 } from 'lucide-react'
+import { Folder, Edit, Trash2, Pin, PinOff } from 'lucide-react'
 import type { Project, Thread, MessagesByThread } from '../lib/models'
-import { sortThreads, type SortState } from '../ui/sort'
+import { sortThreads, sortStateFromValue, THREAD_SORT_OPTIONS, type SortState } from '../ui/sort'
+import { useViewState } from '../ui/view-state'
+import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
 import ActionMenu, { ActionItem } from './ActionMenu'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -15,6 +17,7 @@ interface ProjectDetailProps {
   onSelect: (threadId: string) => void
   onDeleteProject: (id: string) => void
   onRenameProject: (id: string, name: string) => void
+  onTogglePin?: (id: string) => void
 }
 
 export default function ProjectDetail({
@@ -25,13 +28,27 @@ export default function ProjectDetail({
   onSortChange,
   onSelect,
   onDeleteProject,
-  onRenameProject
+  onRenameProject,
+  onTogglePin
 }: ProjectDetailProps) {
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState(project?.name || '')
+  // Declared with the other hooks: this used to sit *after* the not-found early
+  // return, which made it a conditional hook and blew up when navigating from a
+  // real project to a deleted one.
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const { view, reorder } = useViewState()
 
   if (!project) {
-    return <div className="container"><p>Project not found</p></div>
+    return (
+      <div className="container">
+        <div className="empty-state">
+          <h2>Project not found</h2>
+          <p>It may have been deleted on another device.</p>
+          <a className="btn btn-primary" href="#/projects">Back to projects</a>
+        </div>
+      </div>
+    )
   }
 
   const handleRename = () => {
@@ -40,8 +57,6 @@ export default function ProjectDetail({
     }
     setRenaming(false)
   }
-
-  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   const handleDelete = () => {
     setDeleteConfirm(true)
@@ -57,7 +72,7 @@ export default function ProjectDetail({
     { label: 'Delete', icon: <Trash2 size={14} />, onClick: handleDelete, variant: 'danger' },
   ]
 
-  const sorted = sortThreads(threads, sort)
+  const sorted = sortThreads(threads, sort, t => view[t.id]?.rank)
 
   return (
     <div className="container">
@@ -91,31 +106,41 @@ export default function ProjectDetail({
           <h3>{sorted.length} Thread{sorted.length !== 1 ? 's' : ''}</h3>
           <select 
             value={`${sort.field}_${sort.dir}`}
-            onChange={e => {
-              const [field, dir] = e.target.value.split('_') as [SortState['field'], SortState['dir']]
-              onSortChange({ field, dir })
-            }}
+            onChange={e => onSortChange(sortStateFromValue(e.target.value))}
             className="sort-select"
             aria-label="Sort threads"
           >
-            <option value="createdAt_desc">Newest</option>
-            <option value="createdAt_asc">Oldest</option>
-            <option value="name_asc">Name A-Z</option>
-            <option value="name_desc">Name Z-A</option>
+            {THREAD_SORT_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
           </select>
         </div>
+        <SortableProvider ids={sorted.map(t => t.id)} onReorder={reorder}>
         {sorted.map(thread => (
-          <button
-            key={thread.id}
-            className="thread-card"
-            onClick={() => onSelect(thread.id)}
-          >
-            <div className="thread-name">{thread.name}</div>
-            <div className="thread-meta">
-              {(messages[thread.id] || []).length} message{(messages[thread.id] || []).length !== 1 ? 's' : ''}
-            </div>
-          </button>
+          <SortableRow key={thread.id} id={thread.id} className={`thread-card-row${thread.pinned ? ' pinned' : ''}`}>
+            <SortableHandle label={thread.name} />
+            <button
+              className="thread-card"
+              onClick={() => onSelect(thread.id)}
+            >
+              {thread.pinned && <Pin size={12} className="pin-indicator" aria-hidden="true" />}
+              <div className="thread-name">{thread.name}</div>
+              <div className="thread-meta">
+                {(messages[thread.id] || []).length} message{(messages[thread.id] || []).length !== 1 ? 's' : ''}
+              </div>
+            </button>
+            {onTogglePin && (
+              <ActionMenu
+                items={[{
+                  label: thread.pinned ? 'Unpin' : 'Pin to top',
+                  icon: thread.pinned ? <PinOff size={14} /> : <Pin size={14} />,
+                  onClick: () => onTogglePin(thread.id),
+                }]}
+              />
+            )}
+          </SortableRow>
         ))}
+        </SortableProvider>
       </div>
 
       {deleteConfirm && (

@@ -1,10 +1,12 @@
 // ThreadView - displays messages in a thread
 
 import { useState, useEffect } from 'react'
-import { Copy, Edit, Trash2, Save, MoreHorizontal } from 'lucide-react'
+import { Copy, Edit, Trash2, Save, MoreHorizontal, Pin, PinOff, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Message, Thread, Project } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
-import { type SortState } from '../ui/sort'
+import { sortMessages, sortStateFromValue, MESSAGE_SORT_OPTIONS, type SortState } from '../ui/sort'
+import { useViewState } from '../ui/view-state'
+import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
 import ActionMenu, { ActionItem } from './ActionMenu'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -22,6 +24,36 @@ interface ThreadViewProps {
   onDeleteThread?: (id: string) => void
   onAddToProject?: (threadId: string, projectId: string) => void
   onRemoveFromProject?: (threadId: string, projectId: string) => void
+  onTogglePin?: (id: string) => void
+  onTogglePinMessage?: (msgId: string) => void
+}
+
+/**
+ * One-line summary shown when a message is collapsed: the first few words of
+ * its first non-empty line, ellipsised.
+ *
+ * Truncating by character count alone was not enough — a prompt that fits in
+ * one short line previewed as its own complete text, so collapsing it looked
+ * like it had done nothing. Bounding by word count as well guarantees the
+ * preview is always visibly shorter than the body it stands in for.
+ */
+const PREVIEW_WORDS = 9
+
+function previewOf(content: string): string {
+  const line = content.split('\n').find(l => l.trim())?.trim() ?? content.trim()
+  const words = line.split(/\s+/)
+  if (words.length <= PREVIEW_WORDS) return line
+  return words.slice(0, PREVIEW_WORDS).join(' ') + '…'
+}
+
+/**
+ * Accessible name for the reorder grip. Deliberately longer than the visible
+ * preview: a screen reader has no surrounding context to fill the ellipsis in,
+ * so the grip should name more of the message than the eye is shown.
+ */
+function labelOf(content: string): string {
+  const line = content.split('\n').find(l => l.trim())?.trim() ?? content.trim()
+  return line.length > 120 ? line.slice(0, 120) + '…' : line
 }
 
 export default function ThreadView({
@@ -37,7 +69,9 @@ export default function ThreadView({
   onRenameThread,
   onDeleteThread,
   onAddToProject,
-  onRemoveFromProject
+  onRemoveFromProject,
+  onTogglePin,
+  onTogglePinMessage
 }: ThreadViewProps) {
   const [input, setInput] = useState('')
   const [editingMsg, setEditingMsg] = useState<Message | null>(null)
@@ -45,18 +79,14 @@ export default function ThreadView({
   const [editingThread, setEditingThread] = useState(false)
   const [threadName, setThreadName] = useState(thread.name)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'thread'; id: string } | null>(null)
+  const { view, isCollapsed, toggleCollapse, reorder } = useViewState()
 
-  // Sort messages
-  const sortedMessages = sort 
-    ? [...messages].sort((a, b) => {
-        const field = sort.field === 'name' ? 'createdAt' : sort.field
-        const av = a[field] ?? a.createdAt
-        const bv = b[field] ?? b.createdAt
-        if (av < bv) return sort.dir === 'asc' ? -1 : 1
-        if (av > bv) return sort.dir === 'asc' ? 1 : -1
-        return 0
-      })
-    : messages
+  // Sort messages (manual drag order first, then pinned, then the active sort).
+  const sortedMessages = sortMessages(
+    messages,
+    sort ?? { field: 'createdAt', dir: 'desc' },
+    m => view[m.id]?.rank,
+  )
 
   // Sync thread name when thread changes
   useEffect(() => {
@@ -128,9 +158,17 @@ export default function ThreadView({
   }
 
   const buildMenuItems = (): ActionItem[] => {
-    const items: ActionItem[] = [
+    const items: ActionItem[] = []
+    if (onTogglePin) {
+      items.push({
+        label: thread.pinned ? 'Unpin' : 'Pin to top',
+        icon: thread.pinned ? <PinOff size={14} /> : <Pin size={14} />,
+        onClick: () => onTogglePin(thread.id),
+      })
+    }
+    items.push(
       { label: 'Rename', icon: <Edit size={14} />, onClick: () => setEditingThread(true) },
-    ]
+    )
     // Project toggle options - show all projects with checkbox
     projects.forEach(p => {
       const isInProject = thread.projectIds.includes(p.id)
@@ -164,24 +202,21 @@ export default function ThreadView({
         ) : (
           <>
             <div className="thread-title-row">
+              {thread.pinned && <Pin size={14} className="pin-indicator" role="img" aria-label="Pinned" />}
               <h3 className="thread-title">{thread.name}</h3>
               {onSortChange && (
                 <select 
                   value={`${sort?.field || 'createdAt'}_${sort?.dir || 'desc'}`}
-                  onChange={e => {
-                    const [field, dir] = e.target.value.split('_') as ['createdAt' | 'updatedAt' | 'name', 'asc' | 'desc']
-                    onSortChange({ field, dir })
-                  }}
+                  onChange={e => onSortChange(sortStateFromValue(e.target.value))}
                   className="sort-select"
                   aria-label="Sort messages"
                 >
-                  <option value="createdAt_desc">Newest first</option>
-                  <option value="createdAt_asc">Oldest first</option>
-                  <option value="updatedAt_desc">Recently updated</option>
-                  <option value="updatedAt_asc">Least updated</option>
+                  {MESSAGE_SORT_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
                 </select>
               )}
-              {(onRenameThread || onDeleteThread) && (
+              {(onRenameThread || onDeleteThread || onTogglePin) && (
                 <ActionMenu items={buildMenuItems()} />
               )}
             </div>
@@ -232,13 +267,18 @@ export default function ThreadView({
           >
             <Copy size={14} />
           </button>
-          <button className="btn btn-primary btn-small" onClick={handleAdd}>
+          <button className="btn btn-primary btn-small" onClick={handleAdd} title="Save (Ctrl+Enter)">
             <Save size={14} /> Save
           </button>
         </div>
       </div>
 
-      <div className="messages-list">
+      <SortableProvider
+        ids={filtered.map(m => m.id)}
+        allIds={sortedMessages.map(m => m.id)}
+        onReorder={reorder}
+        className="messages-list"
+      >
         {/* The header search keeps filtering after you open a thread, so say so
             rather than silently hiding messages. */}
         {searchQuery.trim() && sortedMessages.length > 0 && (
@@ -253,53 +293,82 @@ export default function ThreadView({
               : 'No messages yet.'}
           </p>
         )}
-        {filtered.map(msg => (
-          <div key={msg.id} className="message-card">
-            {editingMsg?.id === msg.id ? (
-              <div className="message-edit">
-                <textarea
-                  className="input-area"
-                  value={editText}
-                  onChange={e => setEditText(e.target.value)}
-                />
-                <div className="message-actions">
-                  <button className="btn btn-primary btn-small" onClick={saveEdit}>
-                    Save
-                  </button>
-                  <button className="btn btn-secondary btn-small" onClick={() => setEditingMsg(null)}>
-                    Cancel
-                  </button>
+        {filtered.map(msg => {
+          const collapsedMsg = isCollapsed(`message:${msg.id}`)
+          return (
+            <SortableRow key={msg.id} id={msg.id} className={`message-card${msg.pinned ? ' pinned' : ''}`}>
+              {editingMsg?.id === msg.id ? (
+                <div className="message-edit">
+                  <textarea
+                    className="input-area"
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                  />
+                  <div className="message-actions">
+                    <button className="btn btn-primary btn-small" onClick={saveEdit}>
+                      Save
+                    </button>
+                    <button className="btn btn-secondary btn-small" onClick={() => setEditingMsg(null)}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="message-content">
-                <pre>{msg.content}</pre>
-                <div className="message-actions">
-                  <button 
-                    className="btn btn-secondary btn-small" 
-                    onClick={() => handleCopy(msg.content)}
-                  >
-                    <Copy size={14} /> Copy
-                  </button>
-                  <button 
-                    className="btn btn-secondary btn-small" 
-                    onClick={() => startEdit(msg)}
-                  >
-                    <Edit size={14} /> Edit
-                  </button>
-                  <button 
-                    className="btn btn-danger btn-small" 
-                    onClick={() => handleDeleteMessage(msg.id)}
-                    aria-label="Delete message"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+              ) : (
+                <div className="message-content">
+                  <div className="message-head">
+                    <SortableHandle label={labelOf(msg.content)} />
+                    <button
+                      className="collapse-toggle"
+                      onClick={() => toggleCollapse(`message:${msg.id}`)}
+                      aria-expanded={!collapsedMsg}
+                      aria-label={collapsedMsg ? 'Expand message' : 'Collapse message'}
+                    >
+                      {collapsedMsg ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                    {msg.pinned && <Pin size={12} className="pin-indicator" role="img" aria-label="Pinned" />}
+                    <div className="message-actions">
+                      {onTogglePinMessage && (
+                        <button
+                          className="btn btn-secondary btn-small"
+                          onClick={() => onTogglePinMessage(msg.id)}
+                          aria-label={msg.pinned ? 'Unpin message' : 'Pin message'}
+                          title={msg.pinned ? 'Unpin message' : 'Pin message'}
+                        >
+                          {msg.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+                        </button>
+                      )}
+                      <button 
+                        className="btn btn-secondary btn-small" 
+                        onClick={() => handleCopy(msg.content)}
+                      >
+                        <Copy size={14} /> Copy
+                      </button>
+                      <button 
+                        className="btn btn-secondary btn-small" 
+                        onClick={() => startEdit(msg)}
+                      >
+                        <Edit size={14} /> Edit
+                      </button>
+                      <button 
+                        className="btn btn-danger btn-small" 
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        aria-label="Delete message"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  {collapsedMsg ? (
+                    <p className="message-preview">{previewOf(msg.content)}</p>
+                  ) : (
+                    <pre>{msg.content}</pre>
+                  )}
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+              )}
+            </SortableRow>
+          )
+        })}
+        </SortableProvider>
 
       {deleteConfirm && (
         <ConfirmDialog

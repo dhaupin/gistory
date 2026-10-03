@@ -10,6 +10,8 @@ A secure, privacy-first prompt keeper for AI prompting workflows. Built with Rea
 - **Privacy first** — your data never leaves your devices unencrypted
 - **Conflict resolution** — last-write-wins with a deterministic deviceId tie-breaker
 - **Safe deletes** — deletions sync via tombstones so they are never resurrected
+- **Pin, reorder & collapse** — threads, messages, and projects can each be pinned, dragged into your own order, and folded away
+- **Arrangement syncs** — your custom order and collapsed state travel with your data, so every device shows the same layout
 
 ## Quick Start
 
@@ -17,7 +19,7 @@ A secure, privacy-first prompt keeper for AI prompting workflows. Built with Rea
 git clone https://github.com/dhaupin/gistory.git
 cd gistory
 bun install       # or npm install
-bun run db:init:local
+bun run db:migrate:local
 npx wrangler pages dev dist
 ```
 
@@ -45,12 +47,30 @@ binding is configured in the Cloudflare dashboard instead:
 
    ```bash
    cp wrangler.deploy.example.toml wrangler.deploy.toml   # paste your database_id
-   bun run db:init:remote
+   bun run db:migrate:remote
    ```
 
    `wrangler.deploy.toml` is gitignored — it exists only so Wrangler can resolve
-   your database from your machine. Alternatively, paste `schema.sql` into the
-   D1 console in the dashboard and skip this file entirely.
+   your database from your machine.
+
+### Changing the schema later
+
+`schema.sql` can only ever *build* a database — re-running it against one that
+already exists does nothing, so it can never add a column to a live database.
+Schema changes therefore live in numbered files under `migrations/`:
+
+```bash
+bun run db:migrate:check      # build a fresh DB from the full history, verify it
+bun run db:migrate:local      # apply pending migrations to local D1
+bun run db:migrate:remote     # apply pending migrations to real D1
+bun run db:migrate:status     # list applied/pending, change nothing
+```
+
+To add a column, create `migrations/0002_something.sql` containing the
+`ALTER TABLE …`, then run the migrate command. Never edit a migration that has
+already been applied: the runner records a checksum per file and refuses to
+continue if an applied one changes, because that silently leaves existing
+databases stranded on the old shape.
 
 3. **Connect the repo** to a Pages project
    (Dashboard → Workers & Pages → Create → Pages → Connect to Git).
@@ -214,7 +234,9 @@ download only for itself.
 | `wrangler.toml` | yes | Local development only (`wrangler pages dev`). Placeholder D1 id, no `pages_build_output_dir`. |
 | `wrangler.deploy.example.toml` | yes | Template for the private config below. |
 | `wrangler.deploy.toml` | **no** (gitignored) | Your real `database_id`, used only by `bun run db:init:remote`. |
-| `schema.sql` | yes | D1 schema, applied with `bun run db:init:local` / `db:init:remote`. |
+| `schema.sql` | yes | Flattened D1 schema for a fresh build. Use `migrations/` for changes. |
+| `migrations/` | yes | Versioned schema history applied by `bun run db:migrate:*`. |
+| `scripts/db-migrate.mjs` | yes | Zero-dependency migration runner (local + remote D1). |
 | `.puppeteerrc.cjs` | yes | `skipDownload: true` — keeps `npm install` (and the Pages build) Chromium-free. |
 
 ## Troubleshooting

@@ -7,6 +7,17 @@
 -- Apply with:
 --   npx wrangler d1 execute gistory --remote --file=schema.sql
 --   npx wrangler d1 execute gistory --local  --file=schema.sql
+--
+-- PREFER THE MIGRATIONS over this file. `schema.sql` is a flattened snapshot
+-- that can only ever BUILD a database: re-running it on a database that
+-- already exists is a no-op, so it cannot add a column to an existing D1
+-- database. Once the schema needs to change, add `migrations/NNNN_*.sql` and
+-- run `bun run db:migrate:local` / `db:migrate:remote`, which applies pending
+-- migrations in order and records what each database has already applied.
+-- `db:migrate:check` builds a fresh database from the full migration history.
+--
+-- Keep this file in sync with `migrations/0001_init.sql` — they are currently
+-- identical, which is what keeps a fresh build and a migrated database equal.
 
 CREATE TABLE IF NOT EXISTS chains (
   id         TEXT PRIMARY KEY,

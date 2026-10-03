@@ -148,9 +148,19 @@ export const SEED = {
 /**
  * Open a page with fixture data seeded *before* any app code runs, so the app
  * hydrates from it instead of racing it.
+ *
+ * Each page gets its OWN browser context. Pages in one context share
+ * localStorage, so without this a suite that drags rows or collapses a group
+ * leaks that state into the next suite — which showed up as "pinning a message
+ * does not float to the top" (the previous suite had left custom ranks, and a
+ * manual order deliberately outranks pin-first).
  */
 export async function openPage(browser, { url, seed = SEED, dark = false, width = 1280, height = 900 } = {}) {
-  const page = await browser.newPage()
+  const context = await browser.createBrowserContext()
+  const page = await context.newPage()
+  page.once('close', () => {
+    context.close().catch(() => {})
+  })
   await page.setViewport({ width, height })
   await page.evaluateOnNewDocument(
     (data, darkMode) => {

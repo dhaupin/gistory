@@ -7,6 +7,13 @@ interface EmptyStateProps {
 
 export default function EmptyState({ onCreate }: EmptyStateProps) {
   const [name, setName] = useState('')
+  const trimmed = name.trim()
+
+  const create = () => {
+    if (!trimmed) return
+    onCreate(trimmed)
+    setName('')
+  }
 
   return (
     <div className="empty-state">
@@ -17,12 +24,9 @@ export default function EmptyState({ onCreate }: EmptyStateProps) {
         value={name}
         onChange={e => setName(e.target.value)}
         placeholder="Thread name..."
-        onKeyDown={e => e.key === 'Enter' && name && onCreate(name)}
+        onKeyDown={e => e.key === 'Enter' && create()}
       />
-      <button 
-        className="btn btn-primary" 
-        onClick={() => name && onCreate(name)}
-      >
+      <button className="btn btn-primary" onClick={create} disabled={!trimmed}>
         Create first thread
       </button>
     </div>

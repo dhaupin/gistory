@@ -1,7 +1,12 @@
 // ProjectsBoard - grid of project cards
 import { useState } from 'react'
-import { Folder, Edit, Trash2, MoreHorizontal } from 'lucide-react'
+import { Folder, Plus, Pin, PinOff } from 'lucide-react'
 import type { Project, Thread } from '../lib/models'
+import { sortProjects } from '../ui/sort'
+import { useViewState } from '../ui/view-state'
+import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
+import { useSubmitLock } from '../ui/hooks'
+import ActionMenu from './ActionMenu'
 
 interface ProjectsBoardProps {
   projects: Project[]
@@ -9,6 +14,7 @@ interface ProjectsBoardProps {
   onSelect: (threadId: string) => void
   onProjectClick: (projectId: string) => void
   onCreate: (name: string) => void
+  onTogglePin?: (id: string) => void
 }
 
 export default function ProjectsBoard({
@@ -16,28 +22,22 @@ export default function ProjectsBoard({
   threads,
   onSelect,
   onProjectClick,
-  onCreate
+  onCreate,
+  onTogglePin
 }: ProjectsBoardProps) {
   const [newName, setNewName] = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name))
+  const { view, reorder } = useViewState()
+  const sorted = sortProjects(projects, p => view[p.id]?.rank)
 
   const getThreadCount = (pid: string) => 
     threads.filter(t => t.projectIds.includes(pid)).length
 
-  const formatTime = (ts: number) => {
-    const diff = Date.now() - ts
-    const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
-    if (hours < 1) return 'just now'
-    if (hours < 24) return `${hours}h ago`
-    if (days < 7) return `${days}d ago`
-    return new Date(ts).toLocaleDateString()
-  }
-
+  const tryCreate = useSubmitLock(showForm)
   const handleCreate = () => {
     if (!newName.trim()) return
+    if (!tryCreate()) return
     onCreate(newName.trim())
     setNewName('')
     setShowForm(false)
@@ -48,7 +48,7 @@ export default function ProjectsBoard({
       <div className="page-header">
         <h2>Projects</h2>
         <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          + New
+          <Plus size={16} /> Project
         </button>
       </div>
 
@@ -59,35 +59,63 @@ export default function ProjectsBoard({
             placeholder="Project name..."
             value={newName}
             onChange={e => setNewName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleCreate()
+              // Escape closes without creating, matching every other
+              // dismissable surface in the app.
+              if (e.key === 'Escape') { setShowForm(false); setNewName('') }
+            }}
             autoFocus
           />
           <button className="btn btn-primary" onClick={handleCreate}>
             Create
           </button>
+          <button className="btn btn-secondary" onClick={() => { setShowForm(false); setNewName('') }}>
+            Cancel
+          </button>
         </div>
       )}
 
-      <div className="projects-grid">
+      <SortableProvider ids={sorted.map(p => p.id)} onReorder={reorder} className="projects-grid">
         {sorted.map(project => {
           const count = getThreadCount(project.id)
           return (
-            <div 
-              key={project.id} 
-              className="project-card"
-              onClick={() => onProjectClick(project.id)}
-            >
-              <div className="project-card-header">
-                <Folder size={24} />
-                <span className="project-name">{project.name}</span>
+            <SortableRow key={project.id} id={project.id} className={`project-card-row${project.pinned ? ' pinned' : ''}`}>
+              <SortableHandle label={project.name} />
+              <div 
+                className="project-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => onProjectClick(project.id)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onProjectClick(project.id)
+                  }
+                }}
+              >
+                <div className="project-card-header">
+                  <Folder size={24} />
+                  <span className="project-name">{project.name}</span>
+                  {project.pinned && <Pin size={12} className="pin-indicator" aria-label="Pinned" />}
+                </div>
+                <div className="project-stats">
+                  {count} thread{count !== 1 ? 's' : ''}
+                </div>
               </div>
-              <div className="project-stats">
-                {count} thread{count !== 1 ? 's' : ''}
-              </div>
-            </div>
+              {onTogglePin && (
+                <ActionMenu
+                  items={[{
+                    label: project.pinned ? 'Unpin' : 'Pin to top',
+                    icon: project.pinned ? <PinOff size={14} /> : <Pin size={14} />,
+                    onClick: () => onTogglePin(project.id),
+                  }]}
+                />
+              )}
+            </SortableRow>
           )
         })}
-      </div>
+      </SortableProvider>
 
       {projects.length === 0 && (
         <div className="empty-state">

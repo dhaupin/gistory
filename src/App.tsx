@@ -1,6 +1,6 @@
 // Gistory App - Main Entry Point
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData } from './lib/store'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
@@ -13,6 +13,18 @@ import {
   type RemoteDevice,
 } from './sync/agent'
 import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, type SyncData, type SyncPayload } from './sync/merge'
+import {
+  applyFullOrder,
+  applyOrder,
+  loadView,
+  moveItem,
+  moveWithinSubset,
+  pruneView,
+  saveView,
+  viewKeyItem,
+  type ViewState,
+} from './sync/view-state'
+import { ViewStateProvider, type ViewStateApi } from './ui/view-state'
 import Layout from './components/Layout'
 import Header from './components/Header'
 import BurgerMenu from './components/BurgerMenu'
@@ -86,6 +98,10 @@ export default function App() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncReady, setSyncReady] = useState(false)
   const [deleted, setDeleted] = useState<DeletedRegistry>(loadDeleted)
+  // Synced arrangement: manual drag order + collapsed flags. Part of the sync
+  // payload, so it is saved, pushed, and merged like the rest of the data.
+  const [view, setView] = useState<ViewState>(loadView)
+  const [deviceName, setDeviceName] = useState(() => localStorage.getItem('gistory_device_name') || '')
 
   // Refs mirror state so async sync code always reads the freshest snapshot.
   const syncAgentRef = React.useRef<SyncAgent | null>(null)
@@ -93,6 +109,7 @@ export default function App() {
   const messagesRef = React.useRef<MessagesByThread>(bootstrap.messages)
   const projectsRef = React.useRef<Project[]>(bootstrap.projects)
   const deletedRef = React.useRef<DeletedRegistry>(deleted)
+  const viewRef = React.useRef<ViewState>(view)
   const syncBusyRef = React.useRef(false)
 
   useEffect(() => { threadsRef.current = threads }, [threads])
@@ -100,6 +117,8 @@ export default function App() {
   useEffect(() => { projectsRef.current = projects }, [projects])
   useEffect(() => { deletedRef.current = deleted }, [deleted])
   useEffect(() => { saveDeleted(deleted) }, [deleted])
+  useEffect(() => { viewRef.current = view }, [view])
+  useEffect(() => { saveView(view) }, [view])
 
   // --- Sync helpers ---------------------------------------------------------
 
@@ -108,17 +127,29 @@ export default function App() {
     messages: messagesRef.current,
     projects: projectsRef.current,
     deleted: deletedRef.current,
+    view: viewRef.current,
   }), [])
 
   const applyMerged = useCallback((data: SyncData) => {
+    // A thread deleted on another device leaves its arrangement entry behind
+    // here, so drop entries for items that no longer survive the merge —
+    // otherwise the synced view map grows forever. `section:*` keys are kept.
+    const alive = new Set<string>([
+      ...data.threads.map(t => t.id),
+      ...data.projects.map(p => p.id),
+      ...Object.values(data.messages).flat().map(m => m.id),
+    ])
+    const pruned = pruneView(data.view, alive)
     threadsRef.current = data.threads
     messagesRef.current = data.messages
     projectsRef.current = data.projects
     deletedRef.current = data.deleted
+    viewRef.current = pruned
     setThreads(data.threads)
     setMessages(data.messages)
     setProjects(data.projects)
     setDeleted(data.deleted)
+    setView(pruned)
   }, [])
 
   const pushSnapshot = useCallback(async (agent: SyncAgent) => {
@@ -157,7 +188,16 @@ export default function App() {
       if (status) setDevices(status.devices || [])
 
       setLastSync(Date.now())
-      setSyncError(failures > 0 ? `${failures} change(s) could not be decrypted — wrong passphrase?` : null)
+      // An undecryptable blob is most often a wrong passphrase, but it is also what a
+// poisoned chain looks like: anyone who knows the chainId (it travels in the
+// pairing QR) can append a blob encrypted with a different key, and the client
+// deliberately parks its watermark below it. Say both, so the user is not sent
+// round in circles retyping a passphrase that is already correct.
+setSyncError(
+        failures > 0
+          ? `${failures} change(s) could not be decrypted — wrong passphrase, or this chain was tampered with. Sync stays paused until they can be read.`
+          : null,
+      )
       setSyncStatus(failures > 0 ? 'error' : 'idle')
     } catch (err) {
       setSyncError(errorMessage(err))
@@ -177,6 +217,7 @@ export default function App() {
     await agent.init()
     await agent.handshake()
     syncAgentRef.current = agent
+    setDeviceName(agent.getDeviceName())
     return agent
   }, [])
 
@@ -224,6 +265,23 @@ export default function App() {
     setSyncError(null)
   }
 
+  // Rename this device and let the chain learn it. The name is persisted
+  // locally first so it survives even when the rename push can't go through.
+  const handleRenameDevice = useCallback(async (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    const agent = syncAgentRef.current
+    setDeviceName(trimmed)
+    if (!agent) return
+    agent.setDeviceName(trimmed)
+    try {
+      await agent.handshake()
+      await pushSnapshot(agent)
+    } catch {
+      /* Offline: the new name is stored locally and syncs on the next push. */
+    }
+  }, [pushSnapshot])
+
   const handleGenerateToken = async (): Promise<string> => {
     const chain = chainId || localStorage.getItem('gistory_chain_id')
     if (!chain) throw new Error('Enable sync first to pair a device')
@@ -264,7 +322,7 @@ export default function App() {
     if (!agent) return
     const timer = setTimeout(() => { void pushSnapshot(agent) }, 1500)
     return () => clearTimeout(timer)
-  }, [threads, messages, projects, deleted, syncEnabled, syncReady, pushSnapshot])
+  }, [threads, messages, projects, deleted, view, syncEnabled, syncReady, pushSnapshot])
 
   // Periodic + focus-driven pull so other devices' edits show up.
   useEffect(() => {
@@ -287,13 +345,76 @@ export default function App() {
   // Merge an imported export file into live state. The persistence effects
   // below write it out, so no page reload is needed to see the result.
   const handleImportData = useCallback((data: Parameters<typeof importData>[0]) => {
-    const merged = importData(data)
+    const merged = importData(data, deletedRef.current)
     threadsRef.current = merged.threads
     messagesRef.current = merged.messages
     projectsRef.current = merged.projects
+    viewRef.current = merged.view
     setThreads(merged.threads)
     setMessages(merged.messages)
     setProjects(merged.projects)
+    setView(merged.view)
+  }, [])
+
+  // --- Arrangement (drag order + collapse) ----------------------------------
+
+  const isCollapsed = useCallback((key: string) => !!viewRef.current[key]?.collapsed, [])
+
+  const toggleCollapse = useCallback((key: string) => {
+    setView(prev => {
+      const next: ViewState = {
+        ...prev,
+        [key]: { ...prev[key], collapsed: !prev[key]?.collapsed, updatedAt: Date.now() },
+      }
+      viewRef.current = next
+      return next
+    })
+  }, [])
+
+  /**
+   * `ids` is the order the user currently sees. The moved item takes the rank
+   * between its new neighbours, so a drag normally rewrites exactly one entry
+   * instead of renumbering the whole list — which keeps two devices reordering
+   * different rows from overwriting each other.
+   *
+   * When a search filter is active the visible ids are only a subset, so the
+   * move is spliced into the unfiltered order and the whole list is renumbered;
+   * ranking the subset alone would collide with the hidden rows.
+   */
+  const reorder = useCallback((ids: string[], from: number, to: number, allIds?: string[]) => {
+    if (from === to || from < 0 || to < 0 || to >= ids.length) return
+    setView(prev => {
+      const now = Date.now()
+      const filtered = !!allIds && allIds.length !== ids.length
+      const ordered = filtered
+        ? moveWithinSubset(allIds as string[], ids, from, to)
+        : moveItem(ids, from, to)
+      const next = filtered
+        ? applyFullOrder(prev, ordered, now)
+        : applyOrder(prev, ordered, to, now)
+      viewRef.current = next
+      return next
+    })
+  }, [])
+
+  /** Drop arrangement for items that no longer exist. */
+  const forgetView = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    setView(prev => {
+      const next: ViewState = { ...prev }
+      let changed = false
+      // Match the bare id *and* any namespaced key for it (`message:<id>`),
+      // otherwise deleting a message leaves its collapsed/rank entry behind.
+      for (const key of Object.keys(next)) {
+        if (ids.includes(viewKeyItem(key) ?? '')) {
+          delete next[key]
+          changed = true
+        }
+      }
+      if (!changed) return prev
+      viewRef.current = next
+      return next
+    })
   }, [])
 
   const tombstone = useCallback((kind: keyof DeletedRegistry, ids: string[]) => {
@@ -355,6 +476,11 @@ export default function App() {
     setThreads(prev => [thread, ...prev])
     setMessages(prev => ({ ...prev, [thread.id]: [] }))
     setCurrentThreadId(thread.id)
+    // Open the thread you just made. Setting the id alone did nothing visible:
+    // the route is what decides between the board and a thread, so on a first
+    // run (or from the board) you stayed on the list with an empty new row and
+    // had to click into it yourself.
+    navigate('/' + thread.id)
   }, [])
 
   const addThreadToProject = useCallback((threadId: string, projectId: string) => {
@@ -373,10 +499,57 @@ export default function App() {
     setThreads(prev => prev.map(t => t.id === id ? { ...t, name, updatedAt: Date.now() } : t))
   }, [])
 
+  // Toggling a pin bumps updatedAt so the flag wins the last-write-wins merge
+  // (the merge replaces whole items and compares updatedAt ?? createdAt).
+  // Same shape for threads, messages, and projects — only the collection and
+  // the item type differ.
+  const togglePinThread = useCallback((id: string) => {
+    const now = Date.now()
+    setThreads(prev => prev.map(t => {
+      if (t.id !== id) return t
+      const pinned = !t.pinned
+      const next: Thread = { ...t, pinned, updatedAt: now }
+      if (pinned) next.pinnedAt = now
+      else delete next.pinnedAt
+      return next
+    }))
+  }, [])
+
+  const togglePinMessage = useCallback((msgId: string) => {
+    const now = Date.now()
+    setMessages(prev => {
+      const next: MessagesByThread = {}
+      for (const [threadId, list] of Object.entries(prev)) {
+        next[threadId] = list.map(m => {
+          if (m.id !== msgId) return m
+          const pinned = !m.pinned
+          const updated: Message = { ...m, pinned, updatedAt: now }
+          if (pinned) updated.pinnedAt = now
+          else delete updated.pinnedAt
+          return updated
+        })
+      }
+      return next
+    })
+  }, [])
+
+  const togglePinProject = useCallback((id: string) => {
+    const now = Date.now()
+    setProjects(prev => prev.map(p => {
+      if (p.id !== id) return p
+      const pinned = !p.pinned
+      const next: Project = { ...p, pinned, updatedAt: now }
+      if (pinned) next.pinnedAt = now
+      else delete next.pinnedAt
+      return next
+    }))
+  }, [])
+
   const deleteThread = useCallback((id: string) => {
     const messageIds = (messagesRef.current[id] || []).map(m => m.id)
     tombstone('threads', [id])
     tombstone('messages', messageIds)
+    forgetView([id, ...messageIds])
     setThreads(prev => prev.filter(t => t.id !== id))
     setMessages(prev => {
       const next = { ...prev }
@@ -386,7 +559,7 @@ export default function App() {
     if (currentThreadId === id) {
       setCurrentThreadId(threads.find(t => t.id !== id)?.id || '')
     }
-  }, [currentThreadId, threads, tombstone])
+  }, [currentThreadId, threads, tombstone, forgetView])
 
   const addMessage = useCallback((threadId: string, content: string) => {
     const msg: Message = { id: generateId('m'), threadId, content, createdAt: Date.now() }
@@ -400,18 +573,19 @@ export default function App() {
     setMessages(prev => ({
       ...prev,
       [currentThreadId]: prev[currentThreadId]?.map(m =>
-        m.id === msgId ? { ...m, content } : m
+        m.id === msgId ? { ...m, content, updatedAt: Date.now() } : m
       ) || []
     }))
   }, [currentThreadId])
 
   const deleteMessage = useCallback((msgId: string) => {
     tombstone('messages', [msgId])
+    forgetView([msgId])
     setMessages(prev => ({
       ...prev,
       [currentThreadId]: prev[currentThreadId]?.filter(m => m.id !== msgId) || []
     }))
-  }, [currentThreadId, tombstone])
+  }, [currentThreadId, tombstone, forgetView])
 
   const createProject = useCallback((name: string) => {
     const project: Project = { id: generateId('p'), name, createdAt: Date.now() }
@@ -424,13 +598,14 @@ export default function App() {
 
   const deleteProject = useCallback((id: string) => {
     tombstone('projects', [id])
+    forgetView([id])
     setProjects(prev => prev.filter(p => p.id !== id))
     setThreads(prev => prev.map(t => ({
       ...t,
       projectIds: t.projectIds.filter(pid => pid !== id),
       updatedAt: t.projectIds.includes(id) ? Date.now() : t.updatedAt
     })))
-  }, [tombstone])
+  }, [tombstone, forgetView])
 
   const currentThread = threads.find(t => t.id === currentThreadId)
   const getThreadsInProject = (pid: string) => threads.filter(t => t.projectIds.includes(pid))
@@ -446,6 +621,7 @@ export default function App() {
           onSelect={id => { setCurrentThreadId(id); navigate('/') }}
           onProjectClick={id => navigate(`/project/${id}`)}
           onCreate={createProject}
+          onTogglePin={togglePinProject}
         />
       )
     }
@@ -461,6 +637,7 @@ export default function App() {
           onSelect={id => { setCurrentThreadId(id); navigate('/') }}
           onDeleteProject={deleteProject}
           onRenameProject={renameProject}
+          onTogglePin={togglePinThread}
         />
       )
     }
@@ -473,6 +650,8 @@ export default function App() {
           chainId={chainId}
           devices={devices}
           myDeviceId={syncAgentRef.current?.getDeviceId() || null}
+          myDeviceName={deviceName}
+          onRenameDevice={handleRenameDevice}
           lastSync={lastSync}
           syncStatus={syncStatus}
           syncError={syncError}
@@ -505,6 +684,8 @@ export default function App() {
           onDeleteThread={deleteThread}
           onRenameProject={renameProject}
           onDeleteProject={deleteProject}
+          onTogglePin={togglePinThread}
+          onTogglePinProject={togglePinProject}
         />
       )
     }
@@ -526,6 +707,8 @@ export default function App() {
           onDeleteThread={deleteThread}
           onAddToProject={addThreadToProject}
           onRemoveFromProject={removeThreadFromProject}
+          onTogglePin={togglePinThread}
+          onTogglePinMessage={togglePinMessage}
         />
       )
     }
@@ -549,6 +732,8 @@ export default function App() {
           onDeleteThread={deleteThread}
           onRenameProject={renameProject}
           onDeleteProject={deleteProject}
+          onTogglePin={togglePinThread}
+          onTogglePinProject={togglePinProject}
         />
       )
     )
@@ -556,8 +741,14 @@ export default function App() {
 
   const showBurgerBtn = true
 
+  const viewApi = useMemo<ViewStateApi>(
+    () => ({ view, isCollapsed, toggleCollapse, reorder }),
+    [view, isCollapsed, toggleCollapse, reorder],
+  )
+
   return (
-    <div className="app">
+    <ViewStateProvider value={viewApi}>
+      <div className="app">
       {showBurger && <BurgerMenu 
         threads={threads} 
         projects={projects} 
@@ -575,6 +766,8 @@ export default function App() {
         onRemoveFromProject={removeThreadFromProject}
         onRenameProject={renameProject}
         onDeleteProject={deleteProject}
+        onTogglePin={togglePinThread}
+        onTogglePinProject={togglePinProject}
       />}
       <Layout
         title="Gistory"
@@ -587,6 +780,7 @@ export default function App() {
       >
         {renderPage()}
       </Layout>
-    </div>
+      </div>
+    </ViewStateProvider>
   )
 }

@@ -40,6 +40,66 @@ const text = (page) => page.evaluate(() => document.body.innerText)
 
 export default async function run({ check, baseUrl, browser }) {
   const errors = []
+
+  // --- 0. First-run journey on a genuinely empty library --------------------
+  // Regression: createThread set the current thread id but never navigated, so
+  // creating your first thread from the empty board left you on the board with
+  // no message box — which is why collapse "did nothing" on a fresh install.
+  // Every other suite seeds data, so this path was never exercised.
+  const fresh = await openPage(browser, { url: baseUrl + '#/', seed: {} })
+  const freshErrors = []
+  fresh.on('console', (m) => { if (m.type() === 'error') freshErrors.push(m.text()) })
+  fresh.on('pageerror', (e) => freshErrors.push('PAGEERROR: ' + e.message))
+  await settle(fresh, 500)
+  check('an empty library shows the empty state', (await fresh.$('.input-area')) === null)
+
+  await clickSelector(fresh, '.header-actions .btn-ghost')
+  await settle(fresh, 300)
+  await fill(fresh, '.new-form .input', 'My first thread')
+  await clickSelector(fresh, '.new-form .btn-primary')
+  await settle(fresh, 700)
+  check('creating the first thread opens it', (await fresh.$('.input-area')) !== null)
+  check(
+    'creating the first thread updates the route',
+    /#\/.+/.test(await fresh.evaluate(() => location.hash)),
+    await fresh.evaluate(() => location.hash),
+  )
+
+  // And the thing the user reported: collapse has to work on this path.
+  await fresh.click('.input-area')
+  await fresh.type(
+    '.input-area',
+    'First message with quite a few more words in it than the preview keeps',
+  )
+  await fresh.keyboard.down('Control')
+  await fresh.keyboard.press('Enter')
+  await fresh.keyboard.up('Control')
+  await settle(fresh, 700)
+  check(
+    'a message typed on the first-run path is saved',
+    await fresh.evaluate(
+      () => Object.values(JSON.parse(localStorage.getItem('gistory_messages') || '{}')).flat().length,
+    ) === 1,
+  )
+  await fresh.evaluate(() => document.querySelectorAll('.message-card .collapse-toggle')[0].click())
+  await settle(fresh, 500)
+  check('collapsing hides the body on the first-run path', (await fresh.$('.message-card pre')) === null)
+  check(
+    'collapsing shows a preview on the first-run path',
+    (await fresh.$('.message-card .message-preview')) !== null,
+  )
+  check(
+    'the collapsed preview is shorter than the message',
+    await fresh.evaluate(() => {
+      const preview = document.querySelector('.message-card .message-preview')?.textContent ?? ''
+      const full = JSON.parse(localStorage.getItem('gistory_messages'))
+      const msg = Object.values(full).flat()[0]
+      return preview.length < msg.content.trim().length
+    }),
+  )
+  check('no errors on the first-run journey', freshErrors.length === 0, freshErrors.join(' | ').slice(0, 200))
+  await fresh.close()
+
   const page = await openPage(browser, { url: baseUrl + '#/', seed: SEED })
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text())

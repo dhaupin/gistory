@@ -14,6 +14,7 @@
 // The functions here are pure so they can be unit tested without a browser.
 
 import type { Message, MessagesByThread, Project, Thread } from '../lib/models'
+import { emptyView, mergeView, type ViewState } from './view-state'
 
 export interface DeletedRegistry {
   threads: Record<string, number>
@@ -26,6 +27,8 @@ export interface SyncData {
   messages: MessagesByThread
   projects: Project[]
   deleted: DeletedRegistry
+  /** Synced arrangement: drag order + collapsed flags. See ./view-state. */
+  view: ViewState
 }
 
 export interface SyncPayload {
@@ -33,6 +36,7 @@ export interface SyncPayload {
   messages?: MessagesByThread
   projects?: Project[]
   deleted?: Partial<DeletedRegistry>
+  view?: Partial<ViewState>
   senderDeviceId?: string
   sentAt?: number
 }
@@ -130,19 +134,23 @@ function mergeMessages(
 
     for (const msg of local[threadId] || []) {
       const deletedAt = tombstones[msg.id]
-      if (deletedAt != null && deletedAt >= msg.createdAt) continue
+      if (deletedAt != null && deletedAt >= itemTime(msg)) continue
       map.set(msg.id, msg)
     }
 
     for (const msg of incoming[threadId] || []) {
       const deletedAt = tombstones[msg.id]
-      if (deletedAt != null && deletedAt >= msg.createdAt) continue
+      if (deletedAt != null && deletedAt >= itemTime(msg)) continue
       const existing = map.get(msg.id)
       if (!existing) {
         map.set(msg.id, msg)
         continue
       }
-      if (incomingWins(msg.createdAt, existing.createdAt, sender, myDeviceId)) {
+      // Compare the last edit time (falling back to createdAt for messages
+      // created before edits carried an updatedAt), not just createdAt —
+      // otherwise a content edit only wins if the editor's deviceId sorts
+      // higher and can be silently reverted.
+      if (incomingWins(itemTime(msg), itemTime(existing), sender, myDeviceId)) {
         map.set(msg.id, msg)
       }
     }
@@ -166,9 +174,29 @@ export function mergePayload(
     messages: mergeRegistry(local.deleted.messages, remote.deleted?.messages),
   }
 
+  const threads = mergeList(local.threads, remote.threads || [], sender, myDeviceId, deleted.threads)
+  const messages = mergeMessages(
+    local.messages,
+    remote.messages || {},
+    sender,
+    myDeviceId,
+    deleted.messages,
+  )
+
+  // Drop message arrays whose thread no longer exists. A device that deleted a
+  // thread pushes a tombstone, but every *other* device still carries that
+  // thread's messages in its full-state payload — so without this, each sync
+  // re-imports messages for a deleted thread and they accumulate forever,
+  // growing every later push.
+  const aliveThreads = new Set(threads.map(thread => thread.id))
+  for (const threadId of Object.keys(messages)) {
+    if (!aliveThreads.has(threadId)) delete messages[threadId]
+  }
+
   return {
     deleted,
-    threads: mergeList(local.threads, remote.threads || [], sender, myDeviceId, deleted.threads),
+    view: mergeView(local.view ?? emptyView(), remote.view, sender, myDeviceId),
+    threads,
     projects: mergeList(
       local.projects,
       remote.projects || [],
@@ -176,12 +204,6 @@ export function mergePayload(
       myDeviceId,
       deleted.projects,
     ),
-    messages: mergeMessages(
-      local.messages,
-      remote.messages || {},
-      sender,
-      myDeviceId,
-      deleted.messages,
-    ),
+    messages,
   }
 }

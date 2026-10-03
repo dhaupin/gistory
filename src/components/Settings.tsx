@@ -1,9 +1,10 @@
 // Settings Page - user preferences, sync chains, devices
 
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Link, Smartphone, RefreshCw, Check, X, Copy, AlertTriangle, Loader2 } from 'lucide-react'
+import { Settings as SettingsIcon, Link, Smartphone, RefreshCw, Check, X, Copy, AlertTriangle, Loader2, Eye, EyeOff, Edit } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Badge, Button } from '../ui'
+import ConfirmDialog from './ConfirmDialog'
 import { exportAll, exportThread, exportProject, type ExportData } from '../lib/store'
 import type { PromptMetadata } from '../lib/models'
 
@@ -15,6 +16,8 @@ interface SettingsProps {
   chainId: string | null
   devices: DeviceInfo[]
   myDeviceId: string | null
+  /** Human-friendly name of this device, editable in the Devices tab. */
+  myDeviceName: string
   lastSync: number | null
   syncStatus: 'idle' | 'syncing' | 'error'
   syncError: string | null
@@ -25,6 +28,7 @@ interface SettingsProps {
   onEnableSync: (passphrase: string) => Promise<void>
   onJoinSync: (passphrase: string, token: string) => Promise<void>
   onDisableSync: () => void
+  onRenameDevice: (name: string) => void
   onGenerateToken: () => Promise<string>
   onRefresh: () => Promise<void>
   /** Merge an imported snapshot into app state (no reload needed). */
@@ -121,6 +125,8 @@ function SyncSettings(props: SettingsProps) {
   const [pairingToken, setPairingToken] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [copiedChain, setCopiedChain] = useState(false)
+  const [showKey, setShowKey] = useState(false)
+  const [confirmDisable, setConfirmDisable] = useState(false)
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true)
@@ -218,18 +224,29 @@ function SyncSettings(props: SettingsProps) {
           )}
 
           <div className="input-group">
-            <input
-              className="input"
-              type="password"
-              placeholder={mode === 'create' ? 'Choose a sync passphrase' : 'Enter the sync passphrase'}
-              value={keyInput}
-              onChange={e => setKeyInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key !== 'Enter') return
-                if (mode === 'create') handleEnable()
-                else handleJoin()
-              }}
-            />
+            <div className="password-field">
+              <input
+                className="input"
+                type={showKey ? 'text' : 'password'}
+                placeholder={mode === 'create' ? 'Choose a sync passphrase' : 'Enter the sync passphrase'}
+                value={keyInput}
+                onChange={e => setKeyInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key !== 'Enter') return
+                  if (mode === 'create') handleEnable()
+                  else handleJoin()
+                }}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowKey(v => !v)}
+                aria-label={showKey ? 'Hide passphrase' : 'Show passphrase'}
+                title={showKey ? 'Hide passphrase' : 'Show passphrase'}
+              >
+                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             <Button
               onClick={mode === 'create' ? handleEnable : handleJoin}
               disabled={busy || !keyInput.trim() || (mode === 'join' && !tokenInput.trim())}
@@ -243,7 +260,7 @@ function SyncSettings(props: SettingsProps) {
             <Link size={14} />
             <span>
               {mode === 'create'
-                ? 'Use a memorable phrase. You will need it on every device.'
+                ? 'Use a memorable phrase — you will need it on every device. Only create a chain on your first device; on every other device choose "Join with a code" so it connects to this one.'
                 : 'Scan (or paste) the pairing code shown on a device already in the chain, then enter the same passphrase.'}
             </span>
           </div>
@@ -295,11 +312,23 @@ function SyncSettings(props: SettingsProps) {
               Pair Device
             </Button>
             
-            <Button onClick={props.onDisableSync} variant="danger">
+            <Button onClick={() => setConfirmDisable(true)} variant="danger">
               <X size={14} />
               Disable
             </Button>
           </div>
+
+          {confirmDisable && (
+            <ConfirmDialog
+              open
+              title="Turn off sync?"
+              message="This device will stop syncing and forget the chain. Your prompts stay on this device, and other devices keep syncing. You can re-enable with the same passphrase and pairing code."
+              confirmLabel="Turn off sync"
+              destructive
+              onConfirm={() => { setConfirmDisable(false); props.onDisableSync() }}
+              onCancel={() => setConfirmDisable(false)}
+            />
+          )}
           
           {/* Pairing Modal */}
           {showToken && pairingToken && (
@@ -366,6 +395,19 @@ function PairingModal(props: { token: string; onClose: () => void }) {
 }
 
 function DevicesSettings(props: SettingsProps) {
+  const [editing, setEditing] = useState(false)
+  const [nameInput, setNameInput] = useState(props.myDeviceName)
+
+  useEffect(() => {
+    setNameInput(props.myDeviceName)
+  }, [props.myDeviceName])
+
+  const saveName = () => {
+    const name = nameInput.trim()
+    if (name && name !== props.myDeviceName) props.onRenameDevice(name)
+    setEditing(false)
+  }
+
   if (!props.devices.length) {
     return (
       <div className="settings-section">
@@ -378,6 +420,34 @@ function DevicesSettings(props: SettingsProps) {
   return (
     <div className="settings-section">
       <h3>Devices ({props.devices.length})</h3>
+
+      <div className="setting-row">
+        <span>This device's name</span>
+        {editing ? (
+          <div className="form-inline">
+            <input
+              className="input-name"
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') saveName()
+                if (e.key === 'Escape') { setEditing(false); setNameInput(props.myDeviceName) }
+              }}
+              autoFocus
+            />
+            <button className="btn btn-primary btn-small" onClick={saveName}>Save</button>
+            <button className="btn btn-secondary btn-small" onClick={() => { setEditing(false); setNameInput(props.myDeviceName) }}>Cancel</button>
+          </div>
+        ) : (
+          <button
+            className="btn btn-secondary btn-small"
+            onClick={() => setEditing(true)}
+            aria-label="Rename this device"
+          >
+            <Edit size={14} /> {props.myDeviceName || 'Unnamed device'}
+          </button>
+        )}
+      </div>
       
       <div className="devices-list">
         {props.devices.map(device => {

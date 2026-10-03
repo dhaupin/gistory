@@ -1316,6 +1316,36 @@ textarea::placeholder {
   margin-bottom: 1rem;
 }
 
+/* Passphrase field with a show/hide toggle */
+.password-field {
+  position: relative;
+  display: inline-block;
+}
+.password-field .input {
+  padding-right: 2.5rem;
+}
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.25rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.password-toggle:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
 .new-form {
   display: flex;
   flex-direction: column;
@@ -1797,4 +1827,182 @@ textarea::placeholder {
 /* Page wrapper */
 .page-wrapper {
   padding: 1rem;
+}
+
+/* --- Pinned threads --------------------------------------------------- */
+.pin-indicator {
+  color: var(--primary);
+  flex: 0 0 auto;
+}
+
+/* The icon sits inline in the sidebar rows (block layout) and inside a flex
+   row on the boards; the margin only matters in the block case. */
+.thread-link .pin-indicator {
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
+.home-board .thread-item.pinned {
+  border-left: 3px solid var(--primary);
+}
+
+/* Thread rows on the project page: the card stays the click target, with the
+   pin menu as a sibling (a <button> cannot contain another <button>). */
+.thread-card-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.thread-card-row .thread-card {
+  flex: 1;
+  width: auto;
+  margin-bottom: 0;
+}
+
+.thread-card-row.pinned .thread-card {
+  border-left: 3px solid var(--primary);
+}
+
+/* --- Collapsible groups ---------------------------------------------- */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.collapsible-header h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.collapse-toggle:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* Give the project name room when the collapse toggle joins the row. */
+.project-label-row .project-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-sort {
+  padding: 0 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-sort .sort-select {
+  width: 100%;
+}
+
+/* --- Drag-to-reorder ---------------------------------------------------- */
+/* The grip is a real button (32px min target, labelled for screen readers);
+   `touch-action: none` stops the browser scrolling while a touch drag runs. */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0.25rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: grab;
+  touch-action: none;
+}
+
+.drag-handle:hover:not(:disabled) {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.drag-handle:active:not(:disabled) {
+  cursor: grabbing;
+}
+
+.drag-handle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The dragged row lifts out of the flow visually; the row that would receive
+   the drop gets an insertion rule so the target is never guesswork. */
+[data-sortable-id][data-dragging='true'] {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+[data-sortable-id][data-over='true'] {
+  box-shadow: inset 0 3px 0 0 var(--primary);
+}
+
+/* Rows that carry a grip need their content to keep growing rather than
+   squeezing the 32px handle. */
+.home-board .thread-link,
+.home-board .project-link {
+  min-width: 0;
+}
+
+/* Pinned project rows (home board + projects grid) */
+.home-board .project-item.pinned .project-link {
+  border-left: 3px solid var(--primary);
+}
+
+.project-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.project-card-row .project-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.project-card-row.pinned .project-card {
+  border-left: 3px solid var(--primary);
+}
+
+/* --- Messages: pin + collapse ---------------------------------------- */
+.message-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.message-head .message-actions {
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+/* Deliberately wraps instead of ellipsizing: the audit treats clipped text as
+   a finding, and a wrapped one-liner is friendlier anyway. */
+.message-card .message-preview {
+  color: var(--text-dim);
+  font-size: 0.875rem;
+}
+
+.message-card.pinned {
+  border-left: 3px solid var(--primary);
 }

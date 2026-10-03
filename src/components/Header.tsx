@@ -33,7 +33,12 @@ export default function Header({
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
         />
-        <button className="btn-icon" onClick={onToggleDark} title="Toggle dark">
+        <button
+          className="btn-icon"
+          onClick={onToggleDark}
+          title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
           {darkMode ? <Sun size={16} /> : <Moon size={16} />}
         </button>
         {onMenuClick && (

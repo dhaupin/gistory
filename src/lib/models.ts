@@ -30,6 +30,10 @@ export interface Thread {
   projectIds: string[]
   createdAt: number
   updatedAt?: number
+  /** Pinned threads sort above unpinned ones on every thread board. */
+  pinned?: boolean
+  /** When the thread was pinned (unpinned threads clear it). */
+  pinnedAt?: number
   metadata?: PromptMetadata
 }
 
@@ -39,6 +43,10 @@ export interface Project {
   createdAt: number
   updatedAt?: number
   archivedAt?: number
+  /** Pinned projects sort above unpinned ones. */
+  pinned?: boolean
+  /** When the project was pinned (unpinned projects clear it). */
+  pinnedAt?: number
 }
 
 export interface Message {
@@ -46,6 +54,13 @@ export interface Message {
   threadId: string
   content: string
   createdAt: number
+  /** Set when the content is edited or the pin is toggled, so merges pick
+   *  the newest copy. */
+  updatedAt?: number
+  /** Pinned messages sort above unpinned ones within their thread. */
+  pinned?: boolean
+  /** When the message was pinned (unpinned messages clear it). */
+  pinnedAt?: number
 }
 
 export type MessagesByThread = Record<string, Message[]>

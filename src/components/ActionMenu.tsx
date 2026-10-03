@@ -25,10 +25,17 @@ export default function ActionMenu({ items, trigger }: ActionMenuProps) {
         setOpen(false)
       }
     }
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
     if (open) {
       document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleEsc)
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEsc)
+    }
   }, [open])
 
   return (
@@ -37,15 +44,18 @@ export default function ActionMenu({ items, trigger }: ActionMenuProps) {
         className="action-menu-trigger" 
         onClick={() => setOpen(!open)}
         aria-label="Actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         {trigger || <MoreHorizontal size={16} />}
       </button>
       
       {open && (
-        <div className="action-menu-dropdown">
+        <div className="action-menu-dropdown" role="menu">
           {items.map((item, i) => (
             <button
               key={i}
+              role="menuitem"
               className={`action-menu-item ${item.variant || 'default'}`}
               onClick={() => {
                 item.onClick()

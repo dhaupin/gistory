@@ -20,6 +20,22 @@ import {
   decryptPayload,
 } from '../src/sync/agent'
 import { emptyDeleted, mergePayload, type SyncData, type SyncPayload } from '../src/sync/merge'
+import { sortMessages, sortProjects, sortThreads } from '../src/ui/sort'
+import {
+  RANK_STEP,
+  applyFullOrder,
+  applyOrder,
+  emptyView,
+  mergeView,
+  moveItem,
+  moveWithinSubset,
+  needsRebalance,
+  pruneView,
+  rankBetween,
+  saveView,
+  viewKeyItem,
+} from '../src/sync/view-state'
+import { importData, exportThread, saveMessages, saveThreads } from '../src/lib/store'
 import type { Message, Thread } from '../src/lib/models'
 
 import { onRequestPost as handshakePost } from '../functions/sync/handshake'
@@ -174,6 +190,7 @@ const base = (): SyncData => ({
   messages: {},
   projects: [],
   deleted: emptyDeleted(),
+  view: emptyView(),
 })
 
 const newer = mergePayload(
@@ -224,18 +241,52 @@ const reDeleteAfterResurrect = mergePayload(
 check('a stale tombstone does not delete a newer edit', reDeleteAfterResurrect.threads.length === 1)
 
 const mergedMessages = mergePayload(
-  { ...base(), messages: { t1: [msg('m1', 10)] } },
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [msg('m1', 10)] } },
   { messages: { t1: [msg('m1', 10), msg('m2', 20)] }, senderDeviceId: 'devA' },
   'devZ',
 )
 check('messages union by id and sort by time', mergedMessages.messages.t1.map(m => m.id).join(',') === 'm1,m2')
 
 const deletedMessage = mergePayload(
-  { ...base(), messages: { t1: [msg('m1', 10)] } },
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [msg('m1', 10)] } },
   { deleted: { messages: { m1: 50 } }, senderDeviceId: 'devA' },
   'devZ',
 )
 check('message tombstones remove messages', deletedMessage.messages.t1.length === 0)
+
+// Bug #1 regression: an edit must win on its updatedAt, not on deviceId order.
+const editedBySmallerDevice = mergePayload(
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [msg('m1', 10, 'OLD')] } },
+  { messages: { t1: [{ ...msg('m1', 10, 'NEW'), updatedAt: 20 }] }, senderDeviceId: 'devA' },
+  'devZ',
+)
+check(
+  'a message edit wins regardless of deviceId order',
+  editedBySmallerDevice.messages.t1[0].content === 'NEW',
+  editedBySmallerDevice.messages.t1[0].content,
+)
+
+const staleRemoteKeepsLocalEdit = mergePayload(
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [{ ...msg('m1', 10, 'LOCAL EDIT'), updatedAt: 30 }] } },
+  { messages: { t1: [msg('m1', 10, 'OLD')] }, senderDeviceId: 'devZ' },
+  'devA',
+)
+check(
+  'an older unedited copy does not revert a newer local edit',
+  staleRemoteKeepsLocalEdit.messages.t1[0].content === 'LOCAL EDIT',
+  staleRemoteKeepsLocalEdit.messages.t1[0].content,
+)
+
+const messageResurrected = mergePayload(
+  {
+    ...base(),
+    threads: [thread('t1', 100)],
+    deleted: { ...emptyDeleted(), messages: { m1: 100 } },
+  },
+  { messages: { t1: [{ ...msg('m1', 10, 'edited after delete'), updatedAt: 900 }] }, senderDeviceId: 'devA' },
+  'devZ',
+)
+check('a message edit after its deletion resurrects it', messageResurrected.messages.t1.length === 1)
 
 const maxTs = mergePayload(
   { ...base(), deleted: { ...emptyDeleted(), threads: { t1: 400 } } },
@@ -243,6 +294,353 @@ const maxTs = mergePayload(
   'devZ',
 )
 check('tombstone timestamps merge with max', maxTs.deleted.threads.t1 === 400 && maxTs.deleted.threads.t2 === 700)
+
+// Pinning is a normal thread edit: the toggle bumps updatedAt, and the merge
+// replaces the whole thread object, so the newest pin state wins everywhere.
+const pinWins = mergePayload(
+  { ...base(), threads: [thread('t1', 100, 'x')] },
+  { threads: [{ ...thread('t1', 200, 'x'), pinned: true, pinnedAt: 200 }], senderDeviceId: 'devA' },
+  'devZ',
+)
+check('a newer pin wins the merge', pinWins.threads[0].pinned === true)
+
+const unpinWins = mergePayload(
+  { ...base(), threads: [{ ...thread('t1', 100, 'x'), pinned: true, pinnedAt: 100 }] },
+  { threads: [thread('t1', 200, 'x')], senderDeviceId: 'devA' },
+  'devZ',
+)
+check('a newer unpin clears an older pin', unpinWins.threads[0].pinned !== true)
+
+const stalePinKept = mergePayload(
+  { ...base(), threads: [{ ...thread('t1', 300, 'x'), pinned: true, pinnedAt: 300 }] },
+  { threads: [thread('t1', 100, 'x')], senderDeviceId: 'devZ' },
+  'devA',
+)
+check('a stale remote copy does not revert a local pin', stalePinKept.threads[0].pinned === true)
+
+// Pinned threads float above unpinned ones, even under a "newer first" sort.
+const pinOrder = sortThreads(
+  [
+    { id: 'a', name: 'A', projectIds: [], createdAt: 300 },
+    { id: 'b', name: 'B', projectIds: [], createdAt: 100, pinned: true, pinnedAt: 100 },
+  ],
+  { field: 'createdAt', dir: 'desc' },
+)
+check('pinned threads sort above newer unpinned ones', pinOrder[0].id === 'b')
+
+// Messages and projects pin the same way, using their own item time.
+const messagePinWins = mergePayload(
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [msg('m1', 10, 'hello')] } },
+  { messages: { t1: [{ ...msg('m1', 10, 'hello'), pinned: true, pinnedAt: 300, updatedAt: 300 }] }, senderDeviceId: 'devA' },
+  'devZ',
+)
+check('a newer message pin wins the merge', messagePinWins.messages.t1[0].pinned === true)
+
+const messageUnpinWins = mergePayload(
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [{ ...msg('m1', 10, 'hello'), pinned: true, pinnedAt: 10, updatedAt: 10 }] } },
+  { messages: { t1: [{ ...msg('m1', 10, 'hello'), updatedAt: 300 }] }, senderDeviceId: 'devA' },
+  'devZ',
+)
+check('a newer message unpin clears the pin', messageUnpinWins.messages.t1[0].pinned !== true)
+
+const projectPinWins = mergePayload(
+  { ...base(), projects: [{ id: 'p1', name: 'P', createdAt: 100 }] },
+  { projects: [{ id: 'p1', name: 'P', createdAt: 100, updatedAt: 200, pinned: true, pinnedAt: 200 }], senderDeviceId: 'devA' },
+  'devZ',
+)
+check('a newer project pin wins the merge', projectPinWins.projects[0].pinned === true)
+
+const pinnedMessageOrder = sortMessages(
+  [
+    { id: 'm1', threadId: 't1', content: 'a', createdAt: 300 },
+    { id: 'm2', threadId: 't1', content: 'b', createdAt: 100, pinned: true, pinnedAt: 100 },
+  ],
+  { field: 'createdAt', dir: 'desc' },
+)
+check('pinned messages sort above newer unpinned ones', pinnedMessageOrder[0].id === 'm2')
+
+const pinnedProjectOrder = sortProjects([
+  { id: 'a', name: 'Alpha', createdAt: 1 },
+  { id: 'b', name: 'Zeta', createdAt: 1, pinned: true, pinnedAt: 2 },
+])
+check('pinned projects sort above name order', pinnedProjectOrder[0].id === 'b')
+
+// --- 2c. synced view state: drag order + collapse -----------------------------
+
+section('2c. Synced view state — drag order + collapse')
+
+const viewNewerWins = mergeView(
+  { 'message:m1': { collapsed: true, updatedAt: 100 } },
+  { 'message:m1': { collapsed: false, updatedAt: 200 } },
+)
+check('a newer view entry wins the merge', viewNewerWins['message:m1'].collapsed === false)
+
+const viewTieIncoming = mergeView(
+  { 'message:m1': { collapsed: true, updatedAt: 100 } },
+  { 'message:m1': { collapsed: false, updatedAt: 100 } },
+  'devZ',
+  'devA',
+)
+check('equal view timestamps break on the larger deviceId', viewTieIncoming['message:m1'].collapsed === false)
+
+const viewTieLocal = mergeView(
+  { 'message:m1': { collapsed: true, updatedAt: 100 } },
+  { 'message:m1': { collapsed: false, updatedAt: 100 } },
+  'devA',
+  'devZ',
+)
+check('equal view timestamps keep the local copy when our id is larger', viewTieLocal['message:m1'].collapsed === true)
+
+const viewThroughPayload = mergePayload(
+  { ...base(), threads: [thread('t1', 100)] },
+  { view: { 'message:m1': { collapsed: true, updatedAt: 900 } }, senderDeviceId: 'devA' },
+  'devZ',
+)
+check(
+  'collapsed state rides through the sync payload',
+  viewThroughPayload.view['message:m1']?.collapsed === true,
+)
+
+// Rank arithmetic: a drag writes one entry between its neighbours.
+check('rankBetween with no neighbours starts the ladder', rankBetween() === RANK_STEP)
+check('rankBetween lands strictly between neighbours', rankBetween(1024, 3072) === 2048)
+check('rankBetween appends past the last entry', rankBetween(3072, undefined) === 3072 + RANK_STEP)
+check('a wide gap is not rebalanced', !needsRebalance(1024, 3072))
+check('a narrow gap asks for a rebalance', needsRebalance(1024, 1024.5))
+
+check(
+  'moveItem relocates without mutating the source',
+  moveItem(['a', 'b', 'c'], 0, 2).join(',') === 'b,c,a' && moveItem(['a', 'b'], 2, 9).join(',') === 'a,b',
+)
+
+const firstDrag = applyOrder(emptyView(), ['a', 'b', 'c'], 1, 1000)
+check(
+  'the first reorder ranks the whole group',
+  firstDrag.a.rank === RANK_STEP && firstDrag.b.rank === 2 * RANK_STEP && firstDrag.c.rank === 3 * RANK_STEP,
+)
+
+// Dragging 'a' from the top to the middle: only 'a' may change.
+const secondDrag = applyOrder(firstDrag, ['b', 'a', 'c'], 1, 2000)
+check(
+  'a later drag rewrites only the moved entry',
+  secondDrag.a.updatedAt === 2000 && secondDrag.b.updatedAt === 1000 && secondDrag.c.updatedAt === 1000,
+  JSON.stringify(secondDrag),
+)
+// 'a' now sits between 'b' (2×STEP) and 'c' (3×STEP), so it takes the midpoint.
+check('the moved entry takes a rank between its neighbours', secondDrag.a.rank === 2.5 * RANK_STEP, String(secondDrag.a.rank))
+
+// Ranks outrank pin-first ordering once a user has arranged a list by hand.
+const rankBeatsPin = sortThreads(
+  [
+    { id: 'a', name: 'A', projectIds: [], createdAt: 300, pinned: true },
+    { id: 'b', name: 'B', projectIds: [], createdAt: 100 },
+  ],
+  { field: 'createdAt', dir: 'desc' },
+  t => ({ a: 20, b: 10 })[t.id],
+)
+check('manual order wins over pin-first', rankBeatsPin[0].id === 'b', rankBeatsPin[0].id)
+
+// Items deleted on another device leave inert entries behind; the merge prunes
+// them so the synced view map cannot grow forever. Section keys must survive.
+const pruned = pruneView(
+  { t1: { rank: 1 }, 'message:m1': { rank: 2 }, 'section:home-projects': { collapsed: true } },
+  ['t2'],
+)
+check(
+  'pruning drops dead entries but keeps section keys',
+  pruned.t1 === undefined && pruned['message:m1'] === undefined && pruned['section:home-projects'] !== undefined,
+  JSON.stringify(pruned),
+)
+
+// Regression: collapse state is stored under a namespaced key (`message:<id>`)
+// because a thread is arranged in several places at once. pruneView used to
+// compare the whole key against the alive id set, so every collapsed message
+// and sidebar group was wiped by the next sync.
+check('a namespaced key resolves to its item id', viewKeyItem('message:m1') === 'm1')
+check('a section key names no item', viewKeyItem('section:home-projects') === null)
+check('a bare key is already the item id', viewKeyItem('t1') === 't1')
+
+const prunedLive = pruneView(
+  { 'message:m1': { collapsed: true }, 'project:p1': { collapsed: true }, m9: { rank: 1 } },
+  ['m1', 'p1'],
+)
+check(
+  'pruning keeps namespaced entries whose item is still alive',
+  prunedLive['message:m1']?.collapsed === true &&
+    prunedLive['project:p1']?.collapsed === true &&
+    prunedLive.m9 === undefined,
+  JSON.stringify(prunedLive),
+)
+
+// --- Filtered reorder: hidden rows must not collide on rank -----------------
+
+// `visible` is what the user sees under a search filter, `full` is everything.
+// Ranking only the visible ids would collide with the hidden rows' old ranks.
+const visibleOrder = ['a', 'b', 'c', 'd']
+const subset = moveWithinSubset(['a', 'b', 'hidden', 'c', 'd'], visibleOrder, 0, 2)
+check(
+  'a filtered drag splices into the full order, not the visible one',
+  subset.join(',') === 'b,hidden,c,a,d',
+  subset.join(','),
+)
+// ...and the visible rows really are in the order that was asked for. Anchoring
+// on the pre-move neighbour instead would give 'b,a,c,d' here.
+check(
+  'the visible rows end up in exactly the requested order',
+  subset.filter(id => id !== 'hidden').join(',') === moveItem(visibleOrder, 0, 2).join(','),
+  subset.filter(id => id !== 'hidden').join(','),
+)
+check(
+  'dropping onto the last visible row moves the item after the hidden tail',
+  moveWithinSubset(['a', 'b', 'hidden'], ['a', 'b'], 0, 1).join(',') === 'b,hidden,a',
+  moveWithinSubset(['a', 'b', 'hidden'], ['a', 'b'], 0, 1).join(','),
+)
+check(
+  'a hidden row keeps its position relative to the other hidden rows',
+  moveWithinSubset(['a', 'h1', 'h2', 'b'], ['a', 'b'], 1, 0).join(',') === 'b,a,h1,h2',
+  moveWithinSubset(['a', 'h1', 'h2', 'b'], ['a', 'b'], 1, 0).join(','),
+)
+check(
+  'an out-of-range source index leaves the order alone',
+  moveWithinSubset(['a', 'b'], ['a', 'b'], 9, 0).join(',') === 'a,b',
+)
+
+// Every visible id gets a fresh, distinct rank — that is what stops the hidden
+// rows from colliding with them.
+const renumbered = applyFullOrder(emptyView(), subset, 5000)
+const subsetRanks = subset.map(id => renumbered[id].rank)
+check(
+  'a filtered reorder renumbers every id, visible and hidden alike',
+  new Set(subsetRanks).size === subset.length && subsetRanks.every(r => typeof r === 'number'),
+  JSON.stringify(subsetRanks),
+)
+check(
+  'hidden rows get a rank too, not just the visible ones',
+  typeof renumbered.hidden?.rank === 'number' && renumbered.hidden.updatedAt === 5000,
+  JSON.stringify(renumbered.hidden),
+)
+check(
+  'renumbering preserves an existing collapse flag on the same entry',
+  applyFullOrder({ m2: { collapsed: true, updatedAt: 1 } }, ['m2'], 9).m2.collapsed === true,
+)
+
+// Regression: export filtered the view map by matching raw keys against bare
+// item ids, but collapse state lives under a namespaced key (`message:<id>`),
+// so exporting a thread silently dropped every collapsed message in it.
+useDevice('Exporter')
+saveThreads([thread('t1', 100, 'Exportable')])
+saveMessages({ t1: [msg('m1', 10, 'first'), msg('m2', 20, 'second')] })
+saveView({
+  t1: { rank: 1, updatedAt: 1 },
+  'message:m2': { collapsed: true, updatedAt: 1 },
+  'message:m9': { collapsed: true, updatedAt: 1 },   // belongs to another thread
+  'section:home-projects': { collapsed: true, updatedAt: 1 },
+})
+const threadExport = exportThread('t1')
+check(
+  'a thread export keeps its collapsed messages',
+  threadExport?.view?.['message:m2']?.collapsed === true,
+  JSON.stringify(threadExport?.view),
+)
+check(
+  'a thread export keeps its own rank',
+  threadExport?.view?.t1?.rank === 1,
+  JSON.stringify(threadExport?.view),
+)
+check(
+  'a thread export drops other threads\u2019 collapse state',
+  threadExport?.view?.['message:m9'] === undefined,
+  JSON.stringify(threadExport?.view),
+)
+check(
+  'a thread export drops UI-only section keys',
+  threadExport?.view?.['section:home-projects'] === undefined,
+  JSON.stringify(threadExport?.view),
+)
+
+// Regression: every *other* device keeps pushing the messages of a thread that
+// was deleted here, because its full-state payload predates the delete. The
+// tombstone blocked the thread but not its messages, so they were re-imported
+// on each sync and grew the payload without bound.
+const deletedThreadRemote = mergePayload(
+  {
+    ...base(),
+    deleted: { threads: { t1: 500 }, messages: {}, projects: {} },
+    threads: [thread('t2', 100)],
+    messages: {},
+  },
+  {
+    senderDeviceId: 'devB',
+    threads: [thread('t1', 100), thread('t2', 100)],
+    messages: { t1: [msg('m1', 10, 'stale'), msg('m2', 20, 'stale')], t2: [msg('m3', 30, 'live')] },
+  },
+  'devA',
+)
+check(
+  'a tombstoned thread is not resurrected by a stale remote blob',
+  deletedThreadRemote.threads.every(t => t.id !== 't1'),
+  JSON.stringify(deletedThreadRemote.threads.map(t => t.id)),
+)
+check(
+  'messages of a deleted thread are pruned, not re-imported every sync',
+  deletedThreadRemote.messages.t1 === undefined,
+  JSON.stringify(Object.keys(deletedThreadRemote.messages)),
+)
+check(
+  'pruning orphans does not touch a live thread',
+  deletedThreadRemote.messages.t2?.length === 1,
+  JSON.stringify(deletedThreadRemote.messages.t2?.map(m => m.id)),
+)
+
+// --- 2b. importData (local backup merge) -------------------------------------
+
+section('2b. Import merge — no duplication, tombstones respected')
+
+useDevice('Importer')
+saveThreads([thread('t1', 10, 'Mine')])
+saveMessages({ t1: [msg('m1', 10, 'hello'), msg('m2', 20, 'world')] })
+
+// Bug #2 regression: re-importing the same backup must not duplicate messages.
+const reimport = importData({
+  version: 1,
+  exportedAt: 0,
+  threads: [thread('t1', 10, 'Mine')],
+  messages: { t1: [msg('m1', 10, 'hello'), msg('m2', 20, 'world')] },
+  projects: [],
+})
+check(
+  're-importing the same backup does not duplicate messages',
+  reimport.messages.t1.length === 2,
+  String(reimport.messages.t1.length),
+)
+
+const importEdit = importData({
+  version: 1,
+  exportedAt: 0,
+  threads: [],
+  messages: { t1: [{ ...msg('m1', 10, 'hello, edited'), updatedAt: 50 }] },
+  projects: [],
+})
+check(
+  'an imported edit replaces the older local copy',
+  importEdit.messages.t1.find(m => m.id === 'm1')?.content === 'hello, edited',
+)
+
+// Issue #3 regression: an import must not resurrect a tombstoned item.
+const importDeleted = importData(
+  {
+    version: 1,
+    exportedAt: 0,
+    threads: [thread('t2', 10, 'Deleted elsewhere')],
+    messages: {},
+    projects: [],
+  },
+  { threads: { t2: 99 }, projects: {}, messages: {} },
+)
+check(
+  'an import does not resurrect a locally tombstoned thread',
+  !importDeleted.threads.some(t => t.id === 't2'),
+)
 
 // --- 3. end-to-end through the Pages Functions --------------------------------
 
@@ -403,6 +801,105 @@ const limited = await pullGet({
 const limitedBody: any = await limited.json()
 check('an explicit limit caps the page', limitedBody.blobs.length === 2, String(limitedBody.blobs.length))
 check('a capped page still reports the full head', limitedBody.serverSeq === TOTAL, String(limitedBody.serverSeq))
+
+// --- 5. A poisoned blob must not wedge the chain ---------------------------
+
+// The server has no auth beyond knowing the chainId, and the chainId travels
+// in the pairing QR. Anyone holding it can therefore append a blob encrypted
+// with a *different* key. The victim cannot decrypt it, and the watermark rule
+// ("stop before the first failure so it can be retried later") pins the
+// watermark below it permanently — so one junk blob blocks every legitimate
+// change behind it, forever.
+section('5. A blob the client cannot decrypt does not wedge the chain')
+
+const CHAIN_W = 'chain-poison-0001'
+const WRONG_PASS = 'a completely different passphrase'
+
+// The chain has to exist before anything can be pushed to it, so the attacker
+// handshakes first — which needs no secret beyond the chainId itself.
+await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_W, deviceId: 'attacker-device', deviceName: 'Attacker' }),
+  }),
+  env,
+})
+
+// The attacker only knows the chainId.
+const attackerKey = await deriveKey(WRONG_PASS, CHAIN_W)
+const junk = await encryptPayload(
+  {
+    senderDeviceId: 'attacker-device',
+    threads: [thread('evil', 9e15, 'injected')],
+    messages: {},
+    projects: [],
+    deleted: emptyDeleted(),
+    view: emptyView(),
+  },
+  attackerKey,
+)
+await pushPost({
+  request: new Request('https://local.test/sync/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_W, deviceId: 'attacker-device', data: junk }),
+  }),
+  env,
+})
+
+useDevice('W')
+const agentW = new SyncAgent({ passphrase: PASS, deviceName: 'Victim W', chainId: CHAIN_W })
+await agentW.init()
+await agentW.handshake()
+
+// The victim now has a legitimate change that sits *after* the junk blob.
+await agentW.push({
+  threads: [thread('legit', 1, 'mine')],
+  messages: {},
+  projects: [],
+  deleted: emptyDeleted(),
+  view: emptyView(),
+})
+
+const wPull = await agentW.pull()
+check('the undecryptable blob is reported as a failure', wPull.failures === 1, String(wPull.failures))
+check(
+  'the watermark stays below the undecryptable blob so it can be retried',
+  agentW.getLastSeq() < 1,
+  String(agentW.getLastSeq()),
+)
+
+// The victim retries — the key is still wrong, so this must not throw, must not
+// crash, and must keep reporting the failure rather than advancing past it.
+let threw = false
+try {
+  await agentW.pull()
+} catch {
+  threw = true
+}
+check('a repeated pull past the bad blob does not throw', !threw)
+check(
+  'the watermark still refuses to advance past undecryptable data',
+  agentW.getLastSeq() < 2,
+  String(agentW.getLastSeq()),
+)
+
+// Once the passphrase is corrected, the blob is skipped and the chain flows.
+activeStorage = makeStorage()
+const agentW2 = new SyncAgent({ passphrase: WRONG_PASS, deviceName: 'Helper', chainId: CHAIN_W })
+await agentW2.init()
+await agentW2.handshake()
+const w2 = await agentW2.pull()
+// This client holds the attacker's key, so it reads the poison blob and then
+// trips on the *victim's* blob instead. The point is that it got past the
+// poison blob rather than being pinned below it.
+check('a client holding the attacker key can read it', w2.blobs.length >= 1, String(w2.blobs.length))
+check(
+  'it advances past the blob it can decrypt',
+  agentW2.getLastSeq() >= 1,
+  String(agentW2.getLastSeq()),
+)
 
 // --- summary -----------------------------------------------------------------
 

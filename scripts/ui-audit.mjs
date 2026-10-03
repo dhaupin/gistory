@@ -49,6 +49,34 @@ const EMPTY_SEED = {
   gistory_deleted: { threads: {}, messages: {}, projects: {} },
 }
 
+// A second fixture that reaches the arrangement surfaces the default seed never
+// shows: pinned items, a manual order that differs from the natural sort, and
+// collapsed groups/messages. Without it the audit only ever measured the
+// default (unpinned, expanded) rendering.
+const ARRANGED_SEED = (() => {
+  const seed = structuredClone(SEED)
+  seed.gistory_threads = seed.gistory_threads.map((t) =>
+    t.id === 't1' || t.id === 't3' ? { ...t, pinned: true, pinnedAt: t.updatedAt ?? t.createdAt } : t)
+  seed.gistory_projects = seed.gistory_projects.map((p) =>
+    p.id === 'p2' ? { ...p, pinned: true, pinnedAt: p.createdAt } : p)
+  seed.gistory_view = {
+    // Ranks deliberately disagree with createdAt order, and some threads are
+    // left unranked, so mixed ranked/unranked rendering gets measured too.
+    t1: { rank: 1, updatedAt: 1 },
+    t3: { rank: 2, updatedAt: 1 },
+    t2: { rank: 3, updatedAt: 1 },
+    // Collapse keys are namespaced by the surface that owns them (see
+    // ThreadView/BurgerMenu): a bare `m2` here would be dead weight and the
+    // audit would quietly measure an *expanded* message while claiming to
+    // measure a collapsed one.
+    m1: { rank: 1, updatedAt: 1 },
+    'message:m2': { collapsed: true, updatedAt: 1 },
+    'project:p1': { collapsed: true, updatedAt: 1 },
+    'section:home-projects': { collapsed: true, updatedAt: 1 },
+  }
+  return seed
+})()
+
 // Each entry is one rendered state. `click` matches a <button> by exact text;
 // `clickSelector` matches by CSS. `seed` overrides the default fixture.
 const ROUTES = [
@@ -85,6 +113,24 @@ const ROUTES = [
     ],
   },
   { name: 'search-filtered', hash: '#/', type: { selector: '.search-input', text: 'planning' } },
+  // Arrangement states: pinned items, custom order, collapsed groups/messages.
+  { name: 'home-arranged', hash: '#/', seed: ARRANGED_SEED },
+  {
+    name: 'home-arranged-filtered',
+    hash: '#/',
+    seed: ARRANGED_SEED,
+    type: { selector: '.search-input', text: 'thread' },
+  },
+  { name: 'thread-arranged', hash: '#/t1', seed: ARRANGED_SEED },
+  { name: 'projects-arranged', hash: '#/projects', seed: ARRANGED_SEED },
+  { name: 'project-detail-arranged', hash: '#/project/p1', seed: ARRANGED_SEED },
+  { name: 'burger-arranged', hash: '#/', seed: ARRANGED_SEED, clickSelector: '.btn-burger' },
+  {
+    name: 'burger-arranged-actions',
+    hash: '#/',
+    seed: ARRANGED_SEED,
+    steps: [{ clickSelector: '.btn-burger' }, { clickSelector: '.sidebar .action-menu-trigger' }],
+  },
 ]
 
 const THEMES = [
@@ -152,7 +198,10 @@ for (const theme of THEMES) {
   for (const vp of VIEWPORTS) {
     for (const route of routes) {
       const combo = `${theme.name}/${vp.name}/${route.name}`
-      const page = await browser.newPage()
+      // A fresh context per state: pages in one context share localStorage, so
+      // a state that toggles something would otherwise leak into the next one.
+      const context = await browser.createBrowserContext()
+      const page = await context.newPage()
       const errs = []
       page.on('console', (m) => {
         if (m.type() === 'error') errs.push(m.text())
@@ -216,6 +265,7 @@ for (const theme of THEMES) {
         crashes.push({ combo, error: String(err?.message || err) })
       } finally {
         await page.close()
+        await context.close().catch(() => {})
       }
 
       done++
