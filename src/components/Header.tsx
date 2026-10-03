@@ -29,6 +29,7 @@ export default function Header({
         <input
           className="search-input"
           placeholder="Search..."
+          aria-label="Search threads"
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
         />
@@ -36,7 +37,7 @@ export default function Header({
           {darkMode ? <Sun size={16} /> : <Moon size={16} />}
         </button>
         {onMenuClick && (
-          <button className="btn-burger" onClick={onMenuClick}><Menu size={16} /></button>
+          <button className="btn-burger" onClick={onMenuClick} aria-label="Open menu"><Menu size={16} /></button>
         )}
       </div>
     </header>

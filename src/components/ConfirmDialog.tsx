@@ -37,11 +37,17 @@ export default function ConfirmDialog({
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="modal-icon">
           <AlertTriangle size={24} />
         </div>
-        <h3 className="modal-title">{title}</h3>
+        <h3 className="modal-title" id="confirm-dialog-title">{title}</h3>
         <p className="modal-message">{message}</p>
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onCancel}>

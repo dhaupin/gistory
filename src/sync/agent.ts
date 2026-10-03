@@ -1,8 +1,23 @@
 // 📋 SyncAgent - Client-Side Encryption & Sync
 // Gistory Sync Chain - Browser Side
-// ===============================
+// ================================
+//
+// Key model (Brave-style chain):
+//   passphrase + chainId  --PBKDF2-->  AES-GCM master key
+//
+// The chainId is the *salt* and the chain identifier. It travels in the
+// pairing token/QR, never the passphrase. Every device that has the same
+// passphrase and the same chainId derives the SAME key, so blobs pushed by
+// one device can be decrypted by the others. The server only ever sees
+// ciphertext.
 
-// Use web crypto - no node imports needed!
+// --- Storage keys -----------------------------------------------------------
+
+const DEVICE_ID_KEY = 'gistory_device_id'
+const DEVICE_NAME_KEY = 'gistory_device_name'
+const seqKey = (chainId: string) => `gistory_seq_${chainId}`
+
+// --- Small helpers ----------------------------------------------------------
 
 function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -11,337 +26,345 @@ function generateUUID(): string {
   })
 }
 
-/*
-  TYPES (match spec.ts)
-  ==================
-*/
-
-export interface DeviceIdentity {
-  id: string
-  name: string
-  pubkey: string
-  createdAt: number
-  lastSeen: number
-}
-
-export interface SyncChain {
-  id: string
-  devices: string[]
-  createdAt: number
-  version: number
-}
-
-export interface SyncBlob {
-  key: string
-  chain: string
-  seq: number
-  nonce: string
-  data: string
-  hash: string
-  timestamp: number
-}
-
-export interface SyncConfig {
-  workerUrl: string
-  syncKey: string      // NEVER leaves device!
-  deviceName: string
-  chainId?: string
-}
-
-/*
-  CRYPTO - Client Side Only
-  ========================
-*/
-
 const enc = new TextEncoder()
 const dec = new TextDecoder()
 
 function buf2base64(buf: ArrayBuffer | Uint8Array): string {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf)
   let binary = ''
-  bytes.forEach(b => binary += String.fromCharCode(b))
+  bytes.forEach(b => (binary += String.fromCharCode(b)))
   return btoa(binary)
 }
 
 function base642buf(base64: string): Uint8Array {
   const binary = atob(base64)
   const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
   return bytes
 }
 
-async function deriveKey(passphrase: string, salt: string): Promise<CryptoKey> {
+// --- Crypto (client side only) ---------------------------------------------
+
+export async function deriveKey(passphrase: string, salt: string): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     enc.encode(passphrase),
     'PBKDF2',
     false,
-    ['deriveKey']
+    ['deriveKey'],
   )
-  
+
   return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: enc.encode(salt),
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
-    ['encrypt', 'decrypt']
+    ['encrypt', 'decrypt'],
   )
 }
 
-async function encrypt(data: object, key: CryptoKey): Promise<string> {
+export async function encryptPayload(data: unknown, key: CryptoKey): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
-    enc.encode(JSON.stringify(data))
+    enc.encode(JSON.stringify(data)),
   )
-  
   return buf2base64(iv) + '.' + buf2base64(ciphertext)
 }
 
-async function decrypt(payload: string, key: CryptoKey): Promise<object> {
+export async function decryptPayload<T = unknown>(payload: string, key: CryptoKey): Promise<T> {
   const [iv64, data64] = payload.split('.')
-  const iv = base642buf(iv64)
-  const data = base642buf(data64)
-  
+  if (!iv64 || !data64) throw new Error('malformed ciphertext')
   const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: base642buf(iv64) },
     key,
-    data
+    base642buf(data64),
   )
-  
-  return JSON.parse(dec.decode(plaintext))
+  return JSON.parse(dec.decode(plaintext)) as T
 }
 
-function hash(data: string): string {
-  // Simple hash for verification - use SHA-256 in prod
-  let h = 0
-  for (let i = 0; i < data.length; i++) {
-    h = ((h << 5) - h) + data.charCodeAt(i)
-    h |= 0
+// --- Chain / pairing helpers -------------------------------------------------
+
+/** A fresh random chain id (also used as the PBKDF2 salt). */
+export function newChainId(): string {
+  return generateUUID()
+}
+
+/** The code shown in the pairing QR — carries the chain id, not the passphrase. */
+export function pairingTokenFromChain(chainId: string): string {
+  return `GS1-${chainId}`
+}
+
+/**
+ * Accepts a pairing token (`GS1-<chainId>`), a legacy `#join:<chainId>` link,
+ * or a bare chain id, and returns the chain id (or null when invalid).
+ */
+export function chainIdFromToken(token: string): string | null {
+  const raw = (token || '').trim()
+  const candidates = [
+    raw,
+    raw.replace(/^GS1-/i, ''),
+    raw.replace(/^#join:/i, ''),
+  ]
+  for (const candidate of candidates) {
+    if (/^[A-Za-z0-9-]{8,64}$/.test(candidate)) return candidate
   }
-  return String(h)
+  return null
 }
 
-/*
-  PAIRING TOKENS (QR)
-  =================
-*/
-
-export function generatePairingToken(): string {
-  // 256-bit random as base64url
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  return buf2base64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+/** A human-friendly default device name, e.g. "Chrome · macOS". */
+export function suggestDeviceName(): string {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  const platform =
+    /Mac/i.test(ua) ? 'macOS'
+    : /Windows/i.test(ua) ? 'Windows'
+    : /Android/i.test(ua) ? 'Android'
+    : /iPhone|iPad|iPod/i.test(ua) ? 'iOS'
+    : /Linux/i.test(ua) ? 'Linux'
+    : 'Device'
+  const browser =
+    /Edg\//i.test(ua) ? 'Edge'
+    : /OPR\//i.test(ua) ? 'Opera'
+    : /Chrome\//i.test(ua) ? 'Chrome'
+    : /Firefox\//i.test(ua) ? 'Firefox'
+    : /Safari\//i.test(ua) ? 'Safari'
+    : 'Browser'
+  return `${browser} · ${platform}`
 }
 
-/*
-  SYNC AGENT
-  =========
-*/
+// --- Types -------------------------------------------------------------------
+
+export interface RemoteDevice {
+  id: string
+  name: string
+  lastSeen: number
+}
+
+export interface ChainStatus {
+  chainId: string
+  serverSeq: number
+  version: number
+  devices: RemoteDevice[]
+}
+
+export interface PullResult {
+  blobs: unknown[]
+  serverSeq: number
+  failures: number
+}
+
+export interface SyncConfig {
+  /** Base URL of the sync API. Empty string means same-origin (production). */
+  baseUrl?: string
+  /** The user's passphrase. NEVER leaves the device. */
+  passphrase: string
+  /** Label shown to other devices in this chain. */
+  deviceName: string
+  /** Chain id — also the PBKDF2 salt. */
+  chainId: string
+}
+
+const PULL_LIMIT = 500
+
+// --- SyncAgent ---------------------------------------------------------------
 
 export class SyncAgent {
   private config: SyncConfig
-  private identity: DeviceIdentity | null = null
+  private baseUrl: string
+  private deviceId = ''
   private key: CryptoKey | null = null
-  private chain: SyncChain | null = null
   private lastSeq = 0
-  
+
   constructor(config: SyncConfig) {
     this.config = config
+    this.baseUrl = (config.baseUrl ?? '').replace(/\/+$/, '')
   }
-  
-  // Initialize - derive identity from sync key
-  async init(): Promise<DeviceIdentity> {
-    // Generate or recover device ID
-    const storedId = localStorage.getItem('gistory_device_id')
+
+  // Initialize/restore identity and derive the chain key.
+  async init(): Promise<void> {
+    const storedId = localStorage.getItem(DEVICE_ID_KEY)
     const deviceId = storedId || generateUUID()
-    if (!storedId) {
-      localStorage.setItem('gistory_device_id', deviceId)
-    }
-    
-    // Derive encryption key from sync key + device ID
-    this.key = await deriveKey(this.config.syncKey, deviceId)
-    
-    this.identity = {
-      id: deviceId,
-      name: this.config.deviceName,
-      pubkey: buf2base64((await crypto.subtle.exportKey('raw', this.key!))),
-      createdAt: Date.now(),
-      lastSeen: Date.now(),
-    }
-    
-    return this.identity
+    if (!storedId) localStorage.setItem(DEVICE_ID_KEY, deviceId)
+    this.deviceId = deviceId
+
+    const storedName = localStorage.getItem(DEVICE_NAME_KEY)
+    if (storedName) this.config.deviceName = storedName
+
+    // Salt = chainId, so every device in the chain derives the same key.
+    this.key = await deriveKey(this.config.passphrase, this.config.chainId)
+
+    const since = Number(localStorage.getItem(seqKey(this.config.chainId)) || 0)
+    this.lastSeq = Number.isFinite(since) ? since : 0
   }
-  
-  // Handshake - join or create chain
-  async handshake(existingChainId?: string): Promise<SyncChain> {
-    if (!this.identity) throw new Error('Not initialized')
-    
-    const chainId = existingChainId || localStorage.getItem('gistory_chain_id') || generateUUID()
-    localStorage.setItem('gistory_chain_id', chainId)
-    
-    const response = await fetch(`${this.config.workerUrl}/sync/handshake`, {
+
+  // Register this device with the chain and learn the current server head.
+  async handshake(): Promise<ChainStatus> {
+    this.assertReady()
+    const status = await this.request<ChainStatus>('/sync/handshake', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        deviceId: this.identity.id,
-        deviceName: this.identity.name,
-        pubkey: this.identity.pubkey,
-        chainId,
+        chainId: this.config.chainId,
+        deviceId: this.deviceId,
+        deviceName: this.config.deviceName,
       }),
     })
-    
-    const result = await response.json()
-    this.chain = { id: chainId, devices: [this.identity.id], createdAt: Date.now(), version: 1 }
-    
-    return this.chain
-  }
-  
-  // Push - encrypt + upload
-  async push(data: object, autoPull = false): Promise<void> {
-    if (!this.key || !this.identity || !this.chain) {
-      throw new Error('Not initialized')
-    }
-    
-    // Auto-check if server has new changes (from other devices)
-    if (autoPull) {
-      try {
-        const response = await fetch(`${this.config.workerUrl}/sync/status?chain=${this.chain.id}`)
-        const { serverSeq } = await response.json() as { serverSeq: number }
-        
-        if (serverSeq > this.lastSeq) {
-          // Pull first for other device changes
-          console.log('Server has updates, pulling first...')
-          await this.pull()
-        }
-      } catch (err) {
-        console.warn('Could not check status:', err)
-      }
-    }
-    
-    // Increment sequence
-    this.lastSeq++
-    
-    // Encrypt payload - include sender deviceId for merge tie-breaking
-    const payload = await encrypt({ ...data, senderDeviceId: this.identity.id }, this.key)
-    const payloadHash = hash(JSON.stringify(data))
-    
-    // Include deviceId for filtering on other devices' pulls
-    const blob = {
-      chainId: this.chain.id,
-      seq: this.lastSeq,
-      data: payload,
-      deviceId: this.identity.id,
-    }
-    
-    await fetch(`${this.config.workerUrl}/sync/push`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(blob),
-    })
-    
-    // Save sequence
-    localStorage.setItem(`gistory_seq_${this.chain.id}`, String(this.lastSeq))
-  }
-  
-  // Pull - download + decrypt
-  async pull(): Promise<object[]> {
-    if (!this.key || !this.chain || !this.identity) {
-      throw new Error('Not initialized')
-    }
-    
-    // Get last sequence I saw (global seen)
-    const lastSeqStr = localStorage.getItem(`gistory_seq_${this.chain.id}`)
-    const sinceSeq = lastSeqStr ? Number(lastSeqStr) : 0
-    
-    // Fetch blobs from OTHER devices only
-    const response = await fetch(
-      `${this.config.workerUrl}/sync/pull?chain=${this.chain.id}&since=${sinceSeq}&deviceId=${this.identity.id}`,
-    )
-    
-    const { blobs, serverSeq } = await response.json() as { blobs: { seq: number; data: string }[]; serverSeq: number }
-    const results: object[] = []
-    
-    for (const blob of blobs) {
-      try {
-        const decrypted = await decrypt(blob.data, this.key!)
-        results.push(decrypted)
-        
-        // Update global seq tracking
-        if (blob.seq > this.lastSeq) {
-          this.lastSeq = blob.seq
-        }
-      } catch {
-        console.warn('Failed to decrypt blob', blob.seq)
-      }
-    }
-    
-    // Store global seen seq (others' changes we've consumed)
-    if (sinceSeq > 0) {
-      localStorage.setItem(`gistory_seq_${this.chain.id}`, String(this.lastSeq))
-    }
-    
-    return results
-  }
-  
-  // Get status
-  getStatus() {
-    return {
-      initialized: !!this.identity,
-      chainId: this.chain?.id,
-      lastSeq: this.lastSeq,
-    }
+    // NOTE: we deliberately do not advance the pull watermark here — any blobs
+    // already on the server still need to be pulled by the caller.
+    this.persistDeviceName()
+    return status
   }
 
-  // Check server status
-  async checkStatus(): Promise<{ serverSeq: number; hasUpdates: boolean } | null> {
-    if (!this.chain) return null
-    
-    try {
-      const response = await fetch(`${this.config.workerUrl}/sync/status?chain=${this.chain.id}`)
-      const { serverSeq } = await response.json() as { serverSeq: number }
-      
-      return {
-        serverSeq,
-        hasUpdates: serverSeq > this.lastSeq,
+  // Update the label other devices see for this device.
+  setDeviceName(name: string) {
+    const trimmed = (name || '').trim()
+    if (!trimmed) return
+    this.config.deviceName = trimmed
+    this.persistDeviceName()
+  }
+
+  private persistDeviceName() {
+    localStorage.setItem(DEVICE_NAME_KEY, this.config.deviceName)
+  }
+
+  // Encrypt the full snapshot and store it. Returns the server-assigned seq.
+  async push(data: object): Promise<number> {
+    this.assertReady()
+    const payload = await encryptPayload(
+      { ...data, senderDeviceId: this.deviceId, sentAt: Date.now() },
+      this.key!,
+    )
+
+    const result = await this.request<{ seq: number; serverSeq: number }>('/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chainId: this.config.chainId,
+        deviceId: this.deviceId,
+        data: payload,
+      }),
+    })
+
+    // A push must NOT advance the pull watermark: another device may have
+    // written blobs below our new seq that we haven't seen yet.
+    return result.seq
+  }
+
+  // Download and decrypt changes from other devices since our last bookmark.
+  async pull(): Promise<PullResult> {
+    this.assertReady()
+    const out: unknown[] = []
+    let since = this.lastSeq
+    let serverSeq = this.lastSeq
+    let failures = 0
+    let retryFrom = Infinity
+
+    for (let i = 0; i < 20; i++) {
+      const res = await this.request<{
+        blobs: { seq: number; data: string }[]
+        serverSeq: number
+      }>(
+        `/sync/pull?chain=${encodeURIComponent(this.config.chainId)}` +
+          `&since=${since}&deviceId=${encodeURIComponent(this.deviceId)}`,
+      )
+
+      const blobs = res.blobs || []
+      serverSeq = typeof res.serverSeq === 'number' ? res.serverSeq : since
+      if (blobs.length === 0) {
+        since = Math.max(since, serverSeq)
+        break
       }
-    } catch (err) {
-      console.error('Failed to check status:', err)
+
+      for (const blob of blobs) {
+        try {
+          out.push(await decryptPayload(blob.data, this.key!))
+        } catch {
+          failures++
+          retryFrom = Math.min(retryFrom, blob.seq)
+        }
+        since = Math.max(since, blob.seq)
+      }
+
+      if (since >= serverSeq) break
+    }
+
+    // If some blobs could not be decrypted, keep the watermark before the first
+    // failure so a later sync (with the right passphrase) can retry them.
+    if (failures > 0 && retryFrom !== Infinity) {
+      since = Math.min(since, retryFrom - 1)
+    }
+
+    this.lastSeq = Math.max(this.lastSeq, since)
+    this.persistSeq()
+    return { blobs: out, serverSeq, failures }
+  }
+
+  // Chain health: head sequence + known devices.
+  async status(): Promise<ChainStatus | null> {
+    if (!this.deviceId) return null
+    try {
+      return await this.request<ChainStatus>(
+        `/sync/status?chain=${encodeURIComponent(this.config.chainId)}`,
+      )
+    } catch {
       return null
     }
   }
 
-  // Get my deviceId
-  getDeviceId(): string | undefined {
-    return this.identity?.id
+  getDeviceId(): string {
+    return this.deviceId
+  }
+
+  getChainId(): string {
+    return this.config.chainId
+  }
+
+  getDeviceName(): string {
+    return this.config.deviceName
+  }
+
+  getLastSeq(): number {
+    return this.lastSeq
+  }
+
+  // --- internals ------------------------------------------------------------
+
+  private persistSeq() {
+    localStorage.setItem(seqKey(this.config.chainId), String(this.lastSeq))
+  }
+
+  private assertReady() {
+    if (!this.key || !this.deviceId) {
+      throw new Error('Sync agent is not initialized')
+    }
+  }
+
+  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    let response: Response
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, init)
+    } catch (err) {
+      throw new Error('Cannot reach the sync server — are you offline?')
+    }
+
+    const text = await response.text()
+    let body: any = null
+    if (text) {
+      try {
+        body = JSON.parse(text)
+      } catch {
+        body = null
+      }
+    }
+
+    if (!response.ok) {
+      const message =
+        (body && (body.error || body.message)) ||
+        `Sync request failed (${response.status})`
+      throw new Error(message)
+    }
+    if (body === null) throw new Error('Sync server returned an invalid response')
+    return body as T
   }
 }
-
-/*
-  USAGE EXAMPLE
-  ==========
-
-const agent = new SyncAgent({
-  workerUrl: 'https://gistory-sync.your-subdomain.workers.dev',
-  syncKey: 'user-memorable-passphrase-or-token',
-  deviceName: 'my-laptop',
-})
-
-// Setup (one time)
-await agent.init()
-await agent.handshake()
-
-// Sync data (anytime)
-await agent.push({ threads, messages, projects })
-
-// Receive changes
-const changes = await agent.pull()
-// Merge changes into local state
-*/

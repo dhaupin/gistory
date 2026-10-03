@@ -173,6 +173,7 @@ export default function ThreadView({
                     onSortChange({ field, dir })
                   }}
                   className="sort-select"
+                  aria-label="Sort messages"
                 >
                   <option value="createdAt_desc">Newest first</option>
                   <option value="createdAt_asc">Oldest first</option>
@@ -238,6 +239,20 @@ export default function ThreadView({
       </div>
 
       <div className="messages-list">
+        {/* The header search keeps filtering after you open a thread, so say so
+            rather than silently hiding messages. */}
+        {searchQuery.trim() && sortedMessages.length > 0 && (
+          <p className="empty-text search-summary">
+            {filtered.length} of {sortedMessages.length} messages match “{searchQuery.trim()}”
+          </p>
+        )}
+        {filtered.length === 0 && (
+          <p className="empty-text">
+            {searchQuery.trim()
+              ? `No messages match “${searchQuery.trim()}”.`
+              : 'No messages yet.'}
+          </p>
+        )}
         {filtered.map(msg => (
           <div key={msg.id} className="message-card">
             {editingMsg?.id === msg.id ? (
@@ -275,6 +290,7 @@ export default function ThreadView({
                   <button 
                     className="btn btn-danger btn-small" 
                     onClick={() => handleDeleteMessage(msg.id)}
+                    aria-label="Delete message"
                   >
                     <Trash2 size={14} />
                   </button>

@@ -1,10 +1,18 @@
 // Gistory App - Main Entry Point
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { loadData, saveThreads, saveMessages, saveProjects, generateId } from './lib/store'
+import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData } from './lib/store'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
-import { SyncAgent, generatePairingToken } from './sync/agent'
+import {
+  SyncAgent,
+  newChainId,
+  pairingTokenFromChain,
+  chainIdFromToken,
+  suggestDeviceName,
+  type RemoteDevice,
+} from './sync/agent'
+import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, type SyncData, type SyncPayload } from './sync/merge'
 import Layout from './components/Layout'
 import Header from './components/Header'
 import BurgerMenu from './components/BurgerMenu'
@@ -16,10 +24,41 @@ import SettingsPage from './components/Settings'
 import EmptyState from './components/EmptyState'
 import { parseSort, toSortParam, type SortState } from './ui/sort'
 
+// Production runs same-origin (Cloudflare Pages Functions at /sync).
+// Local dev can point at `wrangler pages dev` via VITE_SYNC_URL.
+const SYNC_BASE = (import.meta.env.VITE_SYNC_URL as string | undefined) || ''
+
+const DELETED_KEY = 'gistory_deleted'
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
+function loadDeleted(): DeletedRegistry {
+  try {
+    return normalizeDeleted(JSON.parse(localStorage.getItem(DELETED_KEY) || 'null'))
+  } catch {
+    return emptyDeleted()
+  }
+}
+
+function saveDeleted(registry: DeletedRegistry) {
+  try {
+    localStorage.setItem(DELETED_KEY, JSON.stringify(registry))
+  } catch {
+    /* storage full / unavailable — sync still works in-memory */
+  }
+}
+
 export default function App() {
-  const [threads, setThreads] = useState<Thread[]>([])
-  const [messages, setMessages] = useState<MessagesByThread>({})
-  const [projects, setProjects] = useState<Project[]>([])
+  // Hydrate synchronously on the first render. Persisting from an effect that
+  // fires after an empty first render is not safe: with StrictMode's
+  // double-mount the "write the initial empty state" pass can land after
+  // hydration and erase stored data. There is no empty first render here.
+  const [bootstrap] = useState(() => loadData())
+  const [threads, setThreads] = useState<Thread[]>(bootstrap.threads)
+  const [messages, setMessages] = useState<MessagesByThread>(bootstrap.messages)
+  const [projects, setProjects] = useState<Project[]>(bootstrap.projects)
   const [currentThreadId, setCurrentThreadId] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [darkMode, setDarkMode] = useState(() => 
@@ -41,42 +80,136 @@ export default function App() {
   const [chainId, setChainId] = useState<string | null>(() =>
     localStorage.getItem('gistory_chain_id')
   )
-  const [initialSync, setInitialSync] = useState(false)
+  const [devices, setDevices] = useState<RemoteDevice[]>([])
+  const [lastSync, setLastSync] = useState<number | null>(null)
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle')
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [syncReady, setSyncReady] = useState(false)
+  const [deleted, setDeleted] = useState<DeletedRegistry>(loadDeleted)
 
-  // Handler functions
+  // Refs mirror state so async sync code always reads the freshest snapshot.
   const syncAgentRef = React.useRef<SyncAgent | null>(null)
-  
-  const handleEnableSync = async (key: string) => {
-    // Save key locally
-    localStorage.setItem('gistory_sync_key', key)
-    setSyncKey(key)
-    
-    // Initialize sync agent
+  const threadsRef = React.useRef<Thread[]>(bootstrap.threads)
+  const messagesRef = React.useRef<MessagesByThread>(bootstrap.messages)
+  const projectsRef = React.useRef<Project[]>(bootstrap.projects)
+  const deletedRef = React.useRef<DeletedRegistry>(deleted)
+  const syncBusyRef = React.useRef(false)
+
+  useEffect(() => { threadsRef.current = threads }, [threads])
+  useEffect(() => { messagesRef.current = messages }, [messages])
+  useEffect(() => { projectsRef.current = projects }, [projects])
+  useEffect(() => { deletedRef.current = deleted }, [deleted])
+  useEffect(() => { saveDeleted(deleted) }, [deleted])
+
+  // --- Sync helpers ---------------------------------------------------------
+
+  const snapshot = useCallback((): SyncData => ({
+    threads: threadsRef.current,
+    messages: messagesRef.current,
+    projects: projectsRef.current,
+    deleted: deletedRef.current,
+  }), [])
+
+  const applyMerged = useCallback((data: SyncData) => {
+    threadsRef.current = data.threads
+    messagesRef.current = data.messages
+    projectsRef.current = data.projects
+    deletedRef.current = data.deleted
+    setThreads(data.threads)
+    setMessages(data.messages)
+    setProjects(data.projects)
+    setDeleted(data.deleted)
+  }, [])
+
+  const pushSnapshot = useCallback(async (agent: SyncAgent) => {
+    try {
+      await agent.push(snapshot())
+      setLastSync(Date.now())
+      setSyncError(null)
+      setSyncStatus('idle')
+    } catch (err) {
+      setSyncError(errorMessage(err))
+      setSyncStatus('error')
+    }
+  }, [snapshot])
+
+  // Pull remote changes, merge them, then push the merged snapshot.
+  const syncNow = useCallback(async (opts: { push?: boolean } = {}) => {
+    const agent = syncAgentRef.current
+    if (!agent || syncBusyRef.current) return
+    syncBusyRef.current = true
+    setSyncStatus('syncing')
+    try {
+      const myDeviceId = agent.getDeviceId()
+      const { blobs, failures } = await agent.pull()
+
+      if (blobs.length > 0) {
+        let data = snapshot()
+        for (const blob of blobs) {
+          data = mergePayload(data, blob as SyncPayload, myDeviceId)
+        }
+        applyMerged(data)
+      }
+
+      if (opts.push !== false) await agent.push(snapshot())
+
+      const status = await agent.status()
+      if (status) setDevices(status.devices || [])
+
+      setLastSync(Date.now())
+      setSyncError(failures > 0 ? `${failures} change(s) could not be decrypted — wrong passphrase?` : null)
+      setSyncStatus(failures > 0 ? 'error' : 'idle')
+    } catch (err) {
+      setSyncError(errorMessage(err))
+      setSyncStatus('error')
+    } finally {
+      syncBusyRef.current = false
+    }
+  }, [snapshot, applyMerged])
+
+  const ensureAgent = useCallback(async (passphrase: string, chain: string): Promise<SyncAgent> => {
     const agent = new SyncAgent({
-      workerUrl: '/sync',  // CF Worker route
-      syncKey: key,
-      deviceName: 'My Device',
+      baseUrl: SYNC_BASE,
+      passphrase,
+      deviceName: suggestDeviceName(),
+      chainId: chain,
     })
-    
     await agent.init()
     await agent.handshake()
-    
-    // Save agent reference
     syncAgentRef.current = agent
-    setChainId(agent.getStatus().chainId || null)
+    return agent
+  }, [])
+
+  const handleEnableSync = async (passphrase: string) => {
+    const chain = newChainId()
+    localStorage.setItem('gistory_sync_key', passphrase)
+    localStorage.setItem('gistory_chain_id', chain)
+    setSyncKey(passphrase)
+    setChainId(chain)
+
+    await ensureAgent(passphrase, chain)
     setSyncEnabled(true)
-    setInitialSync(true)  // Flag to trigger initial push
+    setSyncReady(true)
+    // Seeds the chain with this device's local data and registers the device.
+    await syncNow()
   }
-  
-  // Handle initial sync push when data loads and sync enabled
-  useEffect(() => {
-    if (initialSync && syncAgentRef.current && threads.length > 0) {
-      syncAgentRef.current.push({ threads, messages, projects })
-        .then(() => setInitialSync(false))
-        .catch(console.error)
-    }
-  }, [initialSync, threads.length])
-  
+
+  const handleJoinSync = async (passphrase: string, token: string) => {
+    const chain = chainIdFromToken(token)
+    if (!chain) throw new Error('That pairing code is not valid')
+
+    localStorage.setItem('gistory_sync_key', passphrase)
+    localStorage.setItem('gistory_chain_id', chain)
+    setSyncKey(passphrase)
+    setChainId(chain)
+
+    await ensureAgent(passphrase, chain)
+    setSyncEnabled(true)
+    setSyncReady(true)
+    // Pulls the chain's data first, merges, then pushes our local additions.
+    await syncNow()
+  }
+
   const handleDisableSync = async () => {
     syncAgentRef.current = null
     localStorage.removeItem('gistory_sync_key')
@@ -84,107 +217,94 @@ export default function App() {
     setSyncKey(null)
     setChainId(null)
     setSyncEnabled(false)
-  }
-  
-  const handleGenerateToken = async () => {
-    if (!syncAgentRef.current) {
-      // Need to initialize first
-      const key = syncKey || localStorage.getItem('gistory_sync_key')
-      if (!key) throw new Error('Sync not enabled')
-      
-      const agent = new SyncAgent({
-        workerUrl: '/sync',
-        syncKey: key,
-        deviceName: 'My Device',
-      })
-      await agent.init()
-      await agent.handshake()
-      syncAgentRef.current = agent
-    }
-    
-    // Generate pairing token and wrap for QR
-    const token = generatePairingToken()
-    return `#join:${token}`
-  }
-  
-  const handleRefresh = async () => {
-    if (!syncAgentRef.current) return
-    
-    const changes = await syncAgentRef.current.pull()
-    console.log('Got sync changes:', changes)
-    
-    const myDeviceId = syncAgentRef.current.getDeviceId()
-    
-    // Merge changes: last-write-wins based on timestamp + deviceId tie-breaker
-    for (const change of changes) {
-      const c = change as any
-      const senderDeviceId = c.senderDeviceId
-      
-      if (c.threads) {
-        setThreads(prev => {
-          const merged = [...prev]
-          for (const t of c.threads) {
-            const idx = merged.findIndex(x => x.id === t.id)
-            if (idx >= 0) {
-              // Keep newer version, or use deviceId as tie-breaker
-              if (t.updatedAt > merged[idx].updatedAt || 
-                  (t.updatedAt === merged[idx].updatedAt && senderDeviceId > myDeviceId)) {
-                merged[idx] = t
-              }
-            } else {
-              merged.push(t)
-            }
-          }
-          return merged
-        })
-      }
-      if (c.messages) {
-        setMessages(prev => {
-          const next = { ...prev }
-          for (const [threadId, msgs] of Object.entries(c.messages)) {
-            const current = next[threadId] || []
-            for (const m of msgs as Message[]) {
-              const idx = current.findIndex(x => x.id === m.id)
-              if (idx >= 0) {
-                if (m.createdAt > current[idx].createdAt ||
-                    (m.createdAt === current[idx].createdAt && senderDeviceId > myDeviceId)) {
-                  current[idx] = m
-                }
-              } else {
-                current.push(m)
-              }
-            }
-            next[threadId] = current
-          }
-          return next
-        })
-      }
-      if (c.projects) {
-        setProjects(prev => {
-          const merged = [...prev]
-          for (const p of c.projects) {
-            const idx = merged.findIndex(x => x.id === p.id)
-            if (idx >= 0) {
-              if (p.updatedAt > merged[idx].updatedAt ||
-                  (p.updatedAt === merged[idx].updatedAt && senderDeviceId > myDeviceId)) {
-                merged[idx] = p
-              }
-            } else {
-              merged.push(p)
-            }
-          }
-          return merged
-        })
-      }
-    }
+    setSyncReady(false)
+    setDevices([])
+    setLastSync(null)
+    setSyncStatus('idle')
+    setSyncError(null)
   }
 
-  // Load initial data
+  const handleGenerateToken = async (): Promise<string> => {
+    const chain = chainId || localStorage.getItem('gistory_chain_id')
+    if (!chain) throw new Error('Enable sync first to pair a device')
+    return pairingTokenFromChain(chain)
+  }
+
+  // Restore the agent on load when sync was previously enabled.
   useEffect(() => {
-    const { threads: t, messages: m, projects: p } = loadData()
-    setThreads(t)
-    setMessages(m)
-    setProjects(p)
+    const key = localStorage.getItem('gistory_sync_key')
+    const chain = localStorage.getItem('gistory_chain_id')
+    if (!key || !chain) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        await ensureAgent(key, chain)
+        if (cancelled) {
+          syncAgentRef.current = null
+          return
+        }
+        setSyncReady(true)
+        await syncNow()
+      } catch (err) {
+        if (!cancelled) {
+          setSyncError(errorMessage(err))
+          setSyncStatus('error')
+        }
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Debounced push whenever local data changes.
+  useEffect(() => {
+    if (!syncEnabled || !syncReady) return
+    const agent = syncAgentRef.current
+    if (!agent) return
+    const timer = setTimeout(() => { void pushSnapshot(agent) }, 1500)
+    return () => clearTimeout(timer)
+  }, [threads, messages, projects, deleted, syncEnabled, syncReady, pushSnapshot])
+
+  // Periodic + focus-driven pull so other devices' edits show up.
+  useEffect(() => {
+    if (!syncEnabled || !syncReady) return
+    const interval = window.setInterval(() => { void syncNow({ push: false }) }, 60000)
+    const onWake = () => {
+      if (document.visibilityState === 'visible') void syncNow({ push: false })
+    }
+    document.addEventListener('visibilitychange', onWake)
+    window.addEventListener('online', onWake)
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', onWake)
+      window.removeEventListener('online', onWake)
+    }
+  }, [syncEnabled, syncReady, syncNow])
+
+  // --- Tombstones -----------------------------------------------------------
+
+  // Merge an imported export file into live state. The persistence effects
+  // below write it out, so no page reload is needed to see the result.
+  const handleImportData = useCallback((data: Parameters<typeof importData>[0]) => {
+    const merged = importData(data)
+    threadsRef.current = merged.threads
+    messagesRef.current = merged.messages
+    projectsRef.current = merged.projects
+    setThreads(merged.threads)
+    setMessages(merged.messages)
+    setProjects(merged.projects)
+  }, [])
+
+  const tombstone = useCallback((kind: keyof DeletedRegistry, ids: string[]) => {
+    if (ids.length === 0) return
+    const now = Date.now()
+    setDeleted(prev => {
+      const next: DeletedRegistry = { ...prev, [kind]: { ...prev[kind] } }
+      for (const id of ids) next[kind][id] = now
+      deletedRef.current = next
+      return next
+    })
   }, [])
 
   // Dark mode
@@ -214,15 +334,16 @@ export default function App() {
     }
   }, [route.params.threadId])
 
-  // Persist
+  // Persist. Safe to run unconditionally because state is hydrated from storage
+  // before the first render, so this can never write a placeholder empty value.
   useEffect(() => {
-    if (threads.length > 0) saveThreads(threads)
+    saveThreads(threads)
   }, [threads])
   useEffect(() => {
-    if (Object.keys(messages).length > 0) saveMessages(messages)
+    saveMessages(messages)
   }, [messages])
   useEffect(() => {
-    if (projects.length > 0) saveProjects(projects)
+    saveProjects(projects)
   }, [projects])
   useEffect(() => {
     localStorage.setItem('gistory_sort', toSortParam(sort))
@@ -238,13 +359,13 @@ export default function App() {
 
   const addThreadToProject = useCallback((threadId: string, projectId: string) => {
     setThreads(prev => prev.map(t => 
-      t.id === threadId ? { ...t, projectIds: [...t.projectIds, projectId] } : t
+      t.id === threadId ? { ...t, projectIds: [...t.projectIds, projectId], updatedAt: Date.now() } : t
     ))
   }, [])
 
   const removeThreadFromProject = useCallback((threadId: string, projectId: string) => {
     setThreads(prev => prev.map(t => 
-      t.id === threadId ? { ...t, projectIds: t.projectIds.filter(id => id !== projectId) } : t
+      t.id === threadId ? { ...t, projectIds: t.projectIds.filter(id => id !== projectId), updatedAt: Date.now() } : t
     ))
   }, [])
 
@@ -253,6 +374,9 @@ export default function App() {
   }, [])
 
   const deleteThread = useCallback((id: string) => {
+    const messageIds = (messagesRef.current[id] || []).map(m => m.id)
+    tombstone('threads', [id])
+    tombstone('messages', messageIds)
     setThreads(prev => prev.filter(t => t.id !== id))
     setMessages(prev => {
       const next = { ...prev }
@@ -262,7 +386,7 @@ export default function App() {
     if (currentThreadId === id) {
       setCurrentThreadId(threads.find(t => t.id !== id)?.id || '')
     }
-  }, [currentThreadId, threads])
+  }, [currentThreadId, threads, tombstone])
 
   const addMessage = useCallback((threadId: string, content: string) => {
     const msg: Message = { id: generateId('m'), threadId, content, createdAt: Date.now() }
@@ -282,11 +406,12 @@ export default function App() {
   }, [currentThreadId])
 
   const deleteMessage = useCallback((msgId: string) => {
+    tombstone('messages', [msgId])
     setMessages(prev => ({
       ...prev,
       [currentThreadId]: prev[currentThreadId]?.filter(m => m.id !== msgId) || []
     }))
-  }, [currentThreadId])
+  }, [currentThreadId, tombstone])
 
   const createProject = useCallback((name: string) => {
     const project: Project = { id: generateId('p'), name, createdAt: Date.now() }
@@ -298,12 +423,14 @@ export default function App() {
   }, [])
 
   const deleteProject = useCallback((id: string) => {
+    tombstone('projects', [id])
     setProjects(prev => prev.filter(p => p.id !== id))
     setThreads(prev => prev.map(t => ({
       ...t,
-      projectIds: t.projectIds.filter(pid => pid !== id)
+      projectIds: t.projectIds.filter(pid => pid !== id),
+      updatedAt: t.projectIds.includes(id) ? Date.now() : t.updatedAt
     })))
-  }, [])
+  }, [tombstone])
 
   const currentThread = threads.find(t => t.id === currentThreadId)
   const getThreadsInProject = (pid: string) => threads.filter(t => t.projectIds.includes(pid))
@@ -344,12 +471,19 @@ export default function App() {
           syncEnabled={syncEnabled}
           syncKey={syncKey}
           chainId={chainId}
-          devices={[]}  // TODO: fetch from sync
-          lastSync={null}
+          devices={devices}
+          myDeviceId={syncAgentRef.current?.getDeviceId() || null}
+          lastSync={lastSync}
+          syncStatus={syncStatus}
+          syncError={syncError}
+          darkMode={darkMode}
+          onToggleDark={() => setDarkMode(d => !d)}
           onEnableSync={handleEnableSync}
+          onJoinSync={handleJoinSync}
           onDisableSync={handleDisableSync}
           onGenerateToken={handleGenerateToken}
-          onRefresh={handleRefresh}
+          onRefresh={() => syncNow()}
+          onImportData={handleImportData}
         />
       )
     }
@@ -360,6 +494,7 @@ export default function App() {
         <HomeBoard
           threads={threads}
           projects={projects}
+          searchQuery={searchQuery}
           sort={sort}
           onSortChange={setSort}
           onSelectThread={id => { setCurrentThreadId(id); navigate('/' + id) }}
@@ -403,6 +538,7 @@ export default function App() {
         <HomeBoard
           threads={threads}
           projects={projects}
+          searchQuery={searchQuery}
           sort={sort}
           onSortChange={setSort}
           onSelectThread={setCurrentThreadId}

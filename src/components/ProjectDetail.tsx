@@ -96,6 +96,7 @@ export default function ProjectDetail({
               onSortChange({ field, dir })
             }}
             className="sort-select"
+            aria-label="Sort threads"
           >
             <option value="createdAt_desc">Newest</option>
             <option value="createdAt_asc">Oldest</option>

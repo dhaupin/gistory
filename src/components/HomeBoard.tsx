@@ -7,6 +7,8 @@ import { sortThreads, type SortState } from '../ui/sort'
 interface HomeBoardProps {
   threads: Thread[]
   projects: Project[]
+  /** Header search box. Filters threads and projects by name. */
+  searchQuery?: string
   sort: SortState
   onSortChange: (sort: SortState) => void
   onSelectThread: (id: string) => void
@@ -22,6 +24,7 @@ interface HomeBoardProps {
 export default function HomeBoard({
   threads,
   projects,
+  searchQuery = '',
   sort,
   onSortChange,
   onSelectThread,
@@ -41,6 +44,16 @@ export default function HomeBoard({
 
   const sortedThreads = sortThreads(threads, sort)
   const sortedProjects = [...projects].sort((a, b) => a.name.localeCompare(b.name))
+
+  // The header search box is always visible, so it has to do something here
+  // too — not only filter messages inside a thread.
+  const query = searchQuery.trim().toLowerCase()
+  const visibleThreads = query
+    ? sortedThreads.filter(t => t.name.toLowerCase().includes(query))
+    : sortedThreads
+  const visibleProjects = query
+    ? sortedProjects.filter(p => p.name.toLowerCase().includes(query))
+    : sortedProjects
 
   const getThreadsInProject = (pid: string) => 
     threads.filter(t => t.projectIds.includes(pid))
@@ -78,6 +91,7 @@ export default function HomeBoard({
               onSortChange({ field, dir })
             }}
             className="sort-select"
+            aria-label="Sort threads"
           >
             <option value="createdAt_desc">Newest</option>
             <option value="createdAt_asc">Oldest</option>
@@ -136,11 +150,14 @@ export default function HomeBoard({
 
       {/* Threads list */}
       <div className="threads-section">
-        {sortedThreads.length === 0 ? (
-          <p className="empty-text">No threads yet. Create one to get started.</p>
+        {query && <p className="empty-text search-summary">Threads matching “{searchQuery.trim()}”: {visibleThreads.length}</p>}
+        {visibleThreads.length === 0 ? (
+          <p className="empty-text">
+            {query ? `No threads match “${searchQuery.trim()}”.` : 'No threads yet. Create one to get started.'}
+          </p>
         ) : (
           <div className="threads-grid">
-            {sortedThreads.map(thread => (
+            {visibleThreads.map(thread => (
               <div key={thread.id} className="thread-item">
                 <button className="thread-link" onClick={() => onSelectThread(thread.id)}>
                   <span className="thread-name">{thread.name}</span>
@@ -173,11 +190,13 @@ export default function HomeBoard({
       {/* Projects section */}
       <div className="projects-section">
         <h3>Projects</h3>
-        {sortedProjects.length === 0 ? (
-          <p className="empty-text">No projects yet.</p>
+        {visibleProjects.length === 0 ? (
+          <p className="empty-text">
+            {query ? `No projects match “${searchQuery.trim()}”.` : 'No projects yet.'}
+          </p>
         ) : (
           <div className="projects-grid">
-            {sortedProjects.map(project => (
+            {visibleProjects.map(project => (
               <div key={project.id} className="project-item">
                 <button className="project-link" onClick={() => onProjectClick(project.id)}>
                   <Folder size={16} />

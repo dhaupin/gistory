@@ -5,7 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && cp -r functions dist/functions",
+    "build": "tsc -b && vite build",
+    "sync:smoke": "bun tests/sync-smoke.ts",
+    "test:ui": "node tests/ui/run.mjs",
+    "ui:audit": "node scripts/ui-audit.mjs",
+    "ui:browsers": "node scripts/ui-browsers.mjs",
+    "db:init:local": "npx --yes wrangler d1 execute GISTRY_DB --local --file=schema.sql",
+    "db:init:remote": "npx --yes wrangler d1 execute GISTRY_DB --remote --config wrangler.deploy.toml --file=schema.sql",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -24,6 +30,7 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
     "globals": "^15.14.0",
+    "puppeteer": "^25.12.0",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",
     "vite": "^6.0.5"

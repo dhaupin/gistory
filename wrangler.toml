@@ -1,3 +1,31 @@
-name = "gistory-sync"
-main = "functions/sync/index.ts"
+# ---------------------------------------------------------------------------
+# LOCAL DEVELOPMENT ONLY — deliberately NOT a production Pages config.
+#
+# This file intentionally omits `pages_build_output_dir`. Per Cloudflare's
+# docs, a Wrangler file that defines `pages_build_output_dir` becomes the
+# *source of truth* for preview + production, which locks the Pages dashboard
+# binding fields. Leaving it out keeps this file in "local development only"
+# mode, so preview/production bindings are configured in the Cloudflare
+# dashboard (Settings -> Functions) and no real database id is ever committed
+# to this open-source repository.
+#
+# `GISTRY_DB` below only exists so `wrangler pages dev` / `wrangler d1 execute
+# --local` have a binding to talk to. The id is a placeholder: for a local
+# database Wrangler keys its state off the binding, so any value works.
+#
+# To opt into file-as-source-of-truth deployment instead (for example when
+# deploying with `wrangler pages deploy` from CI without dashboard access):
+#   1. npx wrangler d1 create gistory
+#   2. uncomment `pages_build_output_dir` and fill in the real database_id
+#   3. keep the real id out of git (see README for the .gitignore-safe recipe)
+# ---------------------------------------------------------------------------
+
+name = "gistory"
 compatibility_date = "2025-06-02"
+
+# pages_build_output_dir = "dist"   # uncomment ONLY for file-as-source-of-truth
+
+[[d1_databases]]
+binding = "GISTRY_DB"
+database_name = "gistory"
+database_id = "local-dev-placeholder"

@@ -1,63 +1,62 @@
-// /sync/pull handler - uses KV for persistence
+// GET /sync/pull?chain=&since=&deviceId=&limit= — return encrypted blobs
+// written after `since` by other devices, plus the current chain head.
 
-interface Env {
-  GISTRY_KV: KVNamespace
+import {
+  chainExists,
+  errorResponse,
+  getDb,
+  isValidChainId,
+  json,
+  preflight,
+  serverSeq,
+  type SyncEnv,
+} from '../_shared/sync'
+
+export const onRequestOptions = async () => preflight()
+
+interface BlobRow {
+  seq: number
+  device_id: string
+  data: string
+  created_at: number
 }
 
-interface Params {
-  request: Request
-  env: Env
-}
+export const onRequestGet = async (context: { request: Request; env: SyncEnv }) => {
+  const db = getDb(context.env)
+  if (!db) return errorResponse('Sync storage is not configured', 500)
 
-export const onRequestGet = async ({ request, env }: Params) => {
-  const url = new URL(request.url)
-  const chainId = url.searchParams.get('chain')
-  const since = Number(url.searchParams.get('since') || 0)
-  const deviceId = url.searchParams.get('deviceId') || ''
-  
-  if (!chainId) {
-    return new Response(JSON.stringify({ error: 'chain required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-  
-  if (!env.GISTRY_KV) {
-    return new Response(JSON.stringify({ error: 'KV not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-  
-  // Get sequence from KV
-  const seqStr = await env.GISTRY_KV.get(`seq:${chainId}`)
-  const serverSeq = seqStr ? Number(seqStr) : 0
-  const blobs: Array<{ seq: number; data: string }> = []
-  
-  // Get blobs AFTER my since, but ONLY from OTHER devices
-  for (let seq = since + 1; seq <= serverSeq; seq++) {
-    const stored = await env.GISTRY_KV.get(`blob:${chainId}:${seq}`)
-    if (!stored) continue
-    
-    // Parse to get deviceId from blob meta
-    try {
-      const blobData = JSON.parse(stored)
-      // Filter: skip if this is from my own device
-      if (deviceId && blobData.deviceId === deviceId) continue
-      
-      blobs.push({ seq, data: stored })
-    } catch {
-      // Legacy format without deviceId - include it
-      blobs.push({ seq, data: stored })
-    }
-  }
-  
-  return new Response(JSON.stringify({ blobs, serverSeq }), {
-    headers: { 'Content-Type': 'application/json' },
+  const url = new URL(context.request.url)
+  const chainId = (url.searchParams.get('chain') || '').trim()
+  const deviceId = (url.searchParams.get('deviceId') || '').trim()
+
+  const rawSince = Number(url.searchParams.get('since') || '0')
+  const since = Number.isFinite(rawSince) && rawSince > 0 ? Math.floor(rawSince) : 0
+
+  const rawLimit = Number(url.searchParams.get('limit') || '500')
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(Math.max(Math.floor(rawLimit), 1), 1000)
+    : 500
+
+  if (!isValidChainId(chainId)) return errorResponse('Invalid chainId')
+  if (!(await chainExists(db, chainId))) return errorResponse('Unknown sync chain', 404)
+
+  const { results } = await db
+    .prepare(
+      `SELECT seq, device_id, data, created_at FROM blobs
+       WHERE chain_id = ? AND seq > ? AND device_id <> ?
+       ORDER BY seq ASC
+       LIMIT ?`,
+    )
+    .bind(chainId, since, deviceId, limit)
+    .all<BlobRow>()
+
+  return json({
+    blobs: (results || []).map(row => ({
+      seq: Number(row.seq),
+      deviceId: row.device_id,
+      data: row.data,
+      createdAt: Number(row.created_at) || 0,
+    })),
+    serverSeq: await serverSeq(db, chainId),
   })
 }
-
-export const onRequestOptions = async () => new Response('', {
-  status: 204,
-  headers: { 'Access-Control-Allow-Origin': '*' }
-})

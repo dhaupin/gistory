@@ -1,33 +1,51 @@
-// /sync/push handler - uses KV for persistence
+// POST /sync/push — store an opaque encrypted snapshot and return the
+// server-assigned sequence number. The server never decrypts the payload.
 
-interface Env {
-  GISTRY_KV: KVNamespace
-}
+import {
+  MAX_PAYLOAD_BYTES,
+  appendBlob,
+  chainExists,
+  errorResponse,
+  getDb,
+  isValidChainId,
+  isValidDeviceId,
+  json,
+  preflight,
+  readJson,
+  touchDevice,
+  type SyncEnv,
+} from '../_shared/sync'
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-}
+export const onRequestOptions = async () => preflight()
 
-export const onRequestPost = async (context: { request: Request; env: Env }) => {
-  const { env, request } = context
-  const body = await request.json() as { chainId: string; seq: number; data: string; deviceId: string }
-  
-  if (!env.GISTRY_KV) {
-    return new Response(JSON.stringify({ error: 'KV not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...cors },
-    })
+export const onRequestPost = async (context: { request: Request; env: SyncEnv }) => {
+  const db = getDb(context.env)
+  if (!db) return errorResponse('Sync storage is not configured', 500)
+
+  const body = await readJson(context.request)
+  if (!body) return errorResponse('Invalid JSON body')
+
+  const chainId = typeof body.chainId === 'string' ? body.chainId.trim() : ''
+  const deviceId = typeof body.deviceId === 'string' ? body.deviceId.trim() : ''
+  const data = typeof body.data === 'string' ? body.data : ''
+
+  if (!isValidChainId(chainId)) return errorResponse('Invalid chainId')
+  if (!isValidDeviceId(deviceId)) return errorResponse('Invalid deviceId')
+  if (!data) return errorResponse('Missing encrypted data')
+  if (data.length > MAX_PAYLOAD_BYTES) return errorResponse('Encrypted payload is too large', 413)
+
+  if (!(await chainExists(db, chainId))) {
+    return errorResponse('Unknown sync chain — run handshake first', 409)
   }
-  
-  // Store in KV for persistence across deploys
-  await env.GISTRY_KV.put(`blob:${body.chainId}:${body.seq}`, body.data)
-  await env.GISTRY_KV.put(`seq:${body.chainId}`, String(body.seq))
-  
-  return new Response(JSON.stringify({ ok: true, seq: body.seq }), {
-    headers: { 'Content-Type': 'application/json', ...cors },
-  })
-}
 
-export const onRequestOptions = async () => new Response('', { status: 204, headers: cors })
+  let seq: number
+  try {
+    seq = await appendBlob(db, chainId, deviceId, data)
+  } catch {
+    return errorResponse('Could not allocate a sequence number', 500)
+  }
+
+  await touchDevice(db, chainId, deviceId)
+
+  return json({ seq, serverSeq: seq })
+}

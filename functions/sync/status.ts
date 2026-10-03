@@ -1,60 +1,34 @@
-// /sync/status - check chain status with KV
+// GET /sync/status?chain= — chain health: head sequence, version, devices.
 
-interface Env {
-  GISTRY_KV: KVNamespace
-}
+import {
+  chainExists,
+  errorResponse,
+  getChainVersion,
+  getDb,
+  isValidChainId,
+  json,
+  listDevices,
+  preflight,
+  serverSeq,
+  type SyncEnv,
+} from '../_shared/sync'
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-}
+export const onRequestOptions = async () => preflight()
 
-interface Params {
-  request: Request
-  env: Env
-}
+export const onRequestGet = async (context: { request: Request; env: SyncEnv }) => {
+  const db = getDb(context.env)
+  if (!db) return errorResponse('Sync storage is not configured', 500)
 
-export const onRequestGet = async ({ request, env }: Params) => {
-  const url = new URL(request.url)
-  const chainId = url.searchParams.get('chain')
-  
-  if (!chainId) {
-    return new Response(JSON.stringify({ error: 'chain required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-  
-  if (!env.GISTRY_KV) {
-    return new Response(JSON.stringify({ error: 'KV not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-  
-  // Get sequence from KV
-  const seqStr = await env.GISTRY_KV.get(`seq:${chainId}`)
-  const serverSeq = seqStr ? Number(seqStr) : 0
-  const devices: string[] = []
-  
-  // Collect known deviceIds from stored blobs
-  for (let seq = 1; seq <= serverSeq; seq++) {
-    const data = await env.GISTRY_KV.get(`blob:${chainId}:${seq}`)
-    if (data) {
-      try {
-        const blob = JSON.parse(data)
-        if (blob.deviceId && !devices.includes(blob.deviceId)) {
-          devices.push(blob.deviceId)
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }
-  
-  return new Response(JSON.stringify({ chainId, serverSeq, devices }), {
-    headers: { 'Content-Type': 'application/json', ...cors },
+  const url = new URL(context.request.url)
+  const chainId = (url.searchParams.get('chain') || '').trim()
+
+  if (!isValidChainId(chainId)) return errorResponse('Invalid chainId')
+  if (!(await chainExists(db, chainId))) return errorResponse('Unknown sync chain', 404)
+
+  return json({
+    chainId,
+    serverSeq: await serverSeq(db, chainId),
+    version: await getChainVersion(db, chainId),
+    devices: await listDevices(db, chainId),
   })
 }
-
-export const onRequestOptions = async () => new Response('', { status: 204, headers: cors })

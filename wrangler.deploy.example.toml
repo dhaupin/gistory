@@ -1,0 +1,22 @@
+# Example of the PRIVATE config used for CLI deploy / remote schema applies.
+#
+# This repository is open source, so the real D1 database_id must never be
+# committed. Copy this file to `wrangler.deploy.toml` (which is gitignored),
+# fill in the id from `npx wrangler d1 create gistory`, and keep it local:
+#
+#   cp wrangler.deploy.example.toml wrangler.deploy.toml
+#   # edit database_id
+#   bun run db:init:remote          # applies schema.sql to the remote database
+#
+# Nothing in `src/` or `functions/` reads this file — it only gives Wrangler a
+# binding so `wrangler d1 execute --remote` can resolve your database. At
+# runtime the Pages project gets its binding from the Cloudflare dashboard
+# (Settings -> Bindings -> D1 database -> GISTRY_DB).
+
+name = "gistory"
+compatibility_date = "2025-06-02"
+
+[[d1_databases]]
+binding = "GISTRY_DB"
+database_name = "gistory"
+database_id = "paste-your-real-database-id-here"
