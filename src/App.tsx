@@ -7,12 +7,16 @@ import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
 import {
   SyncAgent,
   newChainId,
+  newWriteSecret,
   pairingTokenFromChain,
   chainIdFromToken,
   suggestDeviceName,
   type RemoteDevice,
 } from './sync/agent'
 import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, type SyncData, type SyncPayload } from './sync/merge'
+import { errorMessage } from './sync/errors'
+import { SyncError } from './sync/agent'
+import { SyncQos } from './sync/qos'
 import {
   applyFullOrder,
   applyOrder,
@@ -42,9 +46,14 @@ const SYNC_BASE = (import.meta.env.VITE_SYNC_URL as string | undefined) || ''
 
 const DELETED_KEY = 'gistory_deleted'
 
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err)
-}
+/**
+ * Turn a sync failure into something the user can act on.
+ *
+ * The server's own strings are accurate but written for a log. The two that
+ * matter most are the write-auth failures, which a user can genuinely fix: a
+ * device paired with an older code (no write secret) can read the chain but not
+ * write to it, and re-pairing with a current code is the remedy.
+ */
 
 function loadDeleted(): DeletedRegistry {
   try {
@@ -111,6 +120,9 @@ export default function App() {
   const deletedRef = React.useRef<DeletedRegistry>(deleted)
   const viewRef = React.useRef<ViewState>(view)
   const syncBusyRef = React.useRef(false)
+  // The push scheduler lives in a ref, not state: it owns a timer that must
+  // survive re-renders, and a value in state would be rebuilt every render.
+  const qosRef = React.useRef<SyncQos | null>(null)
 
   useEffect(() => { threadsRef.current = threads }, [threads])
   useEffect(() => { messagesRef.current = messages }, [messages])
@@ -152,17 +164,39 @@ export default function App() {
     setView(pruned)
   }, [])
 
-  const pushSnapshot = useCallback(async (agent: SyncAgent) => {
-    try {
+  /**
+   * Push the current snapshot. Throws on failure so the QoS scheduler can
+   * decide whether to retry; callers that want a quiet failure use
+   * `pushSnapshotQuiet`.
+   */
+  const pushSnapshot = useCallback(
+    async (agent: SyncAgent) => {
       await agent.push(snapshot())
       setLastSync(Date.now())
       setSyncError(null)
       setSyncStatus('idle')
-    } catch (err) {
-      setSyncError(errorMessage(err))
-      setSyncStatus('error')
-    }
-  }, [snapshot])
+    },
+    [snapshot],
+  )
+
+  const pushSnapshotQuiet = useCallback(
+    async (agent: SyncAgent) => {
+      try {
+        await pushSnapshot(agent)
+        // The push succeeded, so the server is reachable again: drop any
+        // backoff we accumulated from earlier failures.
+        qosRef.current?.reset()
+      } catch (err) {
+        // Hand the server's `Retry-After` to the scheduler so its next retry
+        // waits exactly as long as the server asked, instead of guessing.
+        if (err instanceof SyncError) qosRef.current?.setRetryAfter(err.retryAfterMs)
+        setSyncError(errorMessage(err))
+        setSyncStatus('error')
+        throw err
+      }
+    },
+    [pushSnapshot],
+  )
 
   // Pull remote changes, merge them, then push the merged snapshot.
   const syncNow = useCallback(async (opts: { push?: boolean } = {}) => {
@@ -182,7 +216,14 @@ export default function App() {
         applyMerged(data)
       }
 
-      if (opts.push !== false) await agent.push(snapshot())
+      if (opts.push !== false) {
+        // Route the push through the scheduler rather than calling the agent
+        // directly: this path can fire while a debounced push is in flight
+        // (the periodic refresh, or a manual sync right after an edit), and two
+        // concurrent pushes would ship two nearly identical snapshots.
+        // `flush()` pushes the merged state immediately, ignoring the debounce.
+        qosRef.current?.flush()
+      }
 
       const status = await agent.status()
       if (status) setDevices(status.devices || [])
@@ -207,28 +248,40 @@ setSyncError(
     }
   }, [snapshot, applyMerged])
 
-  const ensureAgent = useCallback(async (passphrase: string, chain: string): Promise<SyncAgent> => {
-    const agent = new SyncAgent({
-      baseUrl: SYNC_BASE,
-      passphrase,
-      deviceName: suggestDeviceName(),
-      chainId: chain,
-    })
-    await agent.init()
-    await agent.handshake()
-    syncAgentRef.current = agent
-    setDeviceName(agent.getDeviceName())
-    return agent
-  }, [])
+  const ensureAgent = useCallback(
+    async (
+      passphrase: string,
+      chain: string,
+      writeSecret?: string,
+    ): Promise<SyncAgent> => {
+      const agent = new SyncAgent({
+        baseUrl: SYNC_BASE,
+        passphrase,
+        deviceName: suggestDeviceName(),
+        chainId: chain,
+        writeSecret,
+      })
+      await agent.init()
+      await agent.handshake()
+      syncAgentRef.current = agent
+      setDeviceName(agent.getDeviceName())
+      return agent
+    },
+    [],
+  )
 
   const handleEnableSync = async (passphrase: string) => {
     const chain = newChainId()
     localStorage.setItem('gistory_sync_key', passphrase)
     localStorage.setItem('gistory_chain_id', chain)
+    // This device creates the chain, so it also mints the write secret that lets
+    // it (and every device it later pairs) write to it.
+    const writeSecret = newWriteSecret()
+    localStorage.setItem('gistory_write_secret', writeSecret)
     setSyncKey(passphrase)
     setChainId(chain)
 
-    await ensureAgent(passphrase, chain)
+    await ensureAgent(passphrase, chain, writeSecret)
     setSyncEnabled(true)
     setSyncReady(true)
     // Seeds the chain with this device's local data and registers the device.
@@ -236,15 +289,19 @@ setSyncError(
   }
 
   const handleJoinSync = async (passphrase: string, token: string) => {
-    const chain = chainIdFromToken(token)
-    if (!chain) throw new Error('That pairing code is not valid')
+    const parsed = chainIdFromToken(token)
+    if (!parsed) throw new Error('That pairing code is not valid')
+    const chain = parsed.chainId
 
     localStorage.setItem('gistory_sync_key', passphrase)
     localStorage.setItem('gistory_chain_id', chain)
+    if (parsed.writeSecret) localStorage.setItem('gistory_write_secret', parsed.writeSecret)
     setSyncKey(passphrase)
     setChainId(chain)
 
-    await ensureAgent(passphrase, chain)
+    // A token with no write secret is an older pairing code: that device can
+    // read the chain but cannot write to it, and the sync panel will say so.
+    await ensureAgent(passphrase, chain, parsed.writeSecret)
     setSyncEnabled(true)
     setSyncReady(true)
     // Pulls the chain's data first, merges, then pushes our local additions.
@@ -255,6 +312,7 @@ setSyncError(
     syncAgentRef.current = null
     localStorage.removeItem('gistory_sync_key')
     localStorage.removeItem('gistory_chain_id')
+    localStorage.removeItem('gistory_write_secret')
     setSyncKey(null)
     setChainId(null)
     setSyncEnabled(false)
@@ -285,7 +343,21 @@ setSyncError(
   const handleGenerateToken = async (): Promise<string> => {
     const chain = chainId || localStorage.getItem('gistory_chain_id')
     if (!chain) throw new Error('Enable sync first to pair a device')
-    return pairingTokenFromChain(chain)
+    // The token carries the write secret so the new device can write, not just
+    // read. Without it the paired device could only ever pull.
+    const secret = localStorage.getItem('gistory_write_secret')
+    if (!secret) {
+      // Chain predates write auth. Mint one, claim it, and hand it over.
+      const fresh = newWriteSecret()
+      localStorage.setItem('gistory_write_secret', fresh)
+      try {
+        await syncAgentRef.current?.claim()
+      } catch {
+        /* Offline: the claim retries the next time this device syncs. */
+      }
+      return pairingTokenFromChain(chain, fresh)
+    }
+    return pairingTokenFromChain(chain, secret)
   }
 
   // Restore the agent on load when sync was previously enabled.
@@ -293,6 +365,9 @@ setSyncError(
     const key = localStorage.getItem('gistory_sync_key')
     const chain = localStorage.getItem('gistory_chain_id')
     if (!key || !chain) return
+    // Chains set up before write auth have no secret stored; they still sync,
+    // and the owner can secure one from Settings.
+    const writeSecret = localStorage.getItem('gistory_write_secret') ?? undefined
 
     let cancelled = false
     ;(async () => {
@@ -315,14 +390,36 @@ setSyncError(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Debounced push whenever local data changes.
+  // One scheduler for the app's lifetime. Created lazily and stopped when sync
+  // is turned off, so a disabled chain stops generating traffic entirely.
+  if (syncEnabled && !qosRef.current) {
+    qosRef.current = new SyncQos({
+      onPush: async () => {
+        const agent = syncAgentRef.current
+        if (!agent) return
+        await pushSnapshotQuiet(agent)
+      },
+    })
+  }
+
+  // Debounced + coalesced push whenever local data changes.
+  //
+  // `schedule()` restarts the debounce on every change and collapses a burst
+  // into one push; if a change lands while a push is in flight it remembers
+  // only that a push is still owed, and pushes the newest state once that one
+  // settles. On failure it retries with backoff rather than dropping the
+  // change, which is the invariant that matters most here.
   useEffect(() => {
     if (!syncEnabled || !syncReady) return
-    const agent = syncAgentRef.current
-    if (!agent) return
-    const timer = setTimeout(() => { void pushSnapshot(agent) }, 1500)
-    return () => clearTimeout(timer)
-  }, [threads, messages, projects, deleted, view, syncEnabled, syncReady, pushSnapshot])
+    qosRef.current?.schedule()
+  }, [threads, messages, projects, deleted, view, syncEnabled, syncReady])
+
+  // Stop the scheduler when sync is disabled so no timer outlives the setting.
+  useEffect(() => {
+    if (syncEnabled) return
+    qosRef.current?.stop()
+    qosRef.current = null
+  }, [syncEnabled])
 
   // Periodic + focus-driven pull so other devices' edits show up.
   useEffect(() => {

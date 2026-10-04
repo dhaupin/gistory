@@ -1,30 +1,37 @@
 // POST /sync/handshake — create the chain if needed, register this device,
 // and return the current head so the client knows where to start pulling.
+//
+// The *creating* device also installs the chain's write secret. Later devices
+// learn it from the pairing token instead. See _shared/sync.ts.
 
 import {
   errorResponse,
   ensureChain,
+  chainIsNew,
   getChainVersion,
-  getDb,
+  hashWriteSecret,
   isValidChainId,
   isValidDeviceId,
+  isValidWriteSecret,
   json,
   listDevices,
   preflight,
   readJson,
   registerDevice,
   serverSeq,
-  type SyncEnv,
+  setChainPushHash,
 } from '../_shared/sync'
+import { POLICIES, breakerRecord, guardRoute, inspectBody, withBreaker } from '../_shared/guards'
 
 export const onRequestOptions = async () => preflight()
 
-export const onRequestPost = async (context: { request: Request; env: SyncEnv }) => {
-  const db = getDb(context.env)
-  if (!db) return errorResponse('Sync storage is not configured', 500)
-
+export const onRequestPost = withBreaker(async (db, context) => {
   const body = await readJson(context.request)
   if (!body) return errorResponse('Invalid JSON body')
+
+  // A handshake carries no payload, so the WAF here is only about shape.
+  const waf = inspectBody(body, { maxDataBytes: 0 })
+  if (!waf.ok) return errorResponse(waf.reason, 400)
 
   const chainId = typeof body.chainId === 'string' ? body.chainId.trim() : ''
   const deviceId = typeof body.deviceId === 'string' ? body.deviceId.trim() : ''
@@ -35,13 +42,35 @@ export const onRequestPost = async (context: { request: Request; env: SyncEnv })
   if (!isValidChainId(chainId)) return errorResponse('Invalid chainId')
   if (!isValidDeviceId(deviceId)) return errorResponse('Invalid deviceId')
 
+  // The tightest throttle in the relay. Handshake answers "does this chain
+  // exist?", so throttling it is what makes walking chain ids to enumerate
+  // existing chains expensive rather than free.
+  const verdict = await guardRoute(db, {
+    scope: 'handshake',
+    subject: deviceId,
+    policy: POLICIES.handshake,
+  })
+  if (!verdict.ok) return verdict.response
+
+  // `isNew` is read BEFORE ensureChain: only the device that creates a chain may
+  // install its write secret. If we inferred it afterwards, anyone who knew the
+  // chainId could claim an existing chain by handingaking with their own secret.
+  const isNew = await chainIsNew(db, chainId)
   await ensureChain(db, chainId)
+
+  if (isNew && body.writeSecret !== undefined) {
+    if (!isValidWriteSecret(body.writeSecret)) return errorResponse('Invalid write secret')
+    await setChainPushHash(db, chainId, await hashWriteSecret(body.writeSecret))
+  }
+
   await registerDevice(db, chainId, deviceId, deviceName)
+  breakerRecord('success')
 
   return json({
     chainId,
     serverSeq: await serverSeq(db, chainId),
     version: await getChainVersion(db, chainId),
     devices: await listDevices(db, chainId),
+    writeAuth: !isNew,
   })
-}
+})

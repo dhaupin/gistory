@@ -57,7 +57,7 @@ bun tsc -b --noEmit
 bun run sync:smoke
 node tests/ui/run.mjs <preview-origin>     # e.g. http://localhost:5176
 node scripts/ui-audit.mjs <preview-origin>```
-Expected: tsc 0 · sync:smoke 100/100 · UI 160/160 (15/36/8/24/29/58) · audit 0.
+Expected: tsc 0 · sync:smoke 233/233 · UI 160/160 (15/36/8/24/29/58) · audit 0.
 
 There are **six** UI suites; `sortable.mjs` is the live-fire drag/collapse one.
 
@@ -98,6 +98,23 @@ There are **six** UI suites; `sortable.mjs` is the live-fire drag/collapse one.
   collapsing correctly, it just looked like nothing happened. The useful
   assertion is “the preview is visibly shorter than the body”, and to confirm it
   bites, run it once against the old code (mutation check): it must fail.
+- **A throttle test that drives a rate-limited route will hit the throttle.**
+  The 500-blob pagination test used to make 520 real `push` calls; once `push`
+  gained a rate limit it started failing. It now seeds `blobs` straight into
+  SQLite with the same `encryptPayload` the agent uses, because it is a *pull*
+  paging test. Rate limits make old load-shaped tests lie about what they cover.
+- **A reset-window upsert needs the CASE to compare against the existing row.**
+  `count = count + 1` unconditionally never resets; comparing a bound parameter
+  to itself always resets. The right form is
+  `CASE WHEN window_start = ? THEN count + 1 ELSE 1 END`, where the unqualified
+  `window_start` is the *stored* value during an upsert. Three mutation rounds
+  were needed to pin this down — two early "mutations" were no-ops whose `sed`
+  pattern never matched, which read as a passing check. **Confirm the mutation
+  actually changed the file** (`grep -c`) before believing a green result.
+- **A circuit breaker that re-arms its cooldown on every failure never
+  recovers.** With a dead database and continuous traffic, `openedAt` keeps
+  moving forward and no trial request is ever served. Failure while open must be
+  a no-op.
 - Store order != rendered order in the UI suites. Pinning/reordering earlier in
   a suite shifts the DOM, so resolve a row by `data-sortable-id`, not by index.
 - **Seed an empty library somewhere.** Every suite using `SEED` hides first-run
@@ -114,13 +131,16 @@ There are **six** UI suites; `sortable.mjs` is the live-fire drag/collapse one.
 
 ## Known limitations
 
-- **The sync chain has no write auth.** Knowing the `chainId` (it is in the
-  pairing QR) is enough to push blobs. One blob pushed with a different key
-  permanently pins every client's watermark below it and blocks all later
-  changes. Rate is uncapped too. Both need a protocol change (push secret, or
-  per-blob MACs) — see AGENTS.md §6. Do not silently “fix” the watermark by
-  skipping bad blobs: the retry is deliberate, and skipping would hide a
-  wrong-passphrase case that self-heals.
+- **Write auth is per-chain; legacy chains are only half-secured.** New chains
+  get a random write secret at handshake and the server keeps only its SHA-256,
+  so a chain id alone can no longer write — the poison-blob wedge is closed.
+  Chains created before that keep a NULL `push_hash` and still accept writes
+  without a secret, and `POST /sync/claim` to claim one is **first-come-wins**:
+  the server has no secret for an unclaimed chain, so it cannot tell the owner
+  from an old QR holder. Capped at denial of future writes (blobs stay
+  ciphertext). See AGENTS.md §4. Rate limiting is still the edge's job.
+- Do not “fix” the watermark by skipping undecryptable blobs: the retry is
+  deliberate, and skipping would hide a wrong-passphrase case that self-heals.
 - A rank is per item, not per board, so reordering on the home board also moves
   that thread in the sidebar and project detail. Intentional, but worth a rethink.
 - Entries are replaced whole per key. Rank keys (`t…`/`p…`/`m…`) and collapse

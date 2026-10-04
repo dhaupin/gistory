@@ -16,13 +16,14 @@
 -- migrations in order and records what each database has already applied.
 -- `db:migrate:check` builds a fresh database from the full migration history.
 --
--- Keep this file in sync with `migrations/0001_init.sql` — they are currently
--- identical, which is what keeps a fresh build and a migrated database equal.
+-- Keep this file in sync with the full `migrations/` history — it is the same
+-- schema those produce, flattened. `db:migrate:check` asserts that.
 
 CREATE TABLE IF NOT EXISTS chains (
   id         TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL,
-  version    INTEGER NOT NULL DEFAULT 1
+  version    INTEGER NOT NULL DEFAULT 1,
+  push_hash  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS devices (
@@ -44,3 +45,14 @@ CREATE TABLE IF NOT EXISTS blobs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_blobs_chain_seq ON blobs (chain_id, seq);
+
+CREATE INDEX IF NOT EXISTS idx_chains_push_hash ON chains (push_hash);
+
+-- Throttle bookkeeping for the guards (migrations/0003_guards.sql).
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key          TEXT PRIMARY KEY,
+  window_start INTEGER NOT NULL,
+  count        INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limits_window ON rate_limits (window_start);

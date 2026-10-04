@@ -12,14 +12,40 @@
  */
 
 import { Database } from 'bun:sqlite'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import {
   SyncAgent,
   deriveKey,
   encryptPayload,
+  chainIdFromToken,
+  pairingTokenFromChain,
   decryptPayload,
 } from '../src/sync/agent'
 import { emptyDeleted, mergePayload, type SyncData, type SyncPayload } from '../src/sync/merge'
+import { errorMessage } from '../src/sync/errors'
+import { SyncError, newWriteSecret, retryAfterFrom } from '../src/sync/agent'
+import { SyncQos, backoffDelay } from '../src/sync/qos'
+import {
+  BREAKER_POLICY,
+  MAX_BODY_BYTES,
+  POLICIES,
+  advanceBreaker,
+  breakerAllows,
+  breakerPeek,
+  breakerRecord,
+  breakerResponse,
+  consumeLimit,
+  evaluateLimit,
+  hasControlChars,
+  inspectBody,
+  pruneLimits,
+  readLimit,
+  resetBreaker,
+  retryAfterSeconds,
+  type BreakerPolicy,
+  type BreakerState,
+  type LimitRow,
+} from '../functions/_shared/guards'
 import { sortMessages, sortProjects, sortThreads } from '../src/ui/sort'
 import {
   RANK_STEP,
@@ -41,6 +67,7 @@ import type { Message, Thread } from '../src/lib/models'
 import { onRequestPost as handshakePost } from '../functions/sync/handshake'
 import { onRequestPost as pushPost } from '../functions/sync/push'
 import { onRequestGet as pullGet } from '../functions/sync/pull'
+import { onRequestPost as claimPost } from '../functions/sync/claim'
 import { onRequestGet as statusGet } from '../functions/sync/status'
 
 // --- tiny test harness -------------------------------------------------------
@@ -65,7 +92,15 @@ function section(title: string) {
 // --- fake D1 backed by real SQLite ------------------------------------------
 
 const sqlite = new Database(':memory:')
-sqlite.exec(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'))
+// Build from the real migration history, NOT schema.sql. The flattened schema
+// can only ever create a database from scratch, so once a migration adds a
+// column the two drift — and a test built on schema.sql would pass while the
+// shipped migrations produced a different shape. Applying migrations/ means this
+// test exercises what actually ships.
+const migrationsDir = new URL('../migrations/', import.meta.url)
+for (const file of readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort()) {
+  sqlite.exec(readFileSync(new URL(file, migrationsDir), 'utf8'))
+}
 
 const d1 = {
   prepare(query: string) {
@@ -96,6 +131,7 @@ const env = { GISTRY_DB: d1 }
 const routes: Record<string, (ctx: any) => Promise<Response>> = {
   'POST /sync/handshake': handshakePost,
   'POST /sync/push': pushPost,
+  'POST /sync/claim': claimPost,
   'GET /sync/pull': pullGet,
   'GET /sync/status': statusGet,
 }
@@ -713,7 +749,9 @@ const aThirdPull = await agentA.pull()
 check('a subsequent pull is a no-op (watermark advanced)', aThirdPull.blobs.length === 0)
 
 const statusRes = await statusGet({
-  request: new Request(`https://local.test/sync/status?chain=${CHAIN_A}`),
+  request: new Request(
+    `https://local.test/sync/status?chain=${CHAIN_A}&deviceId=${agentA.getDeviceId()}`,
+  ),
   env,
 })
 const statusBody: any = await statusRes.json()
@@ -769,8 +807,31 @@ activeStorage = storageP
 const agentP = new SyncAgent({ passphrase: PASS, deviceName: 'Pager P', chainId: CHAIN_P })
 await agentP.init()
 await agentP.handshake()
+
+// Seeded straight into storage rather than through 520 HTTP pushes. This test
+// is about *pull* paging, and the push route now has a deliberate rate limit —
+// driving it with 520 rapid requests would test the throttle instead. The
+// ciphertext is produced by the same encryptPayload the agent uses, so the
+// paging path under test is identical.
+const seedKey = await deriveKey(PASS, CHAIN_P)
 for (let i = 0; i < TOTAL; i++) {
-  await agentP.push({ threads: [thread(`p-${i}`, i)], messages: {}, projects: [], deleted: emptyDeleted() })
+  const payload = await encryptPayload(
+    {
+      threads: [thread(`p-${i}`, i)],
+      messages: {},
+      projects: [],
+      deleted: emptyDeleted(),
+      senderDeviceId: agentP.getDeviceId(),
+      sentAt: i,
+    },
+    seedKey,
+  )
+  sqlite
+    .query(
+      `INSERT INTO blobs (chain_id, seq, device_id, data, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(CHAIN_P, i + 1, agentP.getDeviceId(), payload, Date.now())
 }
 
 useDevice('Q')
@@ -900,6 +961,704 @@ check(
   agentW2.getLastSeq() >= 1,
   String(agentW2.getLastSeq()),
 )
+
+// --- 6. Write auth: a chain id alone cannot write ---------------------------
+
+section('6. Write auth — a chain id alone cannot write to a chain')
+
+const CHAIN_S = 'chain-secret-0001'
+// 43 chars of base64url, matching what the server accepts.
+const secretS = 'aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789-_ABCDEFG'
+const otherSecret = 'ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ'
+
+useDevice('S1')
+const agentS1 = new SyncAgent({
+  passphrase: PASS,
+  deviceName: 'Creator',
+  chainId: CHAIN_S,
+  writeSecret: secretS,
+})
+await agentS1.init()
+await agentS1.handshake()
+
+const chainRow = sqlite
+  .query('SELECT push_hash FROM chains WHERE id = ?')
+  .get(CHAIN_S) as { push_hash: string | null }
+check('the creating handshake installs a write-secret hash', !!chainRow?.push_hash)
+check('the stored value is 64 hex chars (SHA-256)', /^[0-9a-f]{64}$/.test(String(chainRow?.push_hash)))
+check(
+  'the server stores only a hash, never the secret itself',
+  !JSON.stringify(chainRow).includes(secretS),
+)
+
+const okPush = await agentS1.push({
+  threads: [thread('t1', 1, 'legit')],
+  messages: {},
+  projects: [],
+  deleted: emptyDeleted(),
+})
+check('the holder of the write secret can push', okPush > 0, String(okPush))
+
+// The attack this closes: a device that knows only the chainId.
+useDevice('Evil')
+const evil = new SyncAgent({ passphrase: 'wrong', deviceName: 'Attacker', chainId: CHAIN_S })
+await evil.init()
+await evil.handshake()
+const poisoned = await encryptPayload(
+  { senderDeviceId: 'attacker', threads: [], messages: {}, projects: [], deleted: emptyDeleted(), view: emptyView() },
+  await deriveKey('wrong passphrase', CHAIN_S),
+)
+const evilId = evil.getDeviceId()
+
+const noSecret = await pushPost({
+  request: new Request('https://local.test/sync/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_S, deviceId: evilId, data: poisoned }),
+  }),
+  env,
+})
+const noSecretBody = (await noSecret.json()) as { error?: string }
+check('a push with no write secret is rejected', noSecret.status === 401, String(noSecret.status))
+check('the rejection names what is missing', /write secret/i.test(noSecretBody.error || ''), noSecretBody.error)
+
+const wrongSecret = await pushPost({
+  request: new Request('https://local.test/sync/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_S, deviceId: evilId, data: poisoned, writeSecret: otherSecret }),
+  }),
+  env,
+})
+check('a push with the wrong write secret is rejected', wrongSecret.status === 403, String(wrongSecret.status))
+const wrongSecretBody = (await wrongSecret.json()) as { error?: string }
+check('the wrong-secret rejection says so', /wrong write secret/i.test(wrongSecretBody.error || ''), wrongSecretBody.error)
+
+const stored = sqlite
+  .query('SELECT COUNT(*) AS n FROM blobs WHERE chain_id = ?')
+  .get(CHAIN_S) as { n: number }
+check('neither rejected blob reached storage', stored.n === 1, String(stored.n))
+
+// A device paired with the secret (as the QR carries it) can write.
+useDevice('S2')
+const agentS2 = new SyncAgent({
+  passphrase: PASS,
+  deviceName: 'Joiner',
+  chainId: CHAIN_S,
+  writeSecret: secretS,
+})
+await agentS2.init()
+await agentS2.handshake()
+const joinerPush = await agentS2.push({
+  threads: [thread('t2', 2, 'joined')],
+  messages: {},
+  projects: [],
+  deleted: emptyDeleted(),
+})
+check('a paired device holding the secret can push', joinerPush > 0, String(joinerPush))
+
+// One without the secret can still read, but cannot write.
+useDevice('S3')
+const agentS3 = new SyncAgent({ passphrase: PASS, deviceName: 'Reader', chainId: CHAIN_S })
+await agentS3.init()
+await agentS3.handshake()
+check(
+  'a device without the secret can still read',
+  (await agentS3.pull()).blobs.length >= 1,
+)
+let readerPush = 0
+try {
+  await agentS3.push({ threads: [thread('t3', 3, 'nope')], messages: {}, projects: [], deleted: emptyDeleted() })
+} catch (err) {
+  readerPush = /write secret/i.test(String((err as Error)?.message || err)) ? 1 : 2
+}
+check('a device without the secret cannot write', readerPush === 1, String(readerPush))
+
+// --- 6b. Claiming a chain that predates write auth --------------------------
+
+section('6b. Claiming an existing (pre write-auth) chain')
+
+const CHAIN_L = 'chain-legacy-0001'
+await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_L, deviceId: 'legacy-owner', deviceName: 'Legacy' }),
+  }),
+  env,
+})
+const legacyBefore = sqlite
+  .query('SELECT push_hash FROM chains WHERE id = ?')
+  .get(CHAIN_L) as { push_hash: string | null }
+check('a pre-write-auth chain has no secret stored', legacyBefore?.push_hash == null)
+
+const legacySecret = 'legacySecretValue_0123456789abcdefghijklmnop'
+const claimOk = await claimPost({
+  request: new Request('https://local.test/sync/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_L, deviceId: 'legacy-owner', writeSecret: legacySecret }),
+  }),
+  env,
+})
+check('the owner can claim a legacy chain', claimOk.status === 200, String(claimOk.status))
+check(
+  'claiming installs the secret hash',
+  !!((sqlite.query('SELECT push_hash FROM chains WHERE id = ?').get(CHAIN_L) as any)?.push_hash),
+)
+
+useDevice('L1')
+const agentL = new SyncAgent({
+  passphrase: PASS,
+  deviceName: 'Legacy owner',
+  chainId: CHAIN_L,
+  writeSecret: legacySecret,
+})
+await agentL.init()
+await agentL.handshake()
+check(
+  'the owner can push after claiming',
+  (await agentL.push({ threads: [thread('l1', 1, 'after')], messages: {}, projects: [], deleted: emptyDeleted() })) > 0,
+)
+
+const reClaim = await claimPost({
+  request: new Request('https://local.test/sync/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_L, deviceId: 'legacy-owner', writeSecret: legacySecret }),
+  }),
+  env,
+})
+check('re-claiming with the same secret is a harmless retry', reClaim.status === 200, String(reClaim.status))
+
+const steal = await claimPost({
+  request: new Request('https://local.test/sync/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_L, deviceId: 'someone-else', writeSecret: otherSecret }),
+  }),
+  env,
+})
+check('a second claim with a different secret is refused', steal.status === 409, String(steal.status))
+check(
+  'the original secret still works after a refused claim',
+  (await agentL.push({ threads: [thread('l2', 2, 'still')], messages: {}, projects: [], deleted: emptyDeleted() })) > 0,
+)
+
+// --- 6c. Pairing token round-trip -------------------------------------------
+
+section('6c. Pairing token carries the write secret')
+
+const parsedNew = chainIdFromToken(pairingTokenFromChain(CHAIN_S, secretS))
+check('a new token round-trips both parts', parsedNew?.chainId === CHAIN_S && parsedNew?.writeSecret === secretS)
+check(
+  'a legacy token still parses, with no secret',
+  chainIdFromToken(`GS1-${CHAIN_S}`)?.chainId === CHAIN_S &&
+    chainIdFromToken(`GS1-${CHAIN_S}`)?.writeSecret === undefined,
+)
+check('a bare chain id still parses', chainIdFromToken(CHAIN_S)?.chainId === CHAIN_S)
+check('garbage is still rejected', chainIdFromToken('not a token!') === null)
+
+// --- 6d. Write-auth errors are actionable -----------------------------------
+
+section('6d. Write-auth errors reach the user as something they can act on')
+
+// These are the strings the server returns; the client must translate them
+// rather than showing a log-shaped string, because each has a real remedy.
+check(
+  'a missing write secret tells the user to re-pair',
+  /pair it again with a current pairing code/i.test(errorMessage(new Error(noSecretBody.error || ''))),
+  errorMessage(new Error(noSecretBody.error || '')),
+)
+check(
+  'a wrong write secret tells the user to re-pair',
+  /not allowed to write/i.test(errorMessage(new Error(wrongSecretBody.error || ''))),
+  errorMessage(new Error(wrongSecretBody.error || '')),
+)
+check(
+  'losing a claim race names the other device',
+  /secured by another device/i.test(errorMessage(new Error('This chain was secured by another device first'))),
+)
+check(
+  'an unrelated error is passed through unchanged',
+  errorMessage(new Error('Cannot reach the sync server — are you offline?')) ===
+    'Cannot reach the sync server — are you offline?',
+)
+check('a non-Error value still yields a string', typeof errorMessage('boom') === 'string')
+
+// --- 8. Guards: throttle, circuit breaker, WAF ------------------------------
+
+section('8a. Throttle — fixed-window counter (pure)')
+
+const P = POLICIES.push
+const t0 = 1_000_000
+
+// A brand new bucket allows its first request.
+const first = evaluateLimit(null, P, t0)
+check('an unseen bucket allows the first request', first.ok)
+check('the first request reports the rest of the budget', first.ok && first.decision.remaining === P.limit - 1, String(first.ok && first.decision.remaining))
+check('an allowed request opens a window at its own timestamp', first.ok && first.decision.windowStart === t0)
+
+// Walk a window to exhaustion.
+let row: LimitRow | null = null
+let allowedCount = 0
+for (let i = 0; i < P.limit; i++) {
+  const outcome = evaluateLimit(row, P, t0 + i)
+  if (!outcome.ok) break
+  allowedCount++
+  row = { window_start: outcome.decision.windowStart, count: i + 1 }
+}
+check(`exactly ${P.limit} requests fit in one window`, allowedCount === P.limit, String(allowedCount))
+
+const over = evaluateLimit(row, P, t0 + P.limit)
+check('the request past the limit is refused', !over.ok)
+check('the refusal says how long to wait', !over.ok && over.retryAfterMs > 0 && over.retryAfterMs <= P.windowMs, !over.ok ? String(over.retryAfterMs) : 'allowed')
+
+// The window resets rather than the count creeping forever.
+const afterWindow = evaluateLimit(row, P, t0 + P.windowMs)
+check('the window resets once it expires', afterWindow.ok)
+check('the reset window starts at the new request time', afterWindow.ok && afterWindow.decision.windowStart === t0 + P.windowMs)
+
+// A row from the future (clock skew between devices) must not lock anyone out.
+const skewed = evaluateLimit({ window_start: t0 + 10 * P.windowMs, count: P.limit }, P, t0)
+check('a window start in the future still allows the request', skewed.ok)
+
+check('retry-after rounds up to whole seconds', retryAfterSeconds(1) === 1 && retryAfterSeconds(1500) === 2 && retryAfterSeconds(0) === 1)
+check('every policy has a positive limit and window', Object.values(POLICIES).every((p) => p.limit > 0 && p.windowMs > 0))
+check('the push limit leaves room for the client debounce', POLICIES.push.limit > 40, String(POLICIES.push.limit))
+
+// The same maths, through the real D1 path.
+const bucketRowBefore = await readLimit(d1 as any, 't', 'subject')
+check('an unwritten bucket reads as null', bucketRowBefore === null)
+for (let i = 0; i < POLICIES.handshake.limit; i++) {
+  await consumeLimit(d1 as any, 't', 'subject', POLICIES.handshake, t0 + i)
+}
+const bucketStored = await readLimit(d1 as any, 't', 'subject')
+check('the stored counter matches the requests made', bucketStored?.count === POLICIES.handshake.limit, String(bucketStored?.count))
+const denied = await consumeLimit(d1 as any, 't', 'subject', POLICIES.handshake, t0 + POLICIES.handshake.limit)
+check('consumeLimit refuses past the limit', !denied.ok)
+const afterDenial = await readLimit(d1 as any, 't', 'subject')
+check('a refused request does not advance the counter', afterDenial?.count === POLICIES.handshake.limit, String(afterDenial?.count))
+const recovered = await consumeLimit(d1 as any, 't', 'subject', POLICIES.handshake, t0 + POLICIES.handshake.limit + POLICIES.handshake.windowMs)
+check('the bucket recovers once the window rolls over', recovered.ok)
+check('the recovered window restarts the count at 1', (await readLimit(d1 as any, 't', 'subject'))?.count === 1)
+await pruneLimits(d1 as any, t0 + POLICIES.handshake.limit + POLICIES.handshake.windowMs + 11 * 60_000)
+check('pruning drops buckets whose window closed long ago', (await readLimit(d1 as any, 't', 'subject')) === null)
+
+section('8b. Circuit breaker (pure)')
+
+const BP: BreakerPolicy = { failures: 3, cooldownMs: 1000 }
+let st: BreakerState = 'closed'
+let budget = BP.failures
+for (let i = 0; i < BP.failures - 1; i++) {
+  const step = advanceBreaker(st, budget, 'failure', BP)
+  st = step.next
+  budget = step.budget
+}
+check('the breaker stays closed while there is budget left', st === 'closed', st)
+check('the budget is spent one failure at a time', budget === 1, String(budget))
+const opens = advanceBreaker(st, budget, 'failure', BP)
+check('the breaker opens on the last failure', opens.next === 'open', opens.next)
+check('an open breaker reports the cooldown as the wait', opens.retryAfterMs === BP.cooldownMs, String(opens.retryAfterMs))
+
+const openNow = breakerAllows('open', t0, BP, t0)
+check('an open breaker blocks immediately', openNow.retryAfterMs > 0)
+check('an open blocker never reports budget', openNow.budget === 0)
+const stillWaiting = breakerAllows('open', t0, BP, t0 + 500)
+check('the wait counts down with the cooldown', stillWaiting.retryAfterMs === 500, String(stillWaiting.retryAfterMs))
+const trial = breakerAllows('open', t0, BP, t0 + BP.cooldownMs)
+check('a served cooldown lets one trial request through', trial.retryAfterMs === 0)
+
+check('a success closes an open breaker', advanceBreaker('open', 0, 'success', BP).next === 'closed')
+check('a success restores the full budget', advanceBreaker('open', 0, 'success', BP).budget === BP.failures)
+check('a failed trial re-opens rather than closing', advanceBreaker('open', 0, 'failure', BP).next === 'open')
+check('a failure while open does not re-arm the cooldown', advanceBreaker('open', 0, 'failure', BP).retryAfterMs === 0)
+
+// The real singleton, including the "dead database must not re-arm forever" case.
+resetBreaker()
+for (let i = 0; i < BREAKER_POLICY.failures; i++) breakerRecord('failure', t0)
+check('the breaker opens after the configured failures', breakerPeek(t0).retryAfterMs > 0)
+breakerRecord('failure', t0 + 1000)
+check('a failure during cooldown does not extend the wait', breakerPeek(t0 + 1000).retryAfterMs === BREAKER_POLICY.cooldownMs - 1000, String(breakerPeek(t0 + 1000).retryAfterMs))
+check('the breaker serves a trial request after the cooldown', breakerPeek(t0 + BREAKER_POLICY.cooldownMs).retryAfterMs === 0)
+breakerRecord('success', t0 + BREAKER_POLICY.cooldownMs)
+check('a successful trial closes it again', breakerPeek(t0 + BREAKER_POLICY.cooldownMs + 1).retryAfterMs === 0)
+resetBreaker()
+check('resetBreaker returns it to closed', breakerPeek(t0).retryAfterMs === 0 && breakerPeek(t0).budget === BREAKER_POLICY.failures)
+
+// The budget must be spent by failures seen, not assumed from the policy.
+resetBreaker()
+breakerRecord('failure', t0)
+check('one failure leaves budget-1', breakerPeek(t0).budget === BREAKER_POLICY.failures - 1, String(breakerPeek(t0).budget))
+breakerRecord('success', t0)
+check('a success restores the budget after one failure', breakerPeek(t0).budget === BREAKER_POLICY.failures)
+
+// An open breaker must produce a 503 with a Retry-After the client can use.
+resetBreaker()
+for (let i = 0; i < BREAKER_POLICY.failures; i++) breakerRecord('failure', t0)
+const breakerResp = breakerResponse(BREAKER_POLICY.cooldownMs)
+check('an open breaker answers 503', breakerResp.status === 503, String(breakerResp.status))
+check('the 503 carries Retry-After', breakerResp.headers.get('Retry-After') === '15', String(breakerResp.headers.get('Retry-After')))
+resetBreaker()
+
+section('8c. WAF — reject what is not the protocol')
+
+check('a real push body passes', inspectBody({ chainId: 'chain-a', deviceId: 'dev-1', data: 'aaa.bbb' }, { maxDataBytes: 100 }).ok)
+check('a body with no data field passes', inspectBody({ chainId: 'chain-a' }, { maxDataBytes: 100 }).ok)
+check('a JSON array is refused', !inspectBody([1, 2, 3], { maxDataBytes: 100 }).ok)
+check('a bare string is refused', !inspectBody('hello', { maxDataBytes: 100 }).ok)
+check('null is refused', !inspectBody(null, { maxDataBytes: 100 }).ok)
+check('a __proto__ key is refused', !inspectBody(JSON.parse('{"__proto__":{"polluted":true}}'), { maxDataBytes: 100 }).ok)
+check('a constructor key is refused', !inspectBody({ constructor: 'x' }, { maxDataBytes: 100 }).ok)
+check('a field explosion is refused', !inspectBody(Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`f${i}`, 1])), { maxDataBytes: 100 }).ok)
+check('a non-string data field is refused', !inspectBody({ data: { nested: true } }, { maxDataBytes: 100 }).ok)
+check('an oversized data field is refused', !inspectBody({ data: 'x'.repeat(101) }, { maxDataBytes: 100 }).ok)
+check('control characters are detected', hasControlChars('a b') && !hasControlChars('normal-id_123'))
+check('the body cap exceeds the payload cap', MAX_BODY_BYTES >= 5_000_000)
+
+section('8d. Client QoS — backoff and coalescing (pure)')
+
+check('the backoff starts at the base delay', backoffDelay(1, { baseMs: 100, maxMs: 10000 }) === 100)
+check('the backoff doubles', backoffDelay(2, { baseMs: 100, maxMs: 10000 }) === 200)
+check('the backoff keeps doubling', backoffDelay(3, { baseMs: 100, maxMs: 10000 }) === 400)
+check('the backoff is capped', backoffDelay(20, { baseMs: 100, maxMs: 10000 }) === 10000)
+check('attempt 0 is treated as the first attempt', backoffDelay(0, { baseMs: 100, maxMs: 10000 }) === 100)
+check('a server Retry-After wins over the curve', backoffDelay(1, { baseMs: 100, maxMs: 10000, retryAfterMs: 5000 }) === 5000)
+check('a server Retry-After is still capped by maxMs', backoffDelay(1, { baseMs: 100, maxMs: 2000, retryAfterMs: 99999 }) === 2000)
+check('a zero Retry-After falls back to the curve', backoffDelay(1, { baseMs: 100, maxMs: 10000, retryAfterMs: 0 }) === 100)
+check('jitter adds to the delay', backoffDelay(1, { baseMs: 100, maxMs: 10000, jitter: () => 50 }) === 150)
+check('the curve never exceeds maxMs with jitter', backoffDelay(9, { baseMs: 100, maxMs: 1000, jitter: () => 500 }) === 1000)
+
+// Drive SyncQos with a fake clock and manual timers, so no real waiting.
+function fakeTimers() {
+  let now = 0
+  const pending: { at: number; fn: () => void; handle: number }[] = []
+  let nextHandle = 1
+  return {
+    now: () => now,
+    setTimer: (fn: () => void, ms: number) => {
+      const handle = nextHandle++
+      pending.push({ at: now + ms, fn, handle })
+      return handle
+    },
+    clearTimer: (handle: unknown) => {
+      const i = pending.findIndex((t) => t.handle === handle)
+      if (i >= 0) pending.splice(i, 1)
+    },
+    /** Fire everything due within `ms`, letting promises settle between. */
+    async advance(ms: number) {
+      const target = now + ms
+      for (;;) {
+        const due = pending.filter((t) => t.at <= target).sort((a, b) => a.at - b.at)[0]
+        if (!due) break
+        now = Math.max(now, due.at)
+        const i = pending.findIndex((t) => t.handle === due.handle)
+        if (i >= 0) pending.splice(i, 1)
+        due.fn()
+        await Promise.resolve()
+        await Promise.resolve()
+      }
+      now = target
+      await Promise.resolve()
+    },
+    get pendingCount() {
+      return pending.length
+    },
+  }
+}
+
+// Coalescing: a burst of changes must produce one push, not N.
+{
+  const clock = fakeTimers()
+  let pushes = 0
+  const qos = new SyncQos({
+    onPush: async () => { pushes++ },
+    debounceMs: 100,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+  qos.schedule()
+  qos.schedule()
+  qos.schedule()
+  check('a burst of schedules leaves exactly one timer', clock.pendingCount === 1)
+  await clock.advance(100)
+  check('a burst of changes coalesces into one push', pushes === 1, String(pushes))
+  check('the scheduler is idle after a successful push', qos.getState().status === 'idle' && !qos.getState().pending)
+}
+
+// Changes during an in-flight push are coalesced into exactly one more push,
+// and the newest state is what ships.
+{
+  const clock = fakeTimers()
+  let pushes = 0
+  let release: (() => void) | null = null
+  let sawSecond = false
+  const qos = new SyncQos({
+    onPush: async () => {
+      pushes++
+      if (pushes === 1) {
+        await new Promise<void>((resolve) => { release = resolve })
+      } else {
+        sawSecond = true
+      }
+    },
+    debounceMs: 100,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+  qos.schedule()
+  await clock.advance(100)
+  check('the first push is running', pushes === 1)
+
+  // Three more changes land while that push is in flight.
+  qos.schedule()
+  qos.schedule()
+  qos.schedule()
+  check('changes during a push mark it pending', qos.getState().pending)
+  check('no second timer is armed while a push is in flight', clock.pendingCount === 0)
+
+  release!()
+  await Promise.resolve()
+  await Promise.resolve()
+  await clock.advance(100)
+  check('the in-flight changes produce exactly one follow-up push', pushes === 2 && sawSecond, String(pushes))
+}
+
+// A failed push is retried, never dropped.
+{
+  const clock = fakeTimers()
+  let attempts = 0
+  let succeeded = false
+  const qos = new SyncQos({
+    onPush: async () => {
+      attempts++
+      if (!succeeded) throw new Error('offline')
+    },
+    debounceMs: 100,
+    retryBaseMs: 500,
+    retryMaxMs: 10000,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+  qos.schedule()
+  await clock.advance(100)
+  check('a failing push is attempted', attempts === 1)
+  check('a failed push stays pending rather than being dropped', qos.getState().pending)
+  check('the failure is counted', qos.getState().failures === 1)
+
+  await clock.advance(500)
+  check('a failed push is retried after the backoff', attempts === 2, String(attempts))
+  await clock.advance(1000)
+  check('the retry keeps backing off', attempts === 3, String(attempts))
+  check('backoff status is reported while retrying', qos.getState().status === 'backing-off')
+
+  succeeded = true
+  await clock.advance(2000)
+  check('a retry that succeeds stops the loop', attempts === 4, String(attempts))
+  await clock.advance(20000)
+  check('no further attempts once it succeeds', attempts === 4, String(attempts))
+  check('the failure count resets on success', qos.getState().failures === 0)
+  check('nothing is pending after recovery', !qos.getState().pending)
+}
+
+// A server Retry-After overrides the computed backoff.
+{
+  const clock = fakeTimers()
+  let attempts = 0
+  const qos = new SyncQos({
+    onPush: async () => { attempts++; throw new Error('throttled') },
+    debounceMs: 100,
+    retryBaseMs: 500,
+    retryMaxMs: 10000,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+  qos.setRetryAfter(4000)
+  qos.schedule()
+  await clock.advance(100)
+  check('the first attempt failed', attempts === 1)
+  await clock.advance(3000)
+  check('a server Retry-After is honoured even though it exceeds the curve', attempts === 1, String(attempts))
+  await clock.advance(1500)
+  check('the retry happens once the server wait has passed', attempts === 2, String(attempts))
+}
+
+// onPush is never re-entered.
+{
+  const clock = fakeTimers()
+  let concurrent = 0
+  let maxConcurrent = 0
+  let release: (() => void) | null = null
+  const qos = new SyncQos({
+    onPush: async () => {
+      concurrent++
+      maxConcurrent = Math.max(maxConcurrent, concurrent)
+      await new Promise<void>((resolve) => { release = resolve })
+      concurrent--
+    },
+    debounceMs: 10,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+  qos.schedule()
+  await clock.advance(10)
+  // flush() mid-flight must not start a second push.
+  qos.flush()
+  qos.flush()
+  check('flush during an in-flight push does not run it twice', maxConcurrent === 1, String(maxConcurrent))
+  release!()
+  await Promise.resolve()
+}
+
+// stop() must prevent any further work.
+{
+  const clock = fakeTimers()
+  let pushes = 0
+  const qos = new SyncQos({
+    onPush: async () => { pushes++ },
+    debounceMs: 100,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+  qos.schedule()
+  qos.stop()
+  check('stop clears the pending timer', clock.pendingCount === 0)
+  await clock.advance(1000)
+  check('nothing runs after stop', pushes === 0)
+  qos.schedule()
+  await clock.advance(1000)
+  check('scheduling after stop is a no-op', pushes === 0)
+}
+
+section('8e. Throttled errors reach the user as a pause, not a failure')
+
+const throttled = new SyncError('Too many push requests', 429, 30_000)
+check('429 is recognised as throttled', throttled.throttled)
+check('503 is recognised as throttled', new SyncError('unavailable', 503).throttled)
+check('a 403 is not throttled', !new SyncError('wrong write secret', 403).throttled)
+check('being offline is not throttled', !new SyncError('offline', 0).throttled)
+check('a throttle message says the wait', /in about 30s/i.test(errorMessage(throttled)), errorMessage(throttled))
+check('a throttle message says nothing is lost', /saved locally/i.test(errorMessage(throttled)))
+check('a throttle without a hint still reads as a pause', /shortly/i.test(errorMessage(new SyncError('busy', 429))))
+check('a 429 message does not leak the raw server text', !/Too many push/.test(errorMessage(throttled)))
+
+// Retry-After parsing, both wire forms.
+check('delta-seconds Retry-After is read', retryAfterFrom(new Response(null, { headers: { 'Retry-After': '42' } })) === 42000)
+check('a date Retry-After is read', typeof retryAfterFrom(new Response(null, { headers: { 'Retry-After': new Date(Date.now() + 5000).toUTCString() } })) === 'number')
+check('a missing Retry-After is undefined', retryAfterFrom(new Response(null)) === undefined)
+check('a garbage Retry-After is undefined', retryAfterFrom(new Response(null, { headers: { 'Retry-After': 'soon-ish' } })) === undefined)
+
+section('8f. Guards are live on the real routes')
+
+const CHAIN_G = 'chain-guard-0009'
+const SECRET_G = newWriteSecret()
+const storageG = makeStorage() as any
+activeStorage = storageG
+const agentG = new SyncAgent({
+  passphrase: PASS,
+  deviceName: 'Guard G',
+  chainId: CHAIN_G,
+  writeSecret: SECRET_G,
+})
+await agentG.init()
+await agentG.handshake()
+check('a secured chain accepts a normal push', typeof (await agentG.push({ threads: [], messages: {}, projects: [], deleted: emptyDeleted() })) === 'number')
+
+// Write-secret guessing is charged to its own budget, not the push budget.
+const guesser = useDevice('guesser')
+for (let i = 0; i < POLICIES.writeFailures.limit; i++) {
+  const res = await pushPost({
+    request: new Request('https://local.test/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chainId: CHAIN_G,
+        deviceId: 'guesser-device',
+        data: 'aaa.bbb',
+        writeSecret: newWriteSecret(),
+      }),
+    }),
+    env,
+  })
+  if (res.status !== 403) break
+}
+const guessBlocked = await pushPost({
+  request: new Request('https://local.test/sync/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN_G, deviceId: 'guesser-device', data: 'aaa.bbb', writeSecret: newWriteSecret() }),
+  }),
+  env,
+})
+check('repeated wrong secrets are throttled with 429', guessBlocked.status === 429, String(guessBlocked.status))
+check('the throttle tells the client when to retry', !!guessBlocked.headers.get('Retry-After'), String(guessBlocked.headers.get('Retry-After')))
+check('the throttled body carries the wait in ms', typeof (await guessBlocked.clone().json() as any).retryAfterMs === 'number')
+
+// Guessing did NOT spend the legitimate device's push budget.
+activeStorage = storageG
+const stillPushes = await agentG.push({ threads: [], messages: {}, projects: [], deleted: emptyDeleted() })
+check('guessing does not spend the owner push budget', typeof stillPushes === 'number', String(stillPushes))
+
+// The WAF is enforced by the real route, not only by the pure helper.
+const wafRes = await pushPost({
+  request: new Request('https://local.test/sync/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([1, 2, 3]),
+  }),
+  env,
+})
+check('the push route refuses a non-object body', wafRes.status === 400, String(wafRes.status))
+
+// A throttle on a real route emits 429 + Retry-After.
+activeStorage = makeStorage() as any
+const claimChain = 'chain-guard-claim'
+const ownerStorage = makeStorage() as any
+activeStorage = ownerStorage
+const owner = new SyncAgent({ passphrase: PASS, deviceName: 'Owner', chainId: claimChain })
+await owner.init()
+await owner.handshake()
+
+activeStorage = makeStorage() as any
+let claimStatus = 0
+for (let i = 0; i < POLICIES.claim.limit + 2; i++) {
+  const res = await claimPost({
+    request: new Request('https://local.test/sync/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chainId: claimChain, deviceId: 'claim-guesser', writeSecret: newWriteSecret() }),
+    }),
+    env,
+  })
+  claimStatus = res.status
+  if (res.status === 429) break
+}
+check('claiming is throttled after the limit', claimStatus === 429, String(claimStatus))
+
+// Status reveals *who else is in the chain* (device ids and names), so it is
+// throttled too — an unthrottled caller could walk chain ids and harvest them.
+const noDevice = await statusGet({
+  request: new Request(`https://local.test/sync/status?chain=${CHAIN_A}`),
+  env,
+})
+check('status refuses a request with no device id', noDevice.status === 400, String(noDevice.status))
+
+let statusCode = 0
+for (let i = 0; i < POLICIES.pull.limit + 2; i++) {
+  const res = await statusGet({
+    request: new Request(`https://local.test/sync/status?chain=${CHAIN_A}&deviceId=status-flooder`),
+    env,
+  })
+  statusCode = res.status
+  if (res.status === 429) break
+}
+check('status is throttled after the pull limit', statusCode === 429, String(statusCode))
 
 // --- summary -----------------------------------------------------------------
 

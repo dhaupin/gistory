@@ -31,6 +31,25 @@ Conventions
 
 ## Done
 
+- **2026-10 — per-chain write auth (separate secret, passphrase stays server-blind).**
+  - Each chain now has a random 32-byte write secret, minted by the creating
+    device and carried to others in the pairing token (`GS1-<chain>.<secret>`).
+    The server stores only SHA-256, so it never holds anything derived from the
+    passphrase — the blind-relay property survives.
+  - `handshake` installs the hash **only when it creates the chain**; reading
+    `chainIsNew` before `ensureChain` is what stops anyone who knows a chainId
+    from claiming an existing chain by handingshaking.
+  - `push` requires the secret (401 missing / 403 wrong), compared in constant
+    time. This closes the poison-blob wedge: a blob pushed under a different key
+    can no longer reach storage at all.
+  - `POST /sync/claim` secures a chain created before write auth. First-come-
+    wins by necessity — documented, bounded at denial of writes.
+  - `sync:smoke` now builds its schema from `migrations/` rather than
+    `schema.sql`, so it exercises what actually ships. Doing this surfaced that
+    the old flattened schema had already drifted from the migrated shape.
+  - Tests: sync:smoke 128/128, UI 160/160, audit 0 over 112 passes. The write
+    gate is mutation-verified (disabling it makes three checks fail).
+
 - **2026-10 — second QC pass. The reported “collapse is broken” was a routing bug.**
   - `createThread` set `currentThreadId` but never called `navigate()`, unlike
     every sibling selection path. On a first run (empty library) you stayed on
@@ -126,6 +145,58 @@ Conventions
   - Fixed a latent conditional-hook bug in `ProjectDetail` (`useState` after the
     not-found early return).
   - Tests: sync:smoke 75/75, UI 145/145, audit 0 findings.
+- **2026-10 — guards: throttle, circuit breaker, WAF, client QoS.**
+  - `migrations/0003_guards.sql` adds `rate_limits (key, window_start, count)`;
+    `schema.sql` re-synced to match the full migration history.
+  - `functions/_shared/guards.ts`: pure fixed-window limit maths, atomic single-
+    statement upsert counter, in-memory per-isolate circuit breaker (5 failures
+    → 15s open), conservative WAF, and `withBreaker` so any storage throw feeds
+    the breaker.
+  - Six throttle buckets: `push`/device 120m, `push-chain` 600m, `pull`/device
+    240m, `handshake`/device 20m, `claim`/chain 5m, `write-fail`/chain 20m.
+    All answer `429` + `Retry-After`; an open breaker answers `503` + `Retry-After`.
+  - Refused requests do not advance their counter; a wrong write secret is
+    charged to `write-fail`, not to the device's `push` budget.
+  - A stored `window_start` in the future is treated as absent (PoP clock skew).
+  - `src/sync/qos.ts`: `backoffDelay` (doubling + jitter, server `Retry-After`
+    wins but is capped) and `SyncQos`, which debounces, coalesces changes that
+    land mid-push into one follow-up, and retries failures without ever dropping
+    a change. Held in a ref in `App.tsx`, replacing the bare `setTimeout` effect;
+    `syncNow` now pushes through `flush()` so two pushes cannot overlap.
+  - `agent.ts` throws `SyncError` (status, `retryAfterMs`, `.throttled`) instead
+    of plain prose; `retryAfterFrom` reads both delta-seconds and date forms.
+    `errors.ts` renders a 429 as “saved locally, uploading in ~Ns”.
+  - Fixed: the 500-blob pagination test was making 520 real pushes and now hits
+    the push limit — it seeds blobs directly instead, since it is a pull test.
+  - Mutation-verified 13 guard behaviours (throttle window/reset/over-charge,
+    breaker budget/cooldown/WAF rules, QoS retry + coalescing + Retry-After).
+  - Tests: sync:smoke 233/233, UI 160/160, audit 112 passes / 0 findings.
+- **2026-10 — repo cleanup + server typecheck coverage.**
+  - `tsconfig.functions.json` (strict) now typechecks `functions/`; `bun run
+    typecheck` runs it alongside `tsc -b`. Root `include` deliberately stays
+    `src`-only — under `strict: false` the guard discriminated unions cannot be
+    narrowed, so folding the server in would force `as` casts everywhere.
+  - Found and removed by that stricter pass: `SyncEnv` was an unused import in
+    all four routes after `withBreaker` took over the context type.
+  - Deleted dead files, each confirmed zero-import before removal (all still in
+    git history): `workers_backup/sync.ts` (KV/R2-era worker, superseded by the
+    D1 rewrite and importing a dep the project does not have),
+    `src/App.old.tsx`, `src/lib/index.ts` (barrel, no consumers),
+    `src/ui/{AutoSaver,Loading,Tooltip,EmptyState}.tsx` (only re-exported, never
+    imported; `ui/EmptyState` was also a divergent twin of the live
+    `components/EmptyState`).
+  - Pruned `src/ui/index.ts` from ~30 re-exports to the two `Badge`/`Button`
+    that `Settings.tsx` actually imports.
+  - Verified the new strict pass really catches route type errors by injecting
+    one and confirming it failed, then restoring byte-exact.
+  - Tests: typecheck clean (both passes), sync:smoke 233/233, UI 160/160,
+    audit 112 passes / 0 findings.
+- Closed a guard gap found while reviewing coverage: `/sync/status` returns the
+    chain's device ids and names, so it is now throttled on the `pull` budget
+    and requires a valid `deviceId` (the agent sends it). Mutation-verified by
+    removing the guard and watching both new checks fail.
+  - Tests: typecheck clean (both passes), sync:smoke 235/235, UI 160/160,
+    audit 112 passes / 0 findings.
 - 2026-10 — generalized pin + collapse for threads, messages, and projects.
 - 2026-10 — pinning + collapsing for **threads**.
 - 2026-10 — usability pass (shared sort options, BurgerMenu sort control,

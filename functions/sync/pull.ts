@@ -4,13 +4,13 @@
 import {
   chainExists,
   errorResponse,
-  getDb,
   isValidChainId,
+  isValidDeviceId,
   json,
   preflight,
   serverSeq,
-  type SyncEnv,
 } from '../_shared/sync'
+import { POLICIES, guardRoute, withBreaker } from '../_shared/guards'
 
 export const onRequestOptions = async () => preflight()
 
@@ -21,10 +21,7 @@ interface BlobRow {
   created_at: number
 }
 
-export const onRequestGet = async (context: { request: Request; env: SyncEnv }) => {
-  const db = getDb(context.env)
-  if (!db) return errorResponse('Sync storage is not configured', 500)
-
+export const onRequestGet = withBreaker(async (db, context) => {
   const url = new URL(context.request.url)
   const chainId = (url.searchParams.get('chain') || '').trim()
   const deviceId = (url.searchParams.get('deviceId') || '').trim()
@@ -38,6 +35,17 @@ export const onRequestGet = async (context: { request: Request; env: SyncEnv }) 
     : 500
 
   if (!isValidChainId(chainId)) return errorResponse('Invalid chainId')
+  if (!isValidDeviceId(deviceId)) return errorResponse('Invalid deviceId')
+
+  // Throttled per device. A pull loop is the easiest thing for a client (or a
+  // script) to spin, and it is also what starves pushes of D1 time.
+  const verdict = await guardRoute(db, {
+    scope: 'pull',
+    subject: deviceId,
+    policy: POLICIES.pull,
+  })
+  if (!verdict.ok) return verdict.response
+
   if (!(await chainExists(db, chainId))) return errorResponse('Unknown sync chain', 404)
 
   const { results } = await db
@@ -59,4 +67,4 @@ export const onRequestGet = async (context: { request: Request; env: SyncEnv }) 
     })),
     serverSeq: await serverSeq(db, chainId),
   })
-}
+})

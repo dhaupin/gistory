@@ -1,0 +1,31 @@
+{
+  // Server-side typecheck for the Cloudflare Pages Functions.
+  //
+  // `tsconfig.json` deliberately runs `strict: false` — that is what the app has
+  // always used, and turning it on across `src` is a separate, much larger
+  // change than it looks. The relay is a different situation: it is a small,
+  // self-contained surface (four routes plus two shared modules) where a type
+  // error is a 500 for every user, so it gets the strict treatment.
+  //
+  // The functions declare their own minimal `D1Database` surface in
+  // `_shared/sync.ts` rather than depending on `@cloudflare/workers-types`, so
+  // this needs no extra dependency to resolve `Request`, `Response`,
+  // `crypto.subtle`, or `URL`.
+  //
+  // Why a separate file instead of just adding `functions` to the main
+  // `include`: `tsc -b` on the root config would then only check the server at
+  // `strict: false`, which is exactly the gap this closes. `bun run typecheck`
+  // runs both.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    // No composite/incremental build here: this is a quick second opinion on
+    // the server, and sharing the root tsBuildInfoFile would make the two
+    // configs invalidate each other.
+    "composite": false,
+    "tsBuildInfoFile": null
+  },
+  "include": ["functions"]
+}

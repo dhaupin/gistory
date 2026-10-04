@@ -129,6 +129,12 @@ read the build and binding settings from the dashboard instead.
 2. On the new device: Settings → **Sync** → **Join with a code**
 3. Enter the code and the **same passphrase** → **Join Chain**
 
+The pairing code carries both the chain id **and** the chain’s write secret, so
+a newly paired device can read *and* write. The passphrase is still typed by
+hand and never travels in the code or reaches the server. A code generated
+before write auth existed contains only a chain id — such a device can read the
+chain but not write to it.
+
 ### Sync behaviour
 
 - Local edits are pushed ~1.5 s after you stop typing
@@ -165,13 +171,77 @@ passphrase + chainId --PBKDF2(100k, SHA-256)--> AES-GCM-256 key
 the same passphrase **and** the same chainId derives the **same** key. The
 chainId travels inside the pairing code; the passphrase never leaves the device.
 
+### Write auth
+
+Reading a chain needs only the passphrase. *Writing* needs a separate random
+**write secret** per chain, minted by the device that creates it and carried to
+others in the pairing code:
+
+```
+chainId + writeSecret  →  handshake  →  server stores SHA-256(writeSecret)
+push { …, writeSecret }  →  constant-time compare  →  stored, or 401/403
+```
+
+The server therefore never holds the write secret, and never anything derived
+from your passphrase. Without it, anyone knowing the chain id could append a
+blob — and since a client cannot read a blob encrypted under a different key,
+one such blob would pin its watermark and block every legitimate change behind
+it, permanently.
+
+Chains created before this existed keep working without a secret, and their
+owner can install one via `POST /sync/claim`. That claim is first-come-wins —
+the server has no prior secret for such a chain, so it cannot tell the owner
+apart from someone holding an older pairing code. It cannot do worse than
+refuse future writes: blobs stay ciphertext, so it reveals no one's data.
+
+### Guards
+
+Three guards sit in front of every sync route, in `functions/_shared/guards.ts`.
+They are a backstop — Cloudflare's edge rate limiting still belongs at the edge
+— but the edge cannot see which *chain* a caller is hammering, nor what a valid
+write secret looks like.
+
+**Throttle.** A fixed-window counter per bucket in D1, so push *rate* is bounded
+as well as push *size*:
+
+| Scope | Subject | Limit |
+|-------|---------|-------|
+| `push` | device | 120/min |
+| `push-chain` | chain | 600/min |
+| `pull` | device | 240/min |
+| `handshake` | device | 20/min |
+| `claim` | chain | 5/min |
+| `write-fail` | chain | 20/min |
+
+Exceeding one returns `429` with a `Retry-After` header. Two rules are
+deliberate: a refused request does not advance its counter (so a client that
+keeps retrying recovers on schedule rather than looking permanently banned), and
+a wrong write secret is charged to the chain's `write-fail` budget rather than
+the device's `push` budget — so a third party guessing at a chain cannot use up
+a legitimate device's allowance.
+
+**Circuit breaker.** Five consecutive storage failures open the breaker for 15s;
+requests then get a fast `503` with `Retry-After` instead of slow timeouts, and
+one trial request is let through after the cooldown to see if storage is back.
+
+**WAF.** Cheap rejections of things a real client never sends: non-object
+bodies, `__proto__` keys, absurd field counts, and oversized payloads. This is
+not a SQL-injection defence — every statement is parameterised already.
+
+On the client, `SyncQos` (`src/sync/qos.ts`) debounces pushes, coalesces changes
+that arrive mid-push into a single follow-up, and retries failures with
+exponential backoff honouring the server's `Retry-After`. A failed push is never
+dropped, so a throttle reads as “saved locally, uploading shortly” rather than a
+lost change.
+
 ### Storage (D1 / SQLite)
 
 | Table | Purpose |
 |-------|---------|
-| `chains` | chain id, created_at, version |
+| `chains` | chain id, created_at, version, push_hash (write-secret hash) |
 | `devices` | device id → chain, name, last_seen |
 | `blobs` | `(chain_id, seq)` → encrypted payload, author device, created_at |
+| `rate_limits` | throttle buckets: key, window_start, count |
 
 ## Technical Details
 

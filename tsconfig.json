@@ -15,5 +15,13 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  "include": ["src"]
+  // `functions/` is deliberately NOT in this include. It is typechecked by
+// `tsconfig.functions.json` (strict, run via `bun run typecheck`) instead.
+// Folding it in here would compile it under `strict: false`, where
+// `strictNullChecks` being off means discriminated unions ({ ok: true } |
+// { ok: false }) can no longer be narrowed — the guard code would need `as`
+// casts everywhere to silence it, throwing away exactly the checking this
+// needs. The server surface is small and a type error there is a 500 for
+// everyone, so it gets the stricter pass instead of the looser one.
+"include": ["src"]
 }

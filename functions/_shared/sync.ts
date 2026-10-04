@@ -13,7 +13,7 @@ export interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement
   first<T = Record<string, unknown>>(): Promise<T | null>
   all<T = Record<string, unknown>>(): Promise<{ results: T[] }>
-  run(): Promise<{ success: boolean }>
+  run(): Promise<{ success: boolean; changes?: number }>
 }
 
 export interface D1Database {
@@ -62,6 +62,40 @@ export function isValidDeviceId(id: unknown): id is string {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{4,128}$/.test(id)
 }
 
+// --- Write capability --------------------------------------------------------
+//
+// A chain is only writable by a device holding the random write secret that was
+// generated when the chain was created. The server keeps SHA-256 of it and
+// never the secret itself, and never anything derived from the passphrase, so
+// the relay stays blind to key material.
+
+/** base64url, 43 chars for 32 bytes. URL-safe so it survives a QR / copy-paste. */
+export function isValidWriteSecret(secret: unknown): secret is string {
+  return typeof secret === 'string' && /^[A-Za-z0-9_-]{43,128}$/.test(secret)
+}
+
+/** SHA-256 of the write secret, hex encoded. */
+export async function hashWriteSecret(secret: string): Promise<string> {
+  const bytes = new TextEncoder().encode(secret)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/**
+ * Compare two hex digests without leaking their contents through timing.
+ *
+ * A naive `a === b` returns as soon as it finds a difference, which leaks how
+ * many leading characters were correct. Hashes are compared in full either way.
+ */
+export function constantTimeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
 export async function readJson(request: Request): Promise<any | null> {
   try {
     return await request.json()
@@ -79,6 +113,44 @@ export async function ensureChain(db: D1Database, chainId: string): Promise<void
     .prepare('INSERT OR IGNORE INTO chains (id, created_at, version) VALUES (?, ?, 1)')
     .bind(chainId, Date.now())
     .run()
+}
+
+/** The stored write-secret hash for a chain, or null when it is not secured yet. */
+export async function getChainPushHash(db: D1Database, chainId: string): Promise<string | null> {
+  const row = await db
+    .prepare('SELECT push_hash FROM chains WHERE id = ?')
+    .bind(chainId)
+    .first<{ push_hash: string | null }>()
+  const value = row?.push_hash
+  return value == null || value === '' ? null : String(value)
+}
+
+/** True when this chain was created by this very call (so we may set its secret). */
+export async function chainIsNew(db: D1Database, chainId: string): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT push_hash FROM chains WHERE id = ?')
+    .bind(chainId)
+    .first<{ push_hash: string | null }>()
+  return row == null
+}
+
+/**
+ * Set the chain's write-secret hash. Only ever called when the hash is still
+ * NULL, so a race between two claimants resolves to the first writer and the
+ * loser is rejected rather than silently overwriting an existing capability.
+ */
+export async function setChainPushHash(
+  db: D1Database,
+  chainId: string,
+  pushHash: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare('UPDATE chains SET push_hash = ? WHERE id = ? AND push_hash IS NULL')
+    .bind(pushHash, chainId)
+    .run()
+  // D1 reports affected rows via meta; absent that, re-read to be certain.
+  if (typeof row.changes === 'number') return row.changes > 0
+  return (await getChainPushHash(db, chainId)) === pushHash
 }
 
 export async function chainExists(db: D1Database, chainId: string): Promise<boolean> {
