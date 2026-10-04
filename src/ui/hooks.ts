@@ -25,22 +25,10 @@ export function useSubmitLock(open: boolean) {
   }, [])
 }
 
-export function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-
-  return debounced
-}
-
-// Heartbeat hook - runs callback at interval
-export function useHeartbeat(callback: () => void, interval: number, enabled = true) {
-  useEffect(() => {
-    if (!enabled || interval <= 0) return
-    const id = setInterval(callback, interval)
-    return () => clearInterval(id)
-  }, [callback, interval, enabled])
-}
+// `useDebounce` and `useHeartbeat` used to live here. Both were dead — nothing
+// imported them, and they were not even re-exported by `src/ui/index.ts` after
+// that barrel was pruned. They are removed rather than kept "just in case":
+// an unused hook is a hook nobody has ever run, so it is not a safety net.
+// Sync debouncing is real, but it is not a hook — it is `SyncQos` in
+// `src/sync/qos.ts`, because coalescing a push and coalescing a value are not
+// the same problem.

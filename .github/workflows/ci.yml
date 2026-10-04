@@ -1,0 +1,64 @@
+# Verify: everything that must be true before a migration is allowed to touch
+# the live database.
+#
+# This job is also the gate for .github/workflows/migrate.yml — a migration to
+# production only runs if this job passed on the same commit. That ordering is
+# the whole point: a bad commit should never be able to reach D1 and then fail
+# its own typecheck.
+#
+# The browser suites (tests/ui, scripts/ui-audit) are intentionally NOT here.
+# They need a Chromium download and a running dev server, which makes CI slow
+# and flaky for a repo this size. Run them locally with `bun run test:ui` and
+# `bun run ui:audit` before pushing; they are the only suite that exercises
+# rendering, so do not skip them locally on a UI change.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch. A newer commit makes an older
+# one's result irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # `npm ci`, not `bun install`: package-lock.json is the lockfile that is
+      # actually committed, so this is the install path that matches the repo.
+      # (bun.lock exists locally but is untracked — do not switch CI to bun
+      # without committing a bun.lock in the same change.)
+      - name: Install dependencies
+        run: npm ci
+
+      # Three passes: src, the Pages Functions (strict), and the test suite
+      # (strict). See tsconfig.functions.json / tsconfig.test.json for why the
+      # latter two cannot simply be folded into the root config.
+      - name: Typecheck
+        run: bun run typecheck
+
+      # The real Pages Functions against real SQLite — no Cloudflare account and
+      # no network needed. This is what catches a broken guard or merge rule.
+      - name: Sync smoke test
+        run: bun run sync:smoke
+
+      # Builds a throwaway database from the full migration history. Fails if a
+      # migration file was edited after being applied, or if the flattened
+      # schema.sql has drifted away from migrations/.
+      - name: Migration history check
+        run: bun run db:migrate:check
+
+      - name: Production build
+        run: npx --yes vite build

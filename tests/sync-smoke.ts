@@ -729,7 +729,15 @@ const pulledByA = await agentA.pull()
 check('A does not pull its own change back', pulledByA.blobs.length === 0, `got ${pulledByA.blobs.length}`)
 
 // B merges A's work with its own local thread, then pushes the union.
-let dataB: SyncData = { threads: [thread('t-b1', 1100, 'From B')], messages: {}, projects: [], deleted: emptyDeleted() }
+// `view` is part of SyncData since arrangement landed; these fixtures were
+// written before that and omitted it, which typecheck caught.
+let dataB: SyncData = {
+  threads: [thread('t-b1', 1100, 'From B')],
+  messages: {},
+  projects: [],
+  deleted: emptyDeleted(),
+  view: emptyView(),
+}
 for (const blob of pulledByB.blobs) dataB = mergePayload(dataB, blob as SyncPayload, agentB.getDeviceId())
 check('B merges remote + local threads', dataB.threads.length === 2, `got ${dataB.threads.length}`)
 
@@ -739,7 +747,7 @@ check('B push is assigned seq 2 by the server', bSeq === 2, String(bSeq))
 const aSecondPull = await agentA.pull()
 check('A receives B’s change on the next pull', aSecondPull.blobs.length === 1, `got ${aSecondPull.blobs.length}`)
 const aMerged = mergePayload(
-  { threads: seedThreads, messages: {}, projects: [], deleted: emptyDeleted() },
+  { threads: seedThreads, messages: {}, projects: [], deleted: emptyDeleted(), view: emptyView() },
   aSecondPull.blobs[0] as SyncPayload,
   agentA.getDeviceId(),
 )

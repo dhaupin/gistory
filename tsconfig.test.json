@@ -1,0 +1,30 @@
+{
+  // Typecheck for the test suite.
+  //
+  // `tests/sync-smoke.ts` was previously unchecked because it imports
+  // `bun:sqlite` and `node:fs`, which need `@types/bun` to resolve. That
+  // dependency is now a devDependency, so the suite is covered like everything
+  // else — by `bun run typecheck`.
+  //
+  // `scripts/*.mjs` is still out of scope: they are plain JavaScript and the
+  // root config has `allowJs` off. Turning it on would drag `node_modules`
+  // type-checking into the build for no benefit.
+  //
+  // `noEmit` is inherited. `composite: false` keeps this out of `tsc -b`'s
+  // project graph — it is a separate opinion, like the Functions config, not
+  // part of the incremental app build.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Strict, like the Functions config, and for the same reason: `sync-smoke`
+    // imports the Pages Functions directly, and under `strict: false` their
+    // discriminated-union guards ({ ok: true } | { ok: false }) can no longer be
+    // narrowed, so importing them from a non-strict test would report errors in
+    // `functions/` that the Functions pass does not. One consistent setting
+    // avoids the two configs disagreeing about the same file.
+    "strict": true,
+    "types": ["bun"],
+    "composite": false,
+    "tsBuildInfoFile": null
+  },
+  "include": ["tests/**/*.ts"]
+}

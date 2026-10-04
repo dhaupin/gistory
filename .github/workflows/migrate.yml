@@ -1,0 +1,126 @@
+# Apply D1 migrations to the live Gistory database.
+#
+# Why this exists: applying migrations by hand needs `wrangler.deploy.toml` plus
+# an authenticated Cloudflare session, neither of which is reachable from a
+# phone. This runs the same `scripts/db-migrate.mjs --remote` the owner would
+# have run, and GitHub's mobile app can trigger it.
+#
+# Two ways in:
+#   • workflow_dispatch — the "Run workflow" button, available in the GitHub
+#     mobile app. Defaults to a dry run, so an accidental tap cannot reach prod.
+#   • push to main touching migrations/ — applies automatically.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN      — a Cloudflare API token with Account > D1 Database
+#                               > Edit. Scope it to this one account.
+#   CLOUDFLARE_ACCOUNT_ID     — the account holding the D1 database.
+#   CLOUDFLARE_D1_DATABASE_ID — the id from `wrangler d1 create gistory`.
+#
+# These are the only three. The passphrase is never involved: the server is a
+# blind relay holding only AES-GCM ciphertext.
+#
+# Safety properties, all deliberate:
+#   • `verify` runs in THIS workflow, not ci.yml. A GitHub Actions job cannot
+#     `needs:` a job in another workflow file, so the gate is repeated here on
+#     purpose rather than skipped or replaced with a weaker one. The cost is a
+#     few duplicated minutes on a migration commit.
+#   • `environment: production` — lets you add required reviewers or a wait
+#     timer in the environment settings. That is the real safety valve here.
+#   • `concurrency` — two runs queue instead of racing.
+#   • The runner is idempotent and refuses to proceed if a migration that was
+#     already applied has since changed, so a re-run is safe and a bad edit
+#     stops the run instead of corrupting the ledger.
+
+name: Migrate D1
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report only — do not write to the database"
+        type: boolean
+        default: true
+  push:
+    branches: [main]
+    # Only auto-apply when a migration actually changed. An unrelated commit
+    # (docs, a component tweak) should not start a production job at all.
+    paths:
+      - "migrations/**"
+      - "scripts/db-migrate.mjs"
+      - ".github/workflows/migrate.yml"
+
+concurrency:
+  group: migrate-d1
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Sync smoke test
+        run: bun run sync:smoke
+      - name: Migration history check
+        run: bun run db:migrate:check
+
+  migrate:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure wrangler
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DB_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          set -eu
+          # wrangler.deploy.toml is gitignored on purpose — the real
+          # database_id must never be committed. Recreate it from secrets.
+          cp wrangler.deploy.example.toml wrangler.deploy.toml
+          # The example ends with a placeholder line; replace it rather than
+          # appending, so wrangler never sees two database_id keys.
+          sed -i.bak "s|^database_id = .*|database_id = \"${DB_ID}\"|" wrangler.deploy.toml
+          rm -f wrangler.deploy.toml.bak
+          if grep -q 'paste-your-real-database-id' wrangler.deploy.toml; then
+            echo "::error::CLOUDFLARE_D1_DATABASE_ID secret is missing or empty."
+            exit 1
+          fi
+          test -n "${CF_TOKEN}" || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing."; exit 1; }
+          test -n "${CF_ACCOUNT}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing."; exit 1; }
+          echo "Wrangler configured (database id redacted)."
+
+      # Read this line first when a run fails: it lists which migrations the
+      # database already has.
+      - name: Show current migration status
+        run: bun run db:migrate:status:remote
+
+      - name: Dry run — no changes written
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          echo "::notice title=Dry run::Nothing was written. Re-run with dry_run"
+          echo "::notice::disabled to apply. Pending migrations are listed above."
+
+      - name: Apply pending migrations
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        run: bun run db:migrate:remote
+
+      - name: Confirm the schema still builds from scratch
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        run: bun run db:migrate:check

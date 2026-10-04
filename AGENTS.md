@@ -501,10 +501,30 @@ thread messages, project detail rows, and sidebar project groups.
   stricter pass instead of the looser one. If you add a guard helper that
   returns a discriminated union, it will typecheck in `tsconfig.functions.json`
   and *fail* in the root config — that asymmetry is intended.
-- `tests/` and `scripts/` are still unchecked: `tests/sync-smoke.ts` imports
-  `bun:sqlite` and `node:fs`, which needs `@types/bun` (not a dependency), and
-  the `scripts/*.mjs` are plain JS with `allowJs` off. Adding `@types/bun` as a
-  devDependency would close that gap.
+- `tests/` and `scripts/`: `tests/` is now covered by `tsconfig.test.json`
+  (strict, `@types/bun` added as a devDependency for `bun:sqlite`). It must be
+  strict for the same reason as `functions/`: the smoke test imports the Pages
+  Functions, and under `strict: false` their discriminated-union guards would
+  report errors the Functions pass does not. `scripts/*.mjs` is still
+  unchecked — plain JS with `allowJs` off.
+- **CI:** `.github/workflows/ci.yml` runs `npm ci`, `bun run typecheck`,
+  `bun run sync:smoke`, `bun run db:migrate:check` and `vite build` on push and
+  PR. It deliberately does **not** run the browser suites: they need a Chromium
+  download and a dev server, which is slow and flaky in CI. Run
+  `bun run test:ui` and `bun run ui:audit` locally before pushing a UI change —
+  they are the only suite that exercises rendering.
+  Note CI installs with `npm ci` because `package-lock.json` is the tracked
+  lockfile; `bun.lock` is untracked, so do not switch CI to bun install without
+  committing one in the same change.
+- **Migrations from CI:** `.github/workflows/migrate.yml` applies
+  `scripts/db-migrate.mjs --remote` — via the Actions "Run workflow" button
+  (works from the GitHub mobile app, dry run by default) or automatically on a
+  push to `main` touching `migrations/`. Needs the secrets
+  `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`.
+  It re-runs the whole verify suite in its own `verify` job first — a job cannot
+  `needs:` a job in another workflow file — and runs behind a `production`
+  environment where required reviewers can be added. That env is the intended
+  safety valve for an irreversible, forward-only schema change.
 - Sync smoke test: `bun run sync:smoke` (real agent crypto + real merge + real
   Pages Functions on in-memory SQLite — no account needed)
 - Full stack locally: `bun run db:migrate:local` then `npx wrangler pages dev dist`

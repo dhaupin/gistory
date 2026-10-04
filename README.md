@@ -234,6 +234,42 @@ exponential backoff honouring the server's `Retry-After`. A failed push is never
 dropped, so a throttle reads as “saved locally, uploading shortly” rather than a
 lost change.
 
+### Applying migrations
+
+The relay's schema lives in `migrations/` and is applied by
+`scripts/db-migrate.mjs`, which records what each database has already applied
+and refuses to run if an applied file has since changed. Apply it to production
+either way:
+
+**Locally**
+
+```bash
+cp wrangler.deploy.example.toml wrangler.deploy.toml   # set database_id
+bun run db:migrate:remote
+```
+
+**From GitHub Actions** (works from the GitHub mobile app, no local setup)
+
+`.github/workflows/migrate.yml` runs the same command. It triggers two ways:
+
+- **Actions → Migrate D1 → Run workflow.** Defaults to a dry run that reports
+  pending migrations without writing. Untick *dry run* to apply.
+- **Automatically** on any push to `main` that touches `migrations/`.
+
+Add these repository secrets first (Settings → Secrets and variables → Actions):
+
+| Secret | What it is |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with *Account → D1 Database → Edit* |
+| `CLOUDFLARE_ACCOUNT_ID` | Account holding the D1 database |
+| `CLOUDFLARE_D1_DATABASE_ID` | From `wrangler d1 create gistory` |
+
+Before it touches the database the workflow re-runs typecheck, the sync smoke
+test and the migration-history check on the same commit, and the job sits behind
+a `production` environment — add required reviewers or a wait timer there if you
+want a human in the loop. The passphrase is never involved; the relay only ever
+holds ciphertext.
+
 ### Storage (D1 / SQLite)
 
 | Table | Purpose |
