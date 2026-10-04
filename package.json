@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
     "sync:smoke": "bun tests/sync-smoke.ts",
+    "sync:live": "bun scripts/live-sync.mjs",
     "test:ui": "node tests/ui/run.mjs",
     "ui:audit": "node scripts/ui-audit.mjs",
     "ui:browsers": "node scripts/ui-browsers.mjs",
