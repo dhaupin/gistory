@@ -328,6 +328,17 @@ and both are mutation-tested:
 `syncNow` pushes through `flush()` rather than calling the agent directly, since
 the periodic refresh can fire while a debounced push is in flight.
 
+**The push path must never sit behind an optional chain.** `SyncQos` is created
+on demand by `ensureQos()` in `App.tsx`, not in the render body. An earlier
+version built it during render and called `qosRef.current?.flush()`; since
+`handleEnableSync` does `setSyncEnabled(true)` and then `syncNow()` in the same
+task, whether the scheduler existed by the time `syncNow` reached it depended on
+whether React had re-rendered in between. When it lost, the *first* push after
+enabling sync was silently dropped — the one carrying the user's existing
+library to a brand new chain. Nothing caught it: `App.tsx` has no unit test and
+the browser suites run with no `/sync` backend. `sync:smoke` §8g now asserts the
+invariant textually, and both halves of it are mutation-checked.
+
 Backoff is `min(base × 2^(attempt-1), max)` plus jitter, and a server
 `Retry-After` overrides the curve — capped by `maxMs`, so a hostile or buggy
 header cannot park a client for an hour. Jitter is not decoration: every device

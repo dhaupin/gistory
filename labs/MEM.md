@@ -57,7 +57,7 @@ bun tsc -b --noEmit
 bun run sync:smoke
 node tests/ui/run.mjs <preview-origin>     # e.g. http://localhost:5176
 node scripts/ui-audit.mjs <preview-origin>```
-Expected: typecheck 0 (three passes) · sync:smoke 243/243 · UI 160/160 (15/36/8/24/29/58) · audit 0 · `npm audit` 0 vulnerabilities.
+Expected: typecheck 0 (three passes) · sync:smoke 247/247 · UI 160/160 (15/36/8/24/29/58) · audit 0 · `npm audit` 0 vulnerabilities.
 
 There are **six** UI suites; `sortable.mjs` is the live-fire drag/collapse one.
 
@@ -190,6 +190,19 @@ from "database not migrated".
 - Bun's `Request` does **not** auto-set `Content-Length` for a string body (real
   HTTP clients do). Tests that exercise a length-based guard must set the header
   explicitly, or they silently test the fallback path.
+
+- **An optional chain on a push path is a silent data-loss bug.** `syncNow` called
+  `qosRef.current?.flush()` and the scheduler was built in the render body. When
+  the scheduler did not exist yet, `?.` turned a lost push into a no-op with no
+  error anywhere — and because the scheduler is *usually* created by the time it
+  matters, this would have passed almost every manual test and failed only for a
+  user enabling sync for the first time. Create on demand (`ensureQos()`); never
+  let a push be optional.
+- Coverage gaps are worth an honest marker. The push-wiring bug had **no** test
+  that could have caught it (App.tsx is a React component; the browser suites run
+  with no `/sync` backend). `sync:smoke` §8g asserts the invariant by reading
+  App.tsx as text. That is not a real test and does not pretend to be — it is a
+  standing reminder that fails loudly if the exact mistake returns.
 
 ## If we crash mid-pass, resume here
 

@@ -1769,6 +1769,36 @@ for (let i = 0; i < POLICIES.pull.limit + 2; i++) {
 }
 check('status is throttled after the pull limit', statusCode === 429, String(statusCode))
 
+section('8g. The push path is never optional-chained')
+
+// App.tsx has no unit test (it is a React component) and the browser suites run
+// against a preview with no /sync backend, so nothing exercised the wiring that
+// caused this bug: `flush()` behind `qosRef.current?.` silently skipped the
+// first push after enabling sync, because the scheduler was built in the render
+// body and React had not re-rendered yet when syncNow reached it.
+//
+// The invariant is textual — "a push must never be behind an optional chain" —
+// so it is asserted textually. This is not a substitute for a real test, but it
+// is a standing reminder of the exact mistake, and it fails loudly if someone
+// reintroduces it.
+const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+check(
+  'the push path goes through ensureQos(), not an optional chain',
+  /ensureQos\(\)\.flush\(\)/.test(appSource),
+)
+check(
+  'no optional chain can skip a push',
+  !/qosRef\.current\?\.(flush|schedule)\(/.test(appSource),
+)
+check(
+  'SyncQos is not constructed during render',
+  !/if \(syncEnabled && !qosRef\.current\)/.test(appSource),
+)
+check(
+  'the scheduler is created on demand instead',
+  /const ensureQos = useCallback/.test(appSource),
+)
+
 // --- summary -----------------------------------------------------------------
 
 console.log('')

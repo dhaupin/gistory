@@ -198,6 +198,34 @@ export default function App() {
     [pushSnapshot],
   )
 
+  /**
+   * Get the push scheduler, creating it on first use.
+   *
+   * Deliberately lazy rather than built during render. Creating it in the render
+   * body made it a race: `handleEnableSync` calls `setSyncEnabled(true)` and then
+   * `syncNow()` in the same task, so whether the scheduler existed by the time
+   * `syncNow` reached it depended on whether React had re-rendered in between.
+   * When it lost, `flush()` was a no-op and the *first* push after enabling sync
+   * was silently dropped — the one carrying the user's existing library to a
+   * brand new chain.
+   *
+   * Creating it on demand also keeps it out of render, which StrictMode
+   * double-invokes and where an object allocated in the render body is easy to
+   * leak.
+   */
+  const ensureQos = useCallback((): SyncQos => {
+    if (!qosRef.current) {
+      qosRef.current = new SyncQos({
+        onPush: async () => {
+          const agent = syncAgentRef.current
+          if (!agent) return
+          await pushSnapshotQuiet(agent)
+        },
+      })
+    }
+    return qosRef.current
+  }, [pushSnapshotQuiet])
+
   // Pull remote changes, merge them, then push the merged snapshot.
   const syncNow = useCallback(async (opts: { push?: boolean } = {}) => {
     const agent = syncAgentRef.current
@@ -222,7 +250,11 @@ export default function App() {
         // (the periodic refresh, or a manual sync right after an edit), and two
         // concurrent pushes would ship two nearly identical snapshots.
         // `flush()` pushes the merged state immediately, ignoring the debounce.
-        qosRef.current?.flush()
+        //
+        // `ensureQos()` rather than `qosRef.current?.` — see its comment. An
+        // optional chain here would silently skip the push whenever the
+        // scheduler did not exist yet, which is exactly the first sync.
+        ensureQos().flush()
       }
 
       const status = await agent.status()
@@ -390,17 +422,9 @@ setSyncError(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // One scheduler for the app's lifetime. Created lazily and stopped when sync
-  // is turned off, so a disabled chain stops generating traffic entirely.
-  if (syncEnabled && !qosRef.current) {
-    qosRef.current = new SyncQos({
-      onPush: async () => {
-        const agent = syncAgentRef.current
-        if (!agent) return
-        await pushSnapshotQuiet(agent)
-      },
-    })
-  }
+  // One scheduler for the app's lifetime, created on demand by `ensureQos`
+  // and stopped when sync is turned off, so a disabled chain stops generating
+  // traffic entirely.
 
   // Debounced + coalesced push whenever local data changes.
   //
@@ -411,8 +435,8 @@ setSyncError(
   // change, which is the invariant that matters most here.
   useEffect(() => {
     if (!syncEnabled || !syncReady) return
-    qosRef.current?.schedule()
-  }, [threads, messages, projects, deleted, view, syncEnabled, syncReady])
+    ensureQos().schedule()
+  }, [threads, messages, projects, deleted, view, syncEnabled, syncReady, ensureQos])
 
   // Stop the scheduler when sync is disabled so no timer outlives the setting.
   useEffect(() => {

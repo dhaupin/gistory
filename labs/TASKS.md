@@ -222,6 +222,23 @@ Conventions
     `deviceName` so it isolates the cap.
   - Tests: typecheck 0 (three passes), sync:smoke 243/243, UI 160/160,
     audit 112 passes / 0 findings, npm audit 0.
+- **2026-10 — third pass: fixed a silent first-push drop.**
+  - `App.tsx` built `SyncQos` in the render body and pushed via
+    `qosRef.current?.flush()`. `handleEnableSync` sets `syncEnabled` and calls
+    `syncNow()` in the same task, so whether the scheduler existed by then was a
+    race on React's re-render. Losing it meant the **first push after enabling
+    sync never happened** — the push that uploads the user's existing library to a
+    brand new chain. Optional chaining turned a lost push into a silent no-op.
+  - `SyncQos` is now created on demand by `ensureQos()`; no push sits behind `?.`.
+    Also removes an allocation from render, which StrictMode double-invokes.
+  - `sync:smoke` §8g asserts the invariant by reading App.tsx as text. This is
+    explicitly *not* a substitute for a real test — App.tsx has no unit test and
+    the browser suites run with no `/sync` backend — but it fails loudly if the
+    exact mistake returns. Both halves mutation-checked.
+  - Checked the other five `Ref.current?.` call sites in App.tsx; all are
+    legitimately optional (teardown, best-effort claim, display).
+  - Tests: typecheck 0 (three passes), sync:smoke 247/247, UI 160/160,
+    audit 112 passes / 0 findings, npm audit 0, build 0.
 - 2026-10 — generalized pin + collapse for threads, messages, and projects.
 - 2026-10 — pinning + collapsing for **threads**.
 - 2026-10 — usability pass (shared sort options, BurgerMenu sort control,
