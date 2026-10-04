@@ -144,8 +144,33 @@ jobs:
 
       # Read this line first when a run fails: it lists which migrations the
       # database already has.
+      #
+      # Wrapped so a Cloudflare API error is translated. The raw codes are
+      # accurate and unhelpful: 7403 in particular covers both "the account id
+      # is wrong" and "the token cannot reach that account", and nothing in the
+      # raw message distinguishes them.
       - name: Show current migration status
-        run: bun run db:migrate:status:remote
+        run: |
+          set +e
+          out="$(bun run db:migrate:status:remote 2>&1)"
+          code=$?
+          printf '%s\n' "$out"
+          if [ "$code" -ne 0 ]; then
+            case "$out" in
+              *7403*)
+                echo "::error::Cloudflare rejected the account (code 7403). One of two things is wrong, and the API message does not say which:"
+                echo "::error::  (a) CLOUDFLARE_ACCOUNT_ID is not the account that owns the database. It is the 32-character hex in the dashboard URL: dashboard.cloudflare.com/<ACCOUNT_ID>/"
+                echo "::error::  (b) CLOUDFLARE_API_TOKEN cannot access that account. Re-create the token with permissions Account > D1 Database > Edit, scoped to exactly that account — not a template token, and not 'All accounts'."
+                ;;
+              *7400*)
+                echo "::error::Cloudflare rejected CLOUDFLARE_D1_DATABASE_ID (code 7400). It must be the Database ID from D1, and it must live in the same account as CLOUDFLARE_ACCOUNT_ID."
+                ;;
+              *10000*|*"Authentication error"*)
+                echo "::error::Cloudflare rejected the API token itself. Check it has not expired and has not been revoked."
+                ;;
+            esac
+          fi
+          exit "$code"
 
       - name: Dry run — no changes written
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
