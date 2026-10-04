@@ -57,7 +57,7 @@ bun tsc -b --noEmit
 bun run sync:smoke
 node tests/ui/run.mjs <preview-origin>     # e.g. http://localhost:5176
 node scripts/ui-audit.mjs <preview-origin>```
-Expected: tsc 0 · sync:smoke 233/233 · UI 160/160 (15/36/8/24/29/58) · audit 0.
+Expected: typecheck 0 (both passes) · sync:smoke 235/235 · UI 160/160 (15/36/8/24/29/58) · audit 0.
 
 There are **six** UI suites; `sortable.mjs` is the live-fire drag/collapse one.
 
@@ -146,6 +146,34 @@ There are **six** UI suites; `sortable.mjs` is the live-fire drag/collapse one.
 - Entries are replaced whole per key. Rank keys (`t…`/`p…`/`m…`) and collapse
   keys (`project:*`, `message:*`, `section:*`) are deliberately disjoint so a
   drag can never wipe a collapse flag.
+
+## Live deployment state (checked 2026-10-04, after push 0259b21)
+
+- Deployed **Functions and client bundle are current** — confirmed live, not assumed:
+  WAF rejects a bad body with `400 Body must be a JSON object`; the circuit
+  breaker answers `503` + `retry-after: 15`.
+- **Live sync cannot run: the D1 database has no schema applied.** Every sync
+  route 503s because D1 throws.
+
+How the 503 was pinned down without database access — worth remembering, because
+"storage is not configured" and "storage throws" produce similar-looking failures:
+
+| Response | Means |
+|----------|-------|
+| `500 Sync storage is not configured` | `env.GISTRY_DB` is null — binding missing |
+| `503 Sync storage is temporarily unavailable` | binding present, a D1 call **threw** |
+| `400 Body must be a JSON object` | request rejected before storage — proves code is live |
+
+Because `guardRoute` swallows a failing throttle read and returns "allow", a
+missing `rate_limits` table alone would *not* 503. So the throw is in
+`chainExists` → `SELECT id FROM chains`, i.e. even the 0001 base schema is
+absent. The fix is to apply the migrations to the live database, which needs
+`wrangler.deploy.toml` (gitignored, absent here) and Cloudflare auth — the owner
+runs `bun run db:migrate:remote`.
+
+Until that is applied, do not interpret live 503s as a guard bug. Check for a
+`400` on a deliberately malformed body first: that separates "code not deployed"
+from "database not migrated".
 
 ## If we crash mid-pass, resume here
 
