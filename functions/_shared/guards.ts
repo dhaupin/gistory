@@ -267,6 +267,38 @@ export async function pruneLimits(db: D1Database, now = Date.now()): Promise<voi
     .run()
 }
 
+// --- Opportunistic sweep -----------------------------------------------------
+//
+// `pruneLimits` is cheap but not free, and running it on every request would
+// tax the hot path for work that is never urgent. Sampling keeps the table at
+// roughly (live buckets + PRUNE_SAMPLE) rows between sweeps without adding a
+// second service to run it. The sampling matters because a bucket row is
+// created by the FIRST request from a new subject, and the per-subject limits
+// do not bound how many new subjects arrive: a flood of fresh device ids
+// creates one `rate_limits` row per request, so without eviction the table
+// grows with the flood.
+
+const PRUNE_SAMPLE = 256
+let admissionsSinceSweep = 0
+
+/** Test seam: forget sweep bookkeeping so a test starts from a known state. */
+export function resetLimitSweep(): void {
+  admissionsSinceSweep = 0
+}
+
+/**
+ * Whether this admitted request should also run `pruneLimits`.
+ *
+ * Internal bookkeeping, exported for the smoke test. Every Nth call is true;
+ * the counter resets when it fires, so a long-lived isolate sweeps forever.
+ */
+export function shouldSweepLimits(): boolean {
+  admissionsSinceSweep += 1
+  if (admissionsSinceSweep < PRUNE_SAMPLE) return false
+  admissionsSinceSweep = 0
+  return true
+}
+
 // --- Circuit breaker --------------------------------------------------------
 
 export type BreakerState = 'closed' | 'open'
@@ -555,6 +587,18 @@ export async function guardRoute(
     // will hit the same broken database and record the failure against the
     // breaker, which is where it belongs.
     return { ok: true }
+  }
+
+  // Sampled eviction (see shouldSweepLimits). Runs only after an ADMITTED
+  // request: a refusal means its bucket is hot, and this is maintenance, not
+  // correctness. A failed sweep is swallowed — the throttle has already decided
+  // to allow this request, and the next sampled one will retry the sweep.
+  if (shouldSweepLimits()) {
+    try {
+      await pruneLimits(db)
+    } catch {
+      // ignored: the next sampled request retries
+    }
   }
 
   return { ok: true }

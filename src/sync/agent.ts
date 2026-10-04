@@ -356,7 +356,8 @@ export class SyncAgent {
         serverSeq: number
       }>(
         `/sync/pull?chain=${encodeURIComponent(this.config.chainId)}` +
-          `&since=${since}&deviceId=${encodeURIComponent(this.deviceId)}`,
+          `&since=${since}&deviceId=${encodeURIComponent(this.deviceId)}` +
+          `&limit=${PULL_LIMIT}`,
       )
 
       const blobs = res.blobs || []
@@ -462,11 +463,14 @@ async claim(): Promise<boolean> {
     let response: Response
     try {
       response = await fetch(`${this.baseUrl}${path}`, init)
-    } catch (err) {
+    } catch {
       throw new SyncError('Cannot reach the sync server — are you offline?', 0)
     }
 
     const text = await response.text()
+    // The response body is untrusted JSON of a shape this method does not
+    // know; the generic parameter above is the typed view callers get.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let body: any = null
     if (text) {
       try {

@@ -11,7 +11,6 @@ import ActionMenu from './ActionMenu'
 interface ProjectsBoardProps {
   projects: Project[]
   threads: Thread[]
-  onSelect: (threadId: string) => void
   onProjectClick: (projectId: string) => void
   onCreate: (name: string) => void
   onTogglePin?: (id: string) => void
@@ -20,7 +19,6 @@ interface ProjectsBoardProps {
 export default function ProjectsBoard({
   projects,
   threads,
-  onSelect,
   onProjectClick,
   onCreate,
   onTogglePin

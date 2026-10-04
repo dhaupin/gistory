@@ -18,12 +18,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { collectFindings } from './lib/audit-page.mjs'
 import {
-  DEFAULT_URL,
   SEED,
   clickButtonByText,
   clickSelector,
   launchBrowser,
-  openPage,
   resolveBaseUrl,
   settle,
 } from './lib/browser.mjs'

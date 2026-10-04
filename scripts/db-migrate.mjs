@@ -140,7 +140,6 @@ async function main() {
   // mode we do this against a throwaway in-memory database instead.
   if (!check) target(LEDGER, {})
 
-  let applied
   if (check) {
     // Build a fresh database from the full history and confirm it applies
     // clean. Uses whichever in-process SQLite this runtime offers, so the

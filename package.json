@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
+    "lint": "eslint .",
     "sync:smoke": "bun tests/sync-smoke.ts",
     "sync:live": "bun scripts/live-sync.mjs",
     "test:ui": "node tests/ui/run.mjs",
@@ -19,12 +20,14 @@
     "db:migrate:status": "node scripts/db-migrate.mjs --local --status",
     "db:migrate:status:remote": "node scripts/db-migrate.mjs --remote --status",
     "db:migrate:check": "node scripts/db-migrate.mjs --check",
+    "db:maintain:local": "node scripts/db-maintain.mjs --local",
+    "db:maintain:remote": "node scripts/db-maintain.mjs --remote",
+    "db:maintain:check": "node scripts/db-maintain.mjs --check",
     "preview": "vite preview"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
     "qrcode.react": "^4.2.0",
-    "qrious": "^4.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

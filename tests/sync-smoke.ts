@@ -24,7 +24,7 @@ import {
 import { emptyDeleted, mergePayload, type SyncData, type SyncPayload } from '../src/sync/merge'
 import { errorMessage } from '../src/sync/errors'
 import { SyncError, newWriteSecret, retryAfterFrom } from '../src/sync/agent'
-import { SyncQos, backoffDelay } from '../src/sync/qos'
+import { SyncQos, backoffDelay, isTerminalPushFailure } from '../src/sync/qos'
 import {
   BREAKER_POLICY,
   MAX_BODY_BYTES,
@@ -36,12 +36,15 @@ import {
   breakerResponse,
   consumeLimit,
   evaluateLimit,
+  guardRoute,
   hasControlChars,
   inspectBody,
   pruneLimits,
   readLimit,
   resetBreaker,
+  resetLimitSweep,
   retryAfterSeconds,
+  shouldSweepLimits,
   type BreakerPolicy,
   type BreakerState,
   type LimitRow,
@@ -682,7 +685,7 @@ check(
 
 section('3. End-to-end sync through the Pages Functions (SQLite)')
 
-const A = useDevice('A')
+useDevice('A')
 const agentA = new SyncAgent({ passphrase: PASS, deviceName: 'Device A', chainId: CHAIN_A })
 await agentA.init()
 const handshakeA = await agentA.handshake()
@@ -712,7 +715,7 @@ const seedThreads = [thread('t-a1', 1000, 'From A')]
 const seedSeq = await agentA.push({ threads: seedThreads, messages: {}, projects: [], deleted: emptyDeleted() })
 check('A push is assigned seq 1 by the server', seedSeq === 1, String(seedSeq))
 
-const B = useDevice('B')
+useDevice('B')
 const agentB = new SyncAgent({ passphrase: PASS, deviceName: 'Device B', chainId: CHAIN_A })
 await agentB.init()
 const handshakeB = await agentB.handshake()
@@ -767,7 +770,7 @@ check('status reports the chain head', statusBody.serverSeq === 2, String(status
 check('status reports both devices', statusBody.devices.length === 2)
 
 // A wrong passphrase must not silently destroy the watermark.
-const C = useDevice('C')
+useDevice('C')
 const agentC = new SyncAgent({ passphrase: 'wrong passphrase', deviceName: 'Device C', chainId: CHAIN_A })
 await agentC.init()
 await agentC.handshake()
@@ -1591,7 +1594,7 @@ await agentG.handshake()
 check('a secured chain accepts a normal push', typeof (await agentG.push({ threads: [], messages: {}, projects: [], deleted: emptyDeleted() })) === 'number')
 
 // Write-secret guessing is charged to its own budget, not the push budget.
-const guesser = useDevice('guesser')
+useDevice('guesser')
 for (let i = 0; i < POLICIES.writeFailures.limit; i++) {
   const res = await pushPost({
     request: new Request('https://local.test/sync/push', {
@@ -1798,6 +1801,224 @@ check(
   'the scheduler is created on demand instead',
   /const ensureQos = useCallback/.test(appSource),
 )
+
+// The restore-on-load effect reads the stored write secret and MUST hand it
+// to the agent. A version that read it and then dropped it on the floor
+// (ensureAgent(key, chain)) passed handshake and then got 401 on every push —
+// reads worked, writes falsely demanded re-pairing — and nothing else could
+// catch it, because App.tsx has no unit test and the browser suites run with
+// no /sync backend. Same textual-guard reasoning as the checks above.
+check(
+  'the restored agent is given the stored write secret',
+  /ensureAgent\(key, chain, writeSecret\)/.test(appSource),
+)
+check(
+  'no restore path can drop the write secret',
+  !/ensureAgent\(key, chain\)/.test(appSource),
+)
+
+section('9. Maintenance wiring — the limit table sweeps itself')
+
+// The sweep decision: every PRUNE_SAMPLE-th admitted request sweeps, then the
+// counter resets so a long-lived isolate keeps sweeping forever.
+resetLimitSweep()
+let sweepFired = -1
+for (let i = 1; i <= 300; i++) {
+  if (shouldSweepLimits()) {
+    sweepFired = i
+    break
+  }
+}
+check('the sweep fires on a fixed cadence, not immediately', sweepFired > 1, String(sweepFired))
+check('the sweep counter resets after firing', shouldSweepLimits() === false)
+resetLimitSweep()
+check('resetLimitSweep restarts the cadence', shouldSweepLimits() === false)
+
+// guardRoute must actually run pruneLimits on the sampled request — the same
+// "defined but never wired" defect class as hasControlChars was.
+{
+  const prepared: string[] = []
+  const recordingDb = {
+    prepare(query: string) {
+      prepared.push(query)
+      const stmt = {
+        bind() {
+          return stmt
+        },
+        async first() {
+          return null
+        },
+        async all() {
+          return { results: [] }
+        },
+        async run() {
+          return { success: true }
+        },
+      }
+      return stmt
+    },
+  }
+  resetLimitSweep()
+  for (let i = 0; i < 256; i++) {
+    await guardRoute(recordingDb as any, {
+      scope: 'sweep-integration',
+      subject: 'device-1',
+      policy: { limit: 1000, windowMs: 60_000 },
+    })
+  }
+  const sweeps = prepared.filter((q) => q.includes('DELETE FROM rate_limits')).length
+  check('the sampled admitted request runs pruneLimits', sweeps === 1, String(sweeps))
+
+  // A refused request must not sweep: refusals mean the bucket is hot, and the
+  // sweep is maintenance, not correctness. The stub answers every read with a
+  // row already at its limit, so guardRoute refuses all 300.
+  prepared.length = 0
+  const refusingDb = {
+    prepare(query: string) {
+      prepared.push(query)
+      const stmt = {
+        bind() {
+          return stmt
+        },
+        async first() {
+          // One second in the past: a row stamped "now" during this very
+          // request reads as a future window to the PoP-skew guard, which
+          // would admit the request and make this stub dishonest.
+          return { window_start: Date.now() - 1000, count: 1 }
+        },
+        async all() {
+          return { results: [] }
+        },
+        async run() {
+          return { success: true }
+        },
+      }
+      return stmt
+    },
+  }
+  resetLimitSweep()
+  let refused = 0
+  for (let i = 0; i < 300; i++) {
+    const verdict = await guardRoute(refusingDb as any, {
+      scope: 'sweep-integration',
+      subject: 'device-2',
+      policy: { limit: 1, windowMs: 60_000 },
+    })
+    if (!verdict.ok) refused++
+  }
+  check('the refusal stub actually refused (test is honest)', refused === 300, String(refused))
+  const sweepsWhileRefusing = prepared.filter((q) => q.includes('DELETE FROM rate_limits')).length
+  check('refused requests never trigger the sweep', sweepsWhileRefusing === 0, String(sweepsWhileRefusing))
+}
+
+// The sweep actually evicts stale rows on real SQLite, not just in the stub.
+await d1.prepare("INSERT INTO rate_limits (key, window_start, count) VALUES ('stale:flood', 1, 1)").run()
+await pruneLimits(d1 as any, Date.now())
+check('the sweep evicts a stale bucket on real SQLite', (await readLimit(d1 as any, 'stale', 'flood')) === null)
+
+section('9b. Handshake reports the chain’s real write-auth state')
+
+// A legacy chain (created before write auth) has no stored secret.
+await d1
+  .prepare("INSERT INTO chains (id, created_at, version) VALUES ('legacy-chain-01', 1, 1)")
+  .run()
+const legacyHandshake = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: 'legacy-chain-01', deviceId: 'legacy-dev-01' }),
+  }),
+  env,
+})
+check('a legacy chain reports writeAuth false', (await legacyHandshake.json()).writeAuth === false)
+
+// A brand-new chain created WITH a secret is secured from its first handshake.
+const freshSecret = newWriteSecret()
+const freshHandshake = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({
+      chainId: 'fresh-chain-01',
+      deviceId: 'fresh-dev-01',
+      writeSecret: freshSecret,
+    }),
+  }),
+  env,
+})
+check('a new chain installed with a secret reports writeAuth true', (await freshHandshake.json()).writeAuth === true)
+
+const againHandshake = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: 'fresh-chain-01', deviceId: 'fresh-dev-02' }),
+  }),
+  env,
+})
+check('an already-secured chain still reports writeAuth true', (await againHandshake.json()).writeAuth === true)
+
+section('9c. Terminal push failures stop the retry loop')
+
+check('413 payload-too-large is terminal', isTerminalPushFailure(new SyncError('Encrypted payload is too large', 413)))
+check('403 wrong write secret is terminal', isTerminalPushFailure(new SyncError('Wrong write secret', 403)))
+check('401 missing write secret is terminal', isTerminalPushFailure(new SyncError('Missing write secret', 401)))
+check('409 unknown chain is terminal', isTerminalPushFailure(new SyncError('Unknown sync chain', 409)))
+check('429 throttling is NOT terminal — the server said retry', !isTerminalPushFailure(new SyncError('busy', 429, 5000)))
+check('503 breaker is NOT terminal', !isTerminalPushFailure(new SyncError('unavailable', 503, 15000)))
+check('408 request timeout is NOT terminal', !isTerminalPushFailure(new SyncError('timeout', 408)))
+check('a plain error is never terminal', !isTerminalPushFailure(new Error('offline')))
+
+// A 413 can never succeed on retry: the payload only ever grows. The scheduler
+// must go idle instead of retrying forever — the error is already surfaced by
+// the onPush caller, and the next user edit schedules a fresh push.
+{
+  const clock = fakeTimers()
+  let attempts = 0
+  const qos = new SyncQos({
+    onPush: async () => {
+      attempts++
+      throw new SyncError('Encrypted payload is too large', 413)
+    },
+    debounceMs: 100,
+    retryBaseMs: 500,
+    retryMaxMs: 10_000,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+  qos.schedule()
+  await clock.advance(100)
+  check('a terminal failure is attempted exactly once', attempts === 1, String(attempts))
+  check('a terminal failure leaves nothing pending', qos.getState().pending === false)
+  check('a terminal failure leaves the scheduler idle', qos.getState().status === 'idle')
+  check('a terminal failure leaves no timer armed', clock.pendingCount === 0)
+  await clock.advance(60_000)
+  check('a terminal failure is never retried by the timer', attempts === 1, String(attempts))
+}
+
+// 429 is not terminal: the change stays pending and the retry carries it.
+{
+  const clock = fakeTimers()
+  let attempts = 0
+  const qos = new SyncQos({
+    onPush: async () => {
+      attempts++
+      if (attempts === 1) throw new SyncError('Too many push requests', 429, 5000)
+    },
+    debounceMs: 100,
+    retryBaseMs: 500,
+    retryMaxMs: 10_000,
+    now: clock.now,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  })
+  qos.schedule()
+  await clock.advance(100)
+  check('a throttled push stays pending', qos.getState().pending === true)
+  // App hands the server's hint to the scheduler (pushSnapshotQuiet); without
+  // it the curve applies. Either way the retry must fire and carry the change.
+  qos.setRetryAfter(5000)
+  await clock.advance(5000)
+  check('the throttled retry carries the change through', attempts === 2 && qos.getState().pending === false, String(attempts))
+}
 
 // --- summary -----------------------------------------------------------------
 

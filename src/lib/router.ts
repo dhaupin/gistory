@@ -45,7 +45,6 @@ const listeners: Set<RouteHandler> = new Set()
 
 export function onRouteChange(handler: RouteHandler) {
   listeners.add(handler)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return () => { listeners.delete(handler) }
 }
 

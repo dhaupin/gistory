@@ -8,6 +8,7 @@ import {
   errorResponse,
   ensureChain,
   chainIsNew,
+  getChainPushHash,
   getChainVersion,
   hashWriteSecret,
   isValidChainId,
@@ -66,11 +67,20 @@ export const onRequestPost = withBreaker(async (db, context) => {
   await registerDevice(db, chainId, deviceId, deviceName)
   breakerRecord('success')
 
+  // Report the chain's ACTUAL write-auth state, after any secret this call
+  // installed. An earlier version returned `!isNew`, which was backwards on
+  // both ends: a brand-new chain that just had its secret set answered
+  // `false`, and a legacy chain with no secret at all answered `true`. Nothing
+  // in the client read the field, which is why it survived — but any future
+  // reader would have been misinformed exactly when it matters (deciding
+  // whether to pair with or claim this chain).
+  const secured = (await getChainPushHash(db, chainId)) != null
+
   return json({
     chainId,
     serverSeq: await serverSeq(db, chainId),
     version: await getChainVersion(db, chainId),
     devices: await listDevices(db, chainId),
-    writeAuth: !isNew,
+    writeAuth: secured,
   })
 })

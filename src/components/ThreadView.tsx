@@ -1,7 +1,7 @@
 // ThreadView - displays messages in a thread
 
 import { useState, useEffect } from 'react'
-import { Copy, Edit, Trash2, Save, MoreHorizontal, Pin, PinOff, ChevronDown, ChevronRight } from 'lucide-react'
+import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Message, Thread, Project } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 import { sortMessages, sortStateFromValue, MESSAGE_SORT_OPTIONS, type SortState } from '../ui/sort'

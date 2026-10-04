@@ -1,5 +1,5 @@
-// Debounce hook - delays value update
-import { useState, useEffect, useCallback, useRef } from 'react'
+// Shared submit-handling hook.
+import { useEffect, useCallback, useRef } from 'react'
 
 /**
  * Guard a submit handler against double submission.

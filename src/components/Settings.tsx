@@ -527,7 +527,7 @@ function DataSettings({ onImport }: { onImport: (data: ExportData) => void }) {
       setImportStatus(`Imported ${(data.threads || []).length} threads, ${(data.projects || []).length} projects`)
       // Keep the export dropdowns in step with what was just imported.
       setTimeout(reloadLists, 0)
-    } catch (err) {
+    } catch {
       setImportStatus('Error: Invalid file format')
     }
   }

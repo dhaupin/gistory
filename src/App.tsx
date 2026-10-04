@@ -30,7 +30,6 @@ import {
 } from './sync/view-state'
 import { ViewStateProvider, type ViewStateApi } from './ui/view-state'
 import Layout from './components/Layout'
-import Header from './components/Header'
 import BurgerMenu from './components/BurgerMenu'
 import ThreadView from './components/ThreadView'
 import HomeBoard from './components/HomeBoard'
@@ -278,7 +277,7 @@ setSyncError(
     } finally {
       syncBusyRef.current = false
     }
-  }, [snapshot, applyMerged])
+  }, [snapshot, applyMerged, ensureQos])
 
   const ensureAgent = useCallback(
     async (
@@ -398,13 +397,16 @@ setSyncError(
     const chain = localStorage.getItem('gistory_chain_id')
     if (!key || !chain) return
     // Chains set up before write auth have no secret stored; they still sync,
-    // and the owner can secure one from Settings.
+    // and the owner can secure one from Settings. The secret MUST be handed to
+    // the agent here: it lives only in config, the agent never reads storage
+    // itself, and a restore that drops it would pass handshake but get 401 on
+    // every push (reads work, writes falsely demand re-pairing).
     const writeSecret = localStorage.getItem('gistory_write_secret') ?? undefined
 
     let cancelled = false
     ;(async () => {
       try {
-        await ensureAgent(key, chain)
+        await ensureAgent(key, chain, writeSecret)
         if (cancelled) {
           syncAgentRef.current = null
           return
@@ -569,11 +571,15 @@ setSyncError(
     }
   }, [threads, currentThreadId, route.params.threadId])
 
-  // Sync currentThreadId from route
+  // Sync currentThreadId from route. Deliberately does NOT list
+  // `currentThreadId` in its deps: this effect must react to route changes
+  // only, or it would fight the in-app thread selection every time a thread
+  // is opened from the board.
   useEffect(() => {
     if (route.params.threadId && route.params.threadId !== currentThreadId) {
       setCurrentThreadId(route.params.threadId)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.params.threadId])
 
   // Persist. Safe to run unconditionally because state is hydrated from storage
@@ -739,7 +745,6 @@ setSyncError(
         <ProjectsBoard 
           projects={projects} 
           threads={threads}
-          onSelect={id => { setCurrentThreadId(id); navigate('/') }}
           onProjectClick={id => navigate(`/project/${id}`)}
           onCreate={createProject}
           onTogglePin={togglePinProject}

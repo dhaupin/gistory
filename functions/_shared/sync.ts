@@ -20,10 +20,6 @@ export interface D1Database {
   prepare(query: string): D1PreparedStatement
 }
 
-export interface SyncEnv {
-  GISTRY_DB?: D1Database
-}
-
 // --- HTTP helpers ------------------------------------------------------------
 
 export const CORS_HEADERS: Record<string, string> = {
@@ -45,10 +41,6 @@ export function errorResponse(message: string, status = 400): Response {
 
 export function preflight(): Response {
   return new Response(null, { status: 204, headers: CORS_HEADERS })
-}
-
-export function getDb(env: SyncEnv | undefined): D1Database | null {
-  return env?.GISTRY_DB ?? null
 }
 
 // --- Validation --------------------------------------------------------------

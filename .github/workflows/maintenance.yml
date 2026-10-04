@@ -1,0 +1,152 @@
+# Weekly D1 maintenance for the Gistory relay.
+#
+# The relay is append-only by design, so a periodic job is the only thing that
+# keeps three tables from growing forever:
+#   • rate_limits — one row per scope:subject ever seen. A flood of fresh
+#     device ids creates a row per request; the relay's own sampled sweep
+#     (guards.ts) keeps a steady-state isolate small, but only this job can
+#     reclaim rows from isolates that are long gone.
+#   • blobs — every push is a full-state snapshot. Retention keeps the newest
+#     few per chain; any surviving snapshot is a complete restore point, and
+#     the client jumps its watermark to serverSeq when a pull page comes back
+#     empty, so old sequence numbers disappearing costs a device nothing.
+#   • live-test-* chains and their devices/blobs — debris from
+#     `bun run sync:live`, which has no delete endpoint to clean up after
+#     itself. Removed whole once they are past the grace/age window.
+#   • devices with last_seen older than 90 days — a device re-registers with
+#     one handshake, and nothing server-side needs the row.
+#
+# It NEVER deletes a real chain: the server cannot tell "on holiday since
+# March" from "abandoned", and guessing wrong destroys the only server-side
+# copy of someone's synced library.
+#
+# The database id lives only in this workflow's runtime (same recipe as
+# migrate.yml — see that file for why the checks below exist). Wrangler config
+# is rebuilt from wrangler.deploy.example.toml + CLOUDFLARE_D1_DATABASE_ID and
+# nothing is committed.
+#
+# Safety properties, all deliberate:
+#   • `--check` runs FIRST: the maintenance SQL verifies itself against a
+#     real in-memory SQLite (10 assertions, including the "never delete
+#     another chain's newest blob" regression) before anything is executed.
+#   • The scheduled run APPLIES the maintenance — that is the point of the
+#     schedule — but only after `verify` re-ran typecheck + smoke + the
+#     maintenance self-check on this exact commit. A manual dispatch defaults
+#     to a dry run, so an exploratory click can reach prod only on purpose.
+#   • `maintenance` job declares `environment: production`, so required
+#     reviewers can gate it, and `concurrency` serializes runs (this job and
+#     migrate.yml are independent files, so they can overlap — but migrate
+#     only ever INSERTs schema, and maintenance only ever DELETEs data, so
+#     they cannot corrupt each other).
+#   • Every statement is idempotent; a failed run is safe to re-run.
+#
+# NOTE — `schedule:` events only run from the default branch, and are skipped
+# after 60 days of no repo activity. Re-run by hand via the "Run workflow"
+# button if that ever happens (it also works from the GitHub mobile app).
+
+name: Maintain D1
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report only — do not write to the database"
+        type: boolean
+        default: true
+      keep_blobs:
+        description: "Snapshots to keep per chain (default 5)"
+        type: string
+        default: "5"
+      stale_days:
+        description: "Device last_seen age to drop, in days (default 90)"
+        type: string
+        default: "90"
+  schedule:
+    # 03:17 UTC on Mondays — an off-minute, so shared schedulers are not
+    # thundering on the same instant. See the note above about skipped
+    # schedule runs in inactive repositories.
+    - cron: "17 3 * * 1"
+
+concurrency:
+  group: maintain-d1
+  cancel-in-progress: false
+
+jobs:
+  # The verify gate is repeated here rather than `needs:`-ed across workflow
+  # files, which GitHub does not support — same reasoning as migrate.yml.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Sync smoke test
+        run: bun run sync:smoke
+      - name: Migration history check
+        run: bun run db:migrate:check
+      - name: Maintenance SQL check
+        run: bun run db:maintain:check
+
+  maintenance:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+      KEEP_BLOBS: ${{ inputs.keep_blobs || '5' }}
+      STALE_DAYS: ${{ inputs.stale_days || '90' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Same three checks as migrate.yml: fail loudly on a missing secret, a
+      # non-UUID database id, and rebuild the gitignored wrangler config from
+      # the example file. Full rationale lives in that workflow.
+      - name: Configure wrangler
+        run: |
+          set -eu
+          test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::CLOUDFLARE_API_TOKEN is not set. Add it as an environment secret under 'production'."; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is not set."; exit 1; }
+          test -n "${D1_DATABASE_ID}" || { echo "::error::CLOUDFLARE_D1_DATABASE_ID is not set."; exit 1; }
+
+          if ! printf '%s' "${D1_DATABASE_ID}" | grep -qiE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
+            echo "::error::CLOUDFLARE_D1_DATABASE_ID is not a D1 database id (expected a UUID like 00000000-0000-0000-0000-000000000000)."
+            exit 1
+          fi
+
+          cp wrangler.deploy.example.toml wrangler.deploy.toml
+          sed -i.bak "s|^database_id = .*|database_id = \"${D1_DATABASE_ID}\"|" wrangler.deploy.toml
+          rm -f wrangler.deploy.toml.bak
+          echo "Wrangler configured (database id redacted)."
+
+      # Dry-run helper for manual dispatches: reports what WOULD be pruned
+      # and the current row counts, writes nothing.
+      - name: Report what would be pruned
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -eu
+          echo "::group::Dry run — no changes written"
+          bun run db:maintain:remote -- --status
+          echo "::endgroup::"
+          echo "::notice title=Dry run::Nothing was written. Dispatch with dry_run=false to apply."
+
+      # The real thing: on the weekly schedule (gated by `verify` above), or a
+      # manual dispatch with the dry-run box unticked. Every statement is
+      # idempotent and pre-verified by db:maintain:check, so a schedule run
+      # cannot do more than the tested SQL says.
+      - name: Apply maintenance
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        run: bun run db:maintain:remote -- --keep "${KEEP_BLOBS}" --days "${STALE_DAYS}"

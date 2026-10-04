@@ -13,7 +13,7 @@ Conventions
 
 ## Now
 
-- (nothing in flight)
+- (maintenance + sweep pass COMPLETE, uncommitted — see top of Done)
 
 ## Next
 
@@ -31,6 +31,48 @@ Conventions
 
 ## Done
 
+- **2026-10-04 — maintenance pass + repo sweep (all verified, uncommitted).**
+  - `pruneLimits` is wired: every 256th admitted request sweeps `rate_limits`
+    (sampled from `guardRoute`, refused requests never sweep, failures
+    swallowed). Was defined+tested but called by NO route — same defect shape
+    as hasControlChars was. Mutation-verified.
+  - `scripts/db-maintain.mjs`: counts → prune → retention → live-test cleanup
+    → stale devices, with `--status` (per-rule would-delete report from the
+    SAME WHERE fragments) and `--check` (12 assertions on in-memory SQLite).
+    The self-check caught two real bugs before prod: bare `WHERE seq IN (...)`
+    would delete one chain's victims from EVERY chain (fixed with
+    `(chain_id, seq)` row values), and blobless chains survived
+    `MAX(created_at) < x` forever (NULL trap — COALESCE). Also verified
+    end-to-end through real `wrangler d1 execute --local`: seed → report →
+    apply → idempotent re-run.
+  - `.github/workflows/maintenance.yml`: weekly cron (Mon 03:17 UTC) runs the
+    full verify suite then applies; manual dispatch defaults to dry run;
+    prints row counts every run = free observability. Never deletes real
+    chains. `db:maintain:check` also wired into ci.yml + migrate.yml's verify
+    gate pattern.
+  - **Real bug from the sweep: restored devices lost their write secret.**
+    App.tsx read `gistory_write_secret` and never passed it — `ensureAgent(key,
+    chain)` — so after any reload the device passed handshake but got 401 on
+    every push, with UI falsely demanding re-pairing. Fixed + pinned by §9
+    textual checks, mutation-verified.
+  - QoS terminal failures: 401/403/413/404/409 no longer retry forever
+    (`isTerminalPushFailure`); 429/503/408/network still always retry. 5 new
+    checks, mutation-verified.
+  - `handshake` now reports the chain's REAL write-auth state (`writeAuth:
+    secured`) instead of the backwards `!isNew` nothing read.
+  - Dead code removed: `getDb`+`SyncEnv` (sync.ts), `PULL_LIMIT` now actually
+    sent as `&limit=` (agent.ts), unused imports (`Header` in App,
+    `MoreHorizontal` in ThreadView, `useState` in hooks.ts), dead
+    `PASSED_KEY`/`NAME_KEY` (live-sync), dead `applied` (db-migrate), unused
+    `onSelect` prop wire (ProjectsBoard — App passed a handler the component
+    never called), `qrious` dependency uninstalled (only `qrcode.react` used).
+  - ESLint finally wired: `eslint.config.js` + `bun run lint` + CI step.
+    Found the restore bug above. 0 errors / 3 intentional warnings.
+  - Tests: typecheck 0 (three passes) · sync:smoke 274/274 · db:migrate:check ·
+    db:maintain:check · lint 0 errors · UI suites passed · audit 0 ·
+    npm audit 0 · sync:live 22/22.
+- **2026-10-04 (earlier) — QC baseline on `746317d`:** typecheck 0 ×3,
+  smoke 247/247, live 22/22, npm audit 0, UI 160/160, audit 0.
 - **2026-10 — per-chain write auth (separate secret, passphrase stays server-blind).**
   - Each chain now has a random 32-byte write secret, minted by the creating
     device and carried to others in the pairing token (`GS1-<chain>.<secret>`).

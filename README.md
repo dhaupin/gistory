@@ -231,8 +231,56 @@ not a SQL-injection defence — every statement is parameterised already.
 On the client, `SyncQos` (`src/sync/qos.ts`) debounces pushes, coalesces changes
 that arrive mid-push into a single follow-up, and retries failures with
 exponential backoff honouring the server's `Retry-After`. A failed push is never
-dropped, so a throttle reads as “saved locally, uploading shortly” rather than a
-lost change.
+dropped — with one narrow exception: a terminal 4xx refusal (401/403 write auth,
+413 payload too large) cannot succeed on retry, so the scheduler goes idle and
+the next user edit schedules a fresh push instead of looping forever. A throttle
+reads as “saved locally, uploading shortly” rather than a lost change.
+
+**Self-sweeping limits.** The throttle table also evicts itself: every 256th
+admitted request runs a sampled sweep of buckets whose window closed more than
+10 minutes ago (`pruneLimits`, guarded by the `idx_rate_limits_window` index).
+This matters because a bucket row is created by the *first* request from a new
+subject, and per-subject limits do not bound how many new subjects arrive — a
+flood of fresh device ids creates one `rate_limits` row per request until
+something prunes them.
+
+### Maintenance (prune, retention, test debris)
+
+The relay is append-only by design, so a scheduled job is what keeps three
+tables from growing forever:
+
+- **`rate_limits`** — full sweep of long-expired buckets (the weekly job catches
+  what dead isolates left behind).
+- **`blobs`** — per chain, only the newest few full-state snapshots are kept
+  (default 5). Any surviving snapshot is a complete restore point, and the
+  client jumps its watermark to `serverSeq` when a pull page comes back empty,
+  so old sequence numbers disappearing costs a device nothing.
+- **`live-test-*` chains** — debris from `bun run sync:live`, removed whole
+  (chains, devices, blobs, limit buckets) once past a 7-day grace / 30-day age
+  window. Chains with no blobs are included — the obvious `MAX(created_at) < x`
+  check is NULL for them and they would otherwise survive forever.
+- **Stale devices** — `last_seen` older than 90 days. A device re-registers
+  with one handshake; nothing server-side needs the row.
+
+Real chains are **never** deleted — the server cannot tell “on holiday since
+March” from “abandoned”, and guessing wrong destroys the only server-side copy
+of a synced library. There is deliberately no delete endpoint in the API.
+
+Run it yourself:
+
+```bash
+bun run db:maintain:local              # local .wrangler state
+bun run db:maintain:local -- --status  # report what WOULD be pruned
+bun run db:maintain:remote             # real D1 (needs wrangler.deploy.toml)
+bun run db:maintain:check              # verifies the SQL on in-memory SQLite
+```
+
+`.github/workflows/maintenance.yml` runs the remote path weekly (Mondays 03:17
+UTC) after re-running the full verify suite on the same commit, and prints row
+counts every run — free observability. A manual dispatch defaults to a dry run;
+untick `dry_run` to apply. It never deletes a real chain, and the retention SQL
+is regression-tested against the “one chain's victims must not delete another
+chain's newest blob” bug (`WHERE seq IN (...)` without `chain_id`).
 
 ### Applying migrations
 

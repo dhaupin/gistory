@@ -49,6 +49,12 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      # The high-value rule subset (unused vars, react-hooks, no-undef). Warnings
+      # do not gate: the three react-refresh warnings on view-state.tsx are the
+      # intentional provider+hooks export pattern.
+      - name: Lint
+        run: bun run lint
+
       # The real Pages Functions against real SQLite — no Cloudflare account and
       # no network needed. This is what catches a broken guard or merge rule.
       - name: Sync smoke test
@@ -59,6 +65,13 @@ jobs:
       # schema.sql has drifted away from migrations/.
       - name: Migration history check
         run: bun run db:migrate:check
+
+      # Runs the maintenance script's own SQL against an in-memory database —
+      # it checks itself. Proves the DELETEs prune what they claim, keep every
+      # chain's newest snapshot, and never leak across chains. The weekly
+      # maintenance workflow re-runs this before touching the real database.
+      - name: Maintenance SQL check
+        run: bun run db:maintain:check
 
       - name: Production build
         run: npx --yes vite build

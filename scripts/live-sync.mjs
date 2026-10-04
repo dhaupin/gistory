@@ -19,9 +19,6 @@
 
 const BASE = (process.argv[2] || 'https://gistory.creadev.org').replace(/\/+$/, '')
 
-const PASSED_KEY = 'gistory_device_id'
-const NAME_KEY = 'gistory_device_name'
-
 let passed = 0
 const failures = []
 

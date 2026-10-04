@@ -308,6 +308,16 @@ JSON padded into `deviceName` rather than truncated `data`, precisely so it
 isolates this cap from `MAX_PAYLOAD_BYTES` — an earlier version used malformed
 JSON and passed even with the cap deleted.
 
+`pruneLimits` is wired: every 256th admitted request also runs a sampled sweep
+of the `rate_limits` table (`shouldSweepLimits` in `guards.ts`), using the
+`idx_rate_limits_window` index. This is what keeps the table bounded: a bucket
+row is created by the *first* request from a new subject, and per-subject
+limits do not bound how many new subjects arrive — a flood of fresh device ids
+creates one row per request. Refused requests never sweep (maintenance, not
+correctness), and a failed sweep is swallowed. The weekly
+`.github/workflows/maintenance.yml` runs the same sweep over the whole table,
+plus blob retention and test-debris cleanup — see scripts/db-maintain.mjs.
+
 ### 6. Client QoS: debounce, coalesce, back off
 
 `src/sync/qos.ts`. The server guards are the backstop; this is the first line,
@@ -478,6 +488,32 @@ handle reorders one place, so reordering is never pointer-only. Every
 arrangeable surface renders one: home threads/projects, the projects grid,
 thread messages, project detail rows, and sidebar project groups.
 
+### 7. A restored device must be handed its write secret
+`App.tsx` restores the sync agent from localStorage on load. The write secret
+lives **only in agent config** — `SyncAgent` never reads storage itself — so the
+restore path must pass it: `ensureAgent(key, chain, writeSecret)`. An earlier
+version read the secret and then dropped it on the floor; the device passed
+handshake and then got **401 on every push** — reads worked, writes falsely
+demanded re-pairing, and nothing caught it (App.tsx has no unit test, the
+browser suites run with no `/sync` backend). `sync:smoke` §9 asserts the wiring
+textually, same reasoning as §8g. Found by finally wiring ESLint: the unused
+variable WAS the bug.
+
+### 8. Maintenance SQL: seq is only unique per chain, and NULL lies
+Two traps the maintenance script's self-check caught before they reached prod:
+
+- **`WHERE seq IN (...)` spans chains.** "Keep the newest N blobs per chain"
+  computed one chain's victims and then matched them by bare `seq` — deleting
+  those sequence numbers from *every* chain, including the newest blob of a
+  quiet chain. The outer DELETE must match `(chain_id, seq)` as a row value.
+- **`MAX(...) < cutoff` is NULL when there are no rows.** A live-test chain
+  with no blobs (handshake-only debris — a chain-creation flood makes nothing
+  else) survives a `MAX(created_at) < x` guard forever. `COALESCE(MAX(...),
+  chains.created_at)`.
+
+`bun run db:maintain:check` pins both against a real SQLite fixture; run it
+whenever the maintenance SQL changes.
+
 ## Files Quick Ref
 
 | File | Purpose |
@@ -502,11 +538,14 @@ thread messages, project detail rows, and sidebar project groups.
 | `schema.sql` | Flattened D1 schema for a fresh build |
 | `migrations/` | Versioned schema history (`bun run db:migrate:*`) |
 | `scripts/db-migrate.mjs` | Migration runner: applies pending files, records checksums |
+| `scripts/db-maintain.mjs` | D1 maintenance: prune rate_limits, blob retention, live-test cleanup, stale devices; `--check` self-verifies the SQL on in-memory SQLite |
 | `tests/sync-smoke.ts` | End-to-end smoke test (bun + in-memory SQLite) |
 | `scripts/ui-audit.mjs` | Headless UI audit: every route x 2 themes x 2 viewports |
 | `scripts/ui-browsers.mjs` | Installs the headless browser on demand |
 | `scripts/lib/*.mjs` | Shared launch/fixture/collector helpers for the harness |
 | `tests/ui/*.mjs` | Browser tests (interaction flows, export/import round trip, snapshot metrics) |
+| `.github/workflows/maintenance.yml` | Weekly D1 maintenance (Mondays 03:17 UTC): verify gate → apply; dispatch defaults to dry run |
+| `eslint.config.js` | Flat ESLint config — high-value rules only (unused vars, react-hooks, no-undef); `bun run lint` |
 | `.puppeteerrc.cjs` | `skipDownload` so installs/builds never fetch Chromium |
 | `wrangler.toml` | Local-dev-only Wrangler config (placeholder D1 id, **no** `pages_build_output_dir`); prod bindings live in the Pages dashboard |
 | `tsconfig.json` | App build/typecheck config — covers `src/` only |
@@ -534,6 +573,12 @@ thread messages, project detail rows, and sidebar project groups.
   Functions, and under `strict: false` their discriminated-union guards would
   report errors the Functions pass does not. `scripts/*.mjs` is still
   unchecked — plain JS with `allowJs` off.
+- **Lint: `bun run lint`.** ESLint sat in devDependencies with no config for
+  ages — `eslint.config.js` is the wiring. High-value rules only (unused vars,
+  react-hooks, no-undef); three `react-refresh` warnings on `view-state.tsx`
+  are the intentional provider+hooks export pattern and do not gate. `no-undef`
+  browser globals are granted to the harness files because their
+  `page.evaluate` callbacks run in the page, not Node.
 - **CI:** `.github/workflows/ci.yml` runs `npm ci`, `bun run typecheck`,
   `bun run sync:smoke`, `bun run db:migrate:check` and `vite build` on push and
   PR. It deliberately does **not** run the browser suites: they need a Chromium

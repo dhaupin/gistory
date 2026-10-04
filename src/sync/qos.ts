@@ -28,6 +28,8 @@
 // inputs as arguments, so `sync:smoke` can assert the curve without waiting on
 // real timers.
 
+import { SyncError } from './agent'
+
 /** Matches the debounce the App previously hard-coded. */
 export const PUSH_DEBOUNCE_MS = 1500
 
@@ -70,6 +72,26 @@ export function backoffDelay(attempt: number, options: BackoffOptions = {}): num
   const exponential = Math.min(base * Math.pow(2, safeAttempt - 1), max)
   const jitter = options.jitter ? options.jitter(safeAttempt) : 0
   return Math.min(Math.max(exponential + jitter, 0), max)
+}
+
+/**
+ * Whether a failed push can NEVER succeed by retrying.
+ *
+ * 429/503 are load responses — the server explicitly says "later", so the
+ * change stays pending and the retry carries it. But a 4xx like 401/403
+ * (write auth) or 413 (payload too large) describes the request itself: the
+ * same bytes will be refused forever until the user acts (re-pairs, or prunes
+ * their library). Retrying those on a timer is an infinite futile loop — and
+ * a 403 loop even keeps charging the chain's server-side write-fail budget.
+ *
+ * Deliberately narrow: anything that is not a `SyncError`, and any 5xx, stays
+ * retryable — the never-drop invariant is for failures that are transient or
+ * unknown, and only the narrow class above is PROVEN permanent.
+ */
+export function isTerminalPushFailure(err: unknown): boolean {
+  if (!(err instanceof SyncError)) return false
+  const { status } = err
+  return status >= 400 && status < 500 && status !== 408 && status !== 429
 }
 
 // --- Coalescing push scheduler ----------------------------------------------
@@ -217,9 +239,13 @@ export class SyncQos {
       this.failures = 0
     } catch (err) {
       this.failures += 1
-      // `pending` is set again below, so the change is never lost — this is a
-      // retry, not a drop.
-      this.pending = true
+      // A terminal refusal (write auth, payload too large) cannot succeed on
+      // retry, so stop the automatic loop: go idle with the error already
+      // surfaced by the `onPush` caller. The change itself is not lost — it is
+      // still in local state, and the next edit schedules a fresh push. Every
+      // other failure sets `pending` again, so the change is never dropped —
+      // that is a retry, not a drop.
+      this.pending = isTerminalPushFailure(err) ? false : true
     } finally {
       this.inFlight = false
     }

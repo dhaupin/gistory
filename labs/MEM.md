@@ -3,13 +3,28 @@
 **This file is disposable.** It exists only so an interrupted pass can be picked
 up quickly. Wipe and rewrite it every pass; nothing here is a source of truth.
 
-Last updated: 2026-10 (draggable pins + synced arrangement pass — COMPLETE, uncommitted)
+Last updated: 2026-10-04 (maintenance + sweep pass — COMPLETE, uncommitted)
 
 ---
 
 ## Where we are
 
-Arrangement is now generic and **synced** for threads, messages, and projects:
+Maintenance pass landed (see labs/TASKS.md Done for the full list): sampled
+`pruneLimits` sweep wired into `guardRoute`; `scripts/db-maintain.mjs` with a
+self-checking `--check`; weekly `.github/workflows/maintenance.yml`; QoS stops
+retrying terminal 4xx; handshake reports real `writeAuth`; ESLint finally wired
+(`eslint.config.js` + `bun run lint` + CI) — and the linter's first run found
+the biggest bug: **restored devices never got their write secret** (401 on every
+push after reload, UI falsely demanding re-pair). All suite results green:
+smoke 274/274, typecheck 0 ×3, lint 0 errors, UI + audit + live all pass.
+
+Nothing is committed — the Changes panel owns delivery when the user asks.
+
+If resuming: nothing in flight; next candidates are the browser-level two-device
+test (live test is Node-driven, doesn't exercise React wiring) and the project-
+detail/sidebar drag handles listed in TASKS.md Next.
+
+Arrangement state (unchanged, for reference):
 
 | Concern | Where it lives | Synced? |
 |---|---|---|
@@ -78,6 +93,11 @@ There are **six** UI suites; `sortable.mjs` is the live-fire drag/collapse one.
 - `.projects-grid` is `auto-fill, minmax(200px, 1fr)`, so at desktop widths its
   cards sit side by side and vertical dragging does nothing. Narrow the viewport
   before testing a drag there.
+- **The stale-server grep check must count CODE occurrences, not all matches.**
+  `grep -c ensureQos src/App.tsx` said 6 while the served module said 4 and the
+  server was actually current — two of the six are inside comments, and Vite's
+  transform drops them. Compare like with like (strip comments, or grep for a
+  string that only exists in code).
 - Sidebar groups are name-ordered, so the first one is often the empty project.
   Pick the first group that actually has rows before asserting on collapse.
 - `tests/ui/usability.mjs`'s `store()` reads `gistory_threads` / `gistory_projects`
