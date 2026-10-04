@@ -197,6 +197,31 @@ Conventions
     removing the guard and watching both new checks fail.
   - Tests: typecheck clean (both passes), sync:smoke 235/235, UI 160/160,
     audit 112 passes / 0 findings.
+- **2026-10 — security + cleanup pass (two real defects found).**
+  - `npm audit` was at 7 vulnerabilities (6 high: vite, postcss, nanoid).
+    `npm audit fix` brought it to 0 with no major-version bumps, and the built
+    bundle is byte-identical afterwards.
+  - **Defect: `readJson` had no size bound.** It called `request.json()` on the
+    whole body, so `MAX_PAYLOAD_BYTES` bounded only the `data` field *after* the
+    body had already been buffered and parsed — it did nothing about the memory
+    cost of a large request. Now capped twice: `withBreaker` rejects on the
+    declared `Content-Length` before the handler runs (in `withBreaker` rather
+    than per-route, so a new route cannot forget it), and `readJson` checks the
+    real length for chunked requests.
+  - **Defect: the control-character WAF was documented but never ran.**
+    `hasControlChars` was defined, exported, and covered by a test — but no route
+    ever called it, so the control was documentation rather than behaviour. It is
+    now enforced in `inspectBody` for every field.
+  - **Defect: a literal NUL byte in `tests/sync-smoke.ts`**, from writing
+    `hasControlChars('a<NUL>b')` instead of the escape sequence. It made the file
+    "binary" to grep, which silently corrupted a dead-export audit (six exports
+    wrongly reported unused). Fixed at byte level.
+  - Mutation-verified all three new controls. The chunked-body test initially
+    passed for the wrong reason (malformed JSON was rejected by the parser, so
+    deleting the cap did not fail it); it now sends valid JSON padded into
+    `deviceName` so it isolates the cap.
+  - Tests: typecheck 0 (three passes), sync:smoke 243/243, UI 160/160,
+    audit 112 passes / 0 findings, npm audit 0.
 - 2026-10 — generalized pin + collapse for threads, messages, and projects.
 - 2026-10 — pinning + collapsing for **threads**.
 - 2026-10 — usability pass (shared sort options, BurgerMenu sort control,

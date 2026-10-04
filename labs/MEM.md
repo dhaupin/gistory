@@ -57,7 +57,7 @@ bun tsc -b --noEmit
 bun run sync:smoke
 node tests/ui/run.mjs <preview-origin>     # e.g. http://localhost:5176
 node scripts/ui-audit.mjs <preview-origin>```
-Expected: typecheck 0 (both passes) · sync:smoke 235/235 · UI 160/160 (15/36/8/24/29/58) · audit 0.
+Expected: typecheck 0 (three passes) · sync:smoke 243/243 · UI 160/160 (15/36/8/24/29/58) · audit 0 · `npm audit` 0 vulnerabilities.
 
 There are **six** UI suites; `sortable.mjs` is the live-fire drag/collapse one.
 
@@ -174,6 +174,22 @@ runs `bun run db:migrate:remote`.
 Until that is applied, do not interpret live 503s as a guard bug. Check for a
 `400` on a deliberately malformed body first: that separates "code not deployed"
 from "database not migrated".
+
+- **`grep -r` silently skips a file it decides is binary.** `tests/sync-smoke.ts`
+  contains a literal NUL byte — I had written `hasControlChars('a<NUL>b')` into
+  the source instead of the escape `a\x00b`. grep then reported "binary file
+  matches" on stderr and returned *nothing* on stdout, so a dead-export audit
+  wrongly concluded six exports were unused. Two lessons: `grep -ac` / `--binary-
+  files=text` when auditing, and if a repo has multibyte content, verify a grep
+  that "found nothing" by grepping for something you know is there. Fixed at byte
+  level; the file is text again.
+- **A test can pass for the wrong reason.** The chunked-body cap test sent
+  truncated JSON, so the parser rejected it and the test passed even with the cap
+  deleted — mutation testing is what exposed it. Pad an *unused* field with valid
+  JSON so the assertion isolates the one thing under test.
+- Bun's `Request` does **not** auto-set `Content-Length` for a string body (real
+  HTTP clients do). Tests that exercise a length-based guard must set the header
+  explicitly, or they silently test the fallback path.
 
 ## If we crash mid-pass, resume here
 

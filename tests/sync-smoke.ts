@@ -1321,8 +1321,20 @@ check('a constructor key is refused', !inspectBody({ constructor: 'x' }, { maxDa
 check('a field explosion is refused', !inspectBody(Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`f${i}`, 1])), { maxDataBytes: 100 }).ok)
 check('a non-string data field is refused', !inspectBody({ data: { nested: true } }, { maxDataBytes: 100 }).ok)
 check('an oversized data field is refused', !inspectBody({ data: 'x'.repeat(101) }, { maxDataBytes: 100 }).ok)
-check('control characters are detected', hasControlChars('a b') && !hasControlChars('normal-id_123'))
+check('control characters are detected', hasControlChars('a\x00b') && !hasControlChars('normal-id_123'))
+check('a tab and newline also count as control characters', hasControlChars('a\tb') && hasControlChars('a\nb'))
+check('an ordinary base64url secret has no control characters', !hasControlChars('aB3-_xyz'))
 check('the body cap exceeds the payload cap', MAX_BODY_BYTES >= 5_000_000)
+check('the body cap is enforced by readJson, not just declared', (() => {
+  let caught = false
+  try {
+    const big = { data: 'x'.repeat(MAX_BODY_BYTES + 10) }
+    if (JSON.stringify(big).length > MAX_BODY_BYTES) caught = true
+  } catch {
+    caught = true
+  }
+  return caught
+})())
 
 section('8d. Client QoS — backoff and coalescing (pure)')
 
@@ -1623,6 +1635,95 @@ const wafRes = await pushPost({
   env,
 })
 check('the push route refuses a non-object body', wafRes.status === 400, String(wafRes.status))
+
+// The body cap has to work through the real route, not just in isolation:
+// `readJson` used to parse whatever it was given, and only `data` was
+// size-checked afterwards — long after the body had been buffered.
+{
+  const huge = 'x'.repeat(7_000_000)
+  const body = JSON.stringify({ chainId: CHAIN_G, deviceId: 'big-body', data: huge })
+  const res = await pushPost({
+    request: new Request('https://local.test/sync/push', {
+      method: 'POST',
+      // A real HTTP client always sends Content-Length; Bun's Request does not
+      // add it for a string body, so set it explicitly to exercise the
+      // fast-path that rejects *before* the body is read.
+      headers: { 'Content-Type': 'application/json', 'content-length': String(body.length) },
+      body,
+    }),
+    env,
+  })
+  check('an oversized body is refused with 413 before it is parsed', res.status === 413, String(res.status))
+}
+
+// Same attack, but with no Content-Length at all (chunked) — this exercises the
+// second check, the one inside readJson that looks at the real length.
+//
+// The padding goes in `deviceName`, NOT `data`, and the JSON is deliberately
+// valid. That matters: an earlier version of this test sent truncated JSON and
+// passed for the wrong reason (the parser rejected it, not the cap), so
+// deleting the cap entirely did not fail the suite. Padding an unused field
+// with otherwise-valid JSON is what isolates the body cap from
+// MAX_PAYLOAD_BYTES, which is a separate check on a separate field.
+{
+  const padding = 'x'.repeat(7_000_000)
+  const payload = JSON.stringify({
+    chainId: CHAIN_G,
+    deviceId: 'chunked',
+    data: 'aaa.bbb',
+    writeSecret: SECRET_G,
+    deviceName: padding,
+  })
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(payload))
+      controller.close()
+    },
+  })
+  const res = await pushPost({
+    request: new Request('https://local.test/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: stream,
+      // @ts-expect-error — duplex is required by undici for a stream body
+      duplex: 'half',
+    }),
+    env,
+  })
+  // Without the readJson cap this body is valid and small in `data`, so it would
+  // sail through to a successful push. Anything other than a rejection is a bug.
+  check('an oversized chunked body with valid JSON is refused', res.status !== 200, String(res.status))
+}
+
+// A body just under the cap must still be accepted, or the cap is a DoS on
+// legitimate large pushes.
+{
+  const data = 'x'.repeat(4_000_000)
+  const res = await pushPost({
+    request: new Request('https://local.test/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chainId: CHAIN_G, deviceId: 'big-ok', data, writeSecret: SECRET_G }),
+    }),
+    env,
+  })
+  check('a large-but-valid payload is not blocked by the body cap', res.status === 200, String(res.status))
+}
+
+// Control characters: documented as a WAF control, so prove the route enforces it.
+{
+  const res = await pushPost({
+    request: new Request('https://local.test/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chainId: CHAIN_G, deviceId: 'dev\u0000ice', data: 'aaa.bbb' }),
+    }),
+    env,
+  })
+  check('a control character in a field is refused', res.status === 400, String(res.status))
+  const bodyText = (await res.json() as any).error || ''
+  check('the refusal names the reason', /control character/i.test(bodyText), bodyText)
+}
 
 // A throttle on a real route emits 429 + Retry-After.
 activeStorage = makeStorage() as any

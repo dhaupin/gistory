@@ -34,6 +34,7 @@
 // exact rules without needing a running database to fail first.
 
 import type { D1Database } from './sync'
+import { MAX_BODY_BYTES, errorResponse } from './sync'
 
 // --- Policies ---------------------------------------------------------------
 //
@@ -402,13 +403,7 @@ export function resetBreaker(): void {
 
 // --- WAF --------------------------------------------------------------------
 
-/**
- * Hard ceiling on any request body, independent of the protocol's own payload
- * cap. `MAX_PAYLOAD_BYTES` bounds the encrypted `data` field; this bounds what
- * the edge will even buffer for us, so a multi-megabyte junk body is refused
- * before it is parsed into objects.
- */
-export const MAX_BODY_BYTES = 6_000_000
+export { MAX_BODY_BYTES }
 
 export type WafVerdict = { ok: true } | { ok: false; reason: string }
 
@@ -429,9 +424,20 @@ export function inspectBody(body: unknown, policy: { maxDataBytes: number }): Wa
   // way to make downstream merges do surprising things. No legitimate client
   // sends them at this level, so refuse rather than sanitise.
   const record = body as Record<string, unknown>
-  for (const key of Object.keys(record)) {
+  const keys = Object.keys(record)
+  for (const key of keys) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       return { ok: false, reason: 'Body contains a forbidden key' }
+    }
+
+    // Control characters have no legitimate place in any field of this
+    // protocol: chainId and writeSecret are base64url, deviceId is base64url,
+    // `data` is base64 ciphertext, and deviceName is a short human label. A
+    // NUL or a newline in any of them is either an attempt at log injection or
+    // a request that is not this protocol at all.
+    const value = record[key]
+    if (typeof value === 'string' && hasControlChars(value)) {
+      return { ok: false, reason: 'Body contains a control character' }
     }
   }
 
@@ -573,6 +579,16 @@ export function withBreaker(
   handler: (db: D1Database, context: { request: Request; env: unknown }) => Promise<Response>,
 ): (context: { request: Request; env: unknown }) => Promise<Response> {
   return async (context) => {
+    // Reject an oversized body on its declared length, before the handler runs.
+    // Here because it is free and unconditional: every route goes through this,
+    // so a new route cannot forget the cap the way a route can forget to call
+    // `guardRoute`. `readJson` re-checks the real length for chunked requests
+    // that declare nothing.
+    const declared = Number(context.request.headers.get('content-length') ?? '0')
+    if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+      return errorResponse('Request body is too large', 413)
+    }
+
     const db = (context.env as { GISTRY_DB?: D1Database } | undefined)?.GISTRY_DB ?? null
     if (!db) {
       // Missing binding is a configuration error, not an outage: it will not

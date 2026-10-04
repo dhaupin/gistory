@@ -96,9 +96,44 @@ export function constantTimeEqualHex(a: string, b: string): boolean {
   return diff === 0
 }
 
-export async function readJson(request: Request): Promise<any | null> {
+/**
+ * Parse a JSON request body, bounded.
+ *
+ * The bound matters. `request.json()` buffers and parses the *entire* body
+ * before any of our validation runs, so `MAX_PAYLOAD_BYTES` alone — which only
+ * inspects the `data` field afterwards — does nothing to stop a caller making
+ * the relay allocate and parse a very large body. Two checks, because either
+ * one alone is incomplete:
+ *
+ *   1. The declared `Content-Length`, checked BEFORE reading. This rejects an
+ *      oversized body without buffering it at all, which is the case that
+ *      matters for the cheap attack.
+ *   2. The real length after reading, which covers a chunked request that
+ *      declares no length (or lies about it).
+ *
+ * The platform's own request-size cap is the outer bound on the second case —
+ * this is the layer that keeps us from parsing something we will only reject.
+ */
+export async function readJson(
+  request: Request,
+  maxBytes = MAX_BODY_BYTES,
+): Promise<any | null> {
+  const declared = Number(request.headers.get('content-length') ?? '0')
+  if (Number.isFinite(declared) && declared > maxBytes) return null
+
+  let text: string
   try {
-    return await request.json()
+    text = await request.text()
+  } catch {
+    return null
+  }
+  // Length is compared in characters, not bytes, which is an under-count for
+  // multi-byte input and therefore errs toward accepting — the safe direction
+  // to be wrong in here, given the pre-read check already bounds the honest case.
+  if (text.length > maxBytes) return null
+
+  try {
+    return JSON.parse(text)
   } catch {
     return null
   }
@@ -107,6 +142,15 @@ export async function readJson(request: Request): Promise<any | null> {
 // --- Storage operations ------------------------------------------------------
 
 export const MAX_PAYLOAD_BYTES = 5_000_000
+
+/**
+ * Ceiling on the whole request body, independent of the encrypted-payload cap.
+ *
+ * Generous on purpose: the largest legitimate body is a max-size push, which is
+ * `MAX_PAYLOAD_BYTES` plus a little JSON envelope. This is a backstop against a
+ * caller sending something wildly oversized, not a tight budget.
+ */
+export const MAX_BODY_BYTES = 6_000_000
 
 export async function ensureChain(db: D1Database, chainId: string): Promise<void> {
   await db

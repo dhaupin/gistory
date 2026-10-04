@@ -283,14 +283,30 @@ breaker: it is a configuration error that will not fix itself.
 
 **WAF (cheap, conservative).** Rejects what is *structurally impossible* for a
 real client, so it cannot produce a false positive that blocks a user's sync:
-non-object bodies, `__proto__`/`constructor`/`prototype` keys, >32 fields, a
-non-string `data`, and `data` over the size cap.
+non-object bodies, `__proto__`/`constructor`/`prototype` keys, control characters
+in any field, >32 fields, a non-string `data`, and `data` over the size cap.
 
 This is **not** a SQL-injection defence — every statement is already
 parameterised and no request field is ever concatenated into SQL. It targets the
 two things actually true here: requests that are not the protocol at all, and
 requests big enough to be a DoS. `data` is opaque ciphertext by design and is
 checked for size only.
+
+**The body cap is enforced twice, and both checks are needed.** `MAX_PAYLOAD_BYTES`
+only bounds the `data` field *after* the body has been parsed, so on its own it
+does nothing about the memory cost of parsing a large body:
+
+- `withBreaker` rejects on the declared `Content-Length` **before** the handler
+  runs — the cheap case, where an oversized body is never buffered at all. It
+  lives in `withBreaker` rather than in each route so a new route cannot forget
+  it, the same reasoning as the breaker.
+- `readJson` checks the real length after reading, for a chunked request that
+  declares no length or lies about it.
+
+Deleting either one is caught by a mutation test. The chunked test sends *valid*
+JSON padded into `deviceName` rather than truncated `data`, precisely so it
+isolates this cap from `MAX_PAYLOAD_BYTES` — an earlier version used malformed
+JSON and passed even with the cap deleted.
 
 ### 6. Client QoS: debounce, coalesce, back off
 
