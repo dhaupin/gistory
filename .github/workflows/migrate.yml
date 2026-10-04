@@ -121,6 +121,18 @@ jobs:
           test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is not set."; exit 1; }
           test -n "${D1_DATABASE_ID}" || { echo "::error::CLOUDFLARE_D1_DATABASE_ID is not set."; exit 1; }
 
+          # A D1 database id is a UUID. If this is wrong, Cloudflare answers
+          # "Invalid property: databaseId => Invalid uuid [code: 7400]", which
+          # says nothing about where the wrong value came from. The usual cause
+          # is pasting the database *name* ("gistory") or the binding name
+          # (GISTRY_DB) instead of the id from the D1 dashboard. Checked here so
+          # the message can actually name the problem. The value is never echoed.
+          if ! printf '%s' "${D1_DATABASE_ID}" | grep -qiE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
+            echo "::error::CLOUDFLARE_D1_DATABASE_ID is not a D1 database id (expected a UUID like 00000000-0000-0000-0000-000000000000)."
+            echo "::error::Use the 'Database ID' from Cloudflare dashboard -> Workers & Pages -> D1 -> your database. It is not the database name ('gistory') and not the binding name ('GISTRY_DB')."
+            exit 1
+          fi
+
           # wrangler.deploy.toml is gitignored on purpose — the real
           # database_id must never be committed. Recreate it from secrets.
           cp wrangler.deploy.example.toml wrangler.deploy.toml
