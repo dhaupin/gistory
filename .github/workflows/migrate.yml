@@ -52,12 +52,19 @@ on:
         default: true
   push:
     branches: [main]
-    # Only auto-apply when a migration actually changed. An unrelated commit
-    # (docs, a component tweak) should not start a production job at all.
-    paths:
-      - "migrations/**"
-      - "scripts/db-migrate.mjs"
-      - ".github/workflows/migrate.yml"
+    # Deliberately NOT path-filtered.
+    #
+    # The obvious design is `paths: [migrations/**]`, so unrelated commits do
+    # not start a production job. It was like that, and it is wrong for how this
+    # is actually used: the migrations were committed first and the secrets
+    # added afterwards, so nothing ever applied them. Any push to main was
+    # expected to catch up the schema, and the path filter meant it silently did
+    # not — the failure mode is a chain that stays broken with no signal.
+    #
+    # The cost of dropping it is one short CI run per push that finds nothing
+    # pending, which is bounded by `concurrency` and gated by `needs: verify`.
+    # `scripts/db-migrate.mjs` is idempotent and applies only what is pending,
+    # so an unrelated push is a no-op rather than a risk.
 
 concurrency:
   group: migrate-d1
