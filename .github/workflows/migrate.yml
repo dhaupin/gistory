@@ -10,11 +10,21 @@
 #     mobile app. Defaults to a dry run, so an accidental tap cannot reach prod.
 #   • push to main touching migrations/ — applies automatically.
 #
-# Required repository secrets (Settings -> Secrets and variables -> Actions):
+# Required secrets. Set them as ENVIRONMENT secrets under `production`
+#   (Settings -> Environments -> production -> Environment secrets) rather than
+#   repository secrets: this job declares `environment: production`, so
+#   environment secrets are readable here and nowhere else — a fork cannot reach
+#   them and no other workflow can either. Repository secrets work identically
+#   if you prefer them; the names are the same.
+#
 #   CLOUDFLARE_API_TOKEN      — a Cloudflare API token with Account > D1 Database
 #                               > Edit. Scope it to this one account.
 #   CLOUDFLARE_ACCOUNT_ID     — the account holding the D1 database.
 #   CLOUDFLARE_D1_DATABASE_ID — the id from `wrangler d1 create gistory`.
+#
+# Nothing here is ever committed: GitHub stores these encrypted and exposes them
+# only to a run, and the database id is written into the gitignored
+# `wrangler.deploy.toml` at run time.
 #
 # These are the only three. The passphrase is never involved: the server is a
 # blind relay holding only AES-GCM ciphertext.

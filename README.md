@@ -256,13 +256,27 @@ bun run db:migrate:remote
   pending migrations without writing. Untick *dry run* to apply.
 - **Automatically** on any push to `main` that touches `migrations/`.
 
-Add these repository secrets first (Settings → Secrets and variables → Actions):
+Add these three secrets in GitHub (Settings → Secrets and variables → Actions):
 
 | Secret | What it is |
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with *Account → D1 Database → Edit* |
 | `CLOUDFLARE_ACCOUNT_ID` | Account holding the D1 database |
 | `CLOUDFLARE_D1_DATABASE_ID` | From `wrangler d1 create gistory` |
+
+**These are never written to the repository.** GitHub stores them encrypted and
+only exposes them to a workflow run as environment variables — there is nothing
+to commit, and no `.env` file, so an open-source repo is not a problem here. The
+workflow writes the database id into `wrangler.deploy.toml` at run time, which
+is why that file is gitignored.
+
+**Prefer environment secrets in an open-source repo.** The migrate job declares
+`environment: production`, so the tighter home for these is
+**Settings → Environments → production → Environment secrets** rather than
+repository secrets. Same three names, same workflow, but they are then only
+readable by jobs that declare that environment — a fork cannot reach them, and
+neither can any other workflow you add later. Use whichever you prefer; both
+work with the workflow as written.
 
 Before it touches the database the workflow re-runs typecheck, the sync smoke
 test and the migration-history check on the same commit, and the job sits behind
