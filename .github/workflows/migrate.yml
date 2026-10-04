@@ -91,6 +91,16 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     environment: production
+    # Job-level, not step-level. Wrangler is invoked by the steps below, not by
+    # the step that writes the config, so the token has to be in the
+    # environment of every step that shells out to it. Scoping it to the
+    # configure step alone passes that step and then fails at the first real
+    # wrangler call with "it's necessary to set a CLOUDFLARE_API_TOKEN
+    # environment variable" — which is exactly how this went wrong first time.
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -102,25 +112,22 @@ jobs:
         run: npm ci
 
       - name: Configure wrangler
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DB_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
           set -eu
+          # Fail fast, and loudly, if the secrets are not actually present —
+          # otherwise the first wrangler call fails with a much less obvious
+          # "you must set CLOUDFLARE_API_TOKEN" message.
+          test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::CLOUDFLARE_API_TOKEN is not set. Add it as an environment secret under 'production'."; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is not set."; exit 1; }
+          test -n "${D1_DATABASE_ID}" || { echo "::error::CLOUDFLARE_D1_DATABASE_ID is not set."; exit 1; }
+
           # wrangler.deploy.toml is gitignored on purpose — the real
           # database_id must never be committed. Recreate it from secrets.
           cp wrangler.deploy.example.toml wrangler.deploy.toml
           # The example ends with a placeholder line; replace it rather than
           # appending, so wrangler never sees two database_id keys.
-          sed -i.bak "s|^database_id = .*|database_id = \"${DB_ID}\"|" wrangler.deploy.toml
+          sed -i.bak "s|^database_id = .*|database_id = \"${D1_DATABASE_ID}\"|" wrangler.deploy.toml
           rm -f wrangler.deploy.toml.bak
-          if grep -q 'paste-your-real-database-id' wrangler.deploy.toml; then
-            echo "::error::CLOUDFLARE_D1_DATABASE_ID secret is missing or empty."
-            exit 1
-          fi
-          test -n "${CF_TOKEN}" || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing."; exit 1; }
-          test -n "${CF_ACCOUNT}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing."; exit 1; }
           echo "Wrangler configured (database id redacted)."
 
       # Read this line first when a run fails: it lists which migrations the
