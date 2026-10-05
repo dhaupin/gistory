@@ -2534,3 +2534,328 @@ textarea::placeholder {
   color: var(--text-dim);
   white-space: nowrap;
 }
+
+/* --- Lander + legal pages (prerendered) ------------------------------------- */
+.lander {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.lander-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+}
+
+.lander-brand {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.lander-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lander-link {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.9rem;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lander-link:hover {
+  color: var(--text);
+}
+
+.lander-hero {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 4.5rem 1.25rem 3.5rem;
+  text-align: center;
+}
+
+.lander-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0 0 1rem;
+}
+
+.lander-headline {
+  font-size: clamp(2rem, 5.5vw, 3.2rem);
+  line-height: 1.12;
+  margin: 0 0 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.lander-headline em {
+  font-style: italic;
+  color: var(--primary);
+}
+
+.lander-sub {
+  font-size: 1.06rem;
+  line-height: 1.65;
+  color: var(--text-dim);
+  margin: 0 auto 2rem;
+  max-width: 640px;
+}
+
+.lander-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.lander-checks {
+  list-style: none;
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 1.75rem 0 0;
+  font-size: 0.86rem;
+  color: var(--text-dim);
+}
+
+.lander-checks li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.lander-checks svg {
+  color: var(--primary);
+}
+
+.lander-section {
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 3.5rem 1.25rem;
+}
+
+.lander-alt {
+  background: var(--surface);
+}
+
+.lander-section-title {
+  text-align: center;
+  font-size: 1.5rem;
+  margin: 0 0 2rem;
+  letter-spacing: -0.01em;
+}
+
+.lander-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.lander-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.4rem;
+  background: var(--bg);
+}
+
+.lander-card h3 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.02rem;
+}
+
+.lander-card p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.lander-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--primary);
+}
+
+.lander-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.25rem;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.lander-step {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.lander-step-num {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.lander-step h3 {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 1.02rem;
+}
+
+.lander-step p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.93rem;
+  line-height: 1.6;
+}
+
+.lander-trust {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 780px;
+  margin-inline: auto;
+}
+
+.lander-trust-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  background: var(--bg);
+}
+
+.lander-trust-item svg {
+  flex-shrink: 0;
+  color: var(--primary);
+  margin-top: 0.15rem;
+}
+
+.lander-trust-item h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.lander-trust-item p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.lander-final {
+  text-align: center;
+  padding-block: 4rem;
+}
+
+.lander-final .lander-actions {
+  margin-top: 1.5rem;
+}
+
+.lander-footer {
+  margin-top: auto;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lander-footer a {
+  color: var(--text-dim);
+}
+
+.lander-footer a:hover {
+  color: var(--text);
+}
+
+.lander-footer-divider {
+  opacity: 0.5;
+}
+
+/* Legal pages share the lander chrome */
+.legal-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.legal-body {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 4rem;
+}
+
+.legal-body h1 {
+  font-size: 1.9rem;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.legal-updated {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  margin: 0 0 2rem;
+}
+
+.legal-body h2 {
+  font-size: 1.15rem;
+  margin: 2rem 0 0.6rem;
+}
+
+.legal-body p,
+.legal-body li {
+  line-height: 1.7;
+  color: var(--text);
+  font-size: 0.96rem;
+}
+
+.legal-body ul,
+.legal-body ol {
+  padding-left: 1.25rem;
+}
+
+.legal-body li {
+  margin-bottom: 0.5rem;
+}

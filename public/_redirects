@@ -1,0 +1,8 @@
+# Cloudflare Pages redirects.
+#
+# The SPA fallback (/* /index.html 200) is deliberately ABSENT: with
+# prerendering, every route gets its own dist/<route>/index.html, and the
+# fallback loops infinitely against Cloudflare's Pretty URLs feature.
+#
+# The app itself is hash-routed (#/t1, #/settings) — hashes never hit the
+# server, so unknown #/ paths are handled inside the app already.

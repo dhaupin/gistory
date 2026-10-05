@@ -8,6 +8,12 @@ export default function Footer() {
         <a href="#/projects" className="footer-link">Projects</a>
         <span className="footer-divider">·</span>
         <a href="#/settings" className="footer-link">Settings</a>
+        <span className="footer-divider">·</span>
+        <a href="/" className="footer-link">Home</a>
+        <span className="footer-divider">·</span>
+        <a href="/terms" className="footer-link">Terms</a>
+        <span className="footer-divider">·</span>
+        <a href="/privacy" className="footer-link">Privacy</a>
       </div>
     </footer>
   )

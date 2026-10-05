@@ -106,6 +106,9 @@ export function clearDraft(threadId: string) {
 }
 
 export function loadSettings(): SyncSettings {
+  // Prerender guard (prestruct runs AppLayout in Node). The smoke test's fake
+  // storage defines localStorage WITHOUT window, so key off localStorage.
+  if (typeof localStorage === 'undefined') return {}
   try {
     const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')
     return raw && typeof raw === 'object' ? raw : {}

@@ -5,3 +5,4 @@ dist/
 .wrangler/
 wrangler.deploy.toml
 .ui-audit/
+.prestruct/

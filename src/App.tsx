@@ -58,6 +58,9 @@ const DELETED_KEY = 'gistory_deleted'
  */
 
 function loadDeleted(): DeletedRegistry {
+  // Prerender guard (prestruct runs AppLayout in Node). Keyed off localStorage
+  // (not window) because the smoke test's fake storage has no window either.
+  if (typeof localStorage === 'undefined') return emptyDeleted()
   try {
     return normalizeDeleted(JSON.parse(localStorage.getItem(DELETED_KEY) || 'null'))
   } catch {
@@ -66,6 +69,7 @@ function loadDeleted(): DeletedRegistry {
 }
 
 function saveDeleted(registry: DeletedRegistry) {
+  if (typeof localStorage === 'undefined') return
   try {
     localStorage.setItem(DELETED_KEY, JSON.stringify(registry))
   } catch {
@@ -73,7 +77,20 @@ function saveDeleted(registry: DeletedRegistry) {
   }
 }
 
+/**
+ * The app shell. Under the prestruct prerender, AppLayout mounts this for the
+ * hash-routed surfaces; the browser entry wraps it in BrowserRouter via
+ * AppLayout (src/AppLayout.tsx) so path routes (/, /terms, /privacy) and the
+ * app share one page. Keep BrowserRouter OUT of this file: prerendering loads
+ * this module in Node, and a router bound to window.location there makes every
+ * route prerender as '/' silently.
+ */
 export default function App() {
+  // NOTE: This component is ALSO mounted by AppLayout under react-router's
+  // BrowserRouter (see src/AppLayout.tsx). The prestruct prerender renders
+  // AppLayout with StaticRouter in Node; nothing in AppLayout's import graph
+  // may import BrowserRouter. Keep that split intact.
+
   // Hydrate synchronously on the first render. Persisting from an effect that
   // fires after an empty first render is not safe: with StrictMode's
   // double-mount the "write the initial empty state" pass can land after
@@ -85,23 +102,23 @@ export default function App() {
   const [currentThreadId, setCurrentThreadId] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [darkMode, setDarkMode] = useState(() => 
-    localStorage.getItem('gistory_dark') === 'true'
+    typeof localStorage !== 'undefined' && localStorage.getItem('gistory_dark') === 'true'
   )
   const [sort, setSort] = useState<SortState>(() => 
-    parseSort(localStorage.getItem('gistory_sort'))
+    parseSort(typeof localStorage !== 'undefined' ? localStorage.getItem('gistory_sort') : null)
   )
-  const [route, setRoute] = useState(parseRoute(window.location.hash))
+  const [route, setRoute] = useState(parseRoute(typeof window !== 'undefined' ? window.location.hash : ''))
   const [showBurger, setShowBurger] = useState(false)
   
   // Sync state
   const [syncEnabled, setSyncEnabled] = useState(() => 
-    localStorage.getItem('gistory_sync_key') != null
+    typeof localStorage !== 'undefined' && localStorage.getItem('gistory_sync_key') != null
   )
   const [syncKey, setSyncKey] = useState<string | null>(() => 
-    localStorage.getItem('gistory_sync_key')
+    typeof localStorage !== 'undefined' ? localStorage.getItem('gistory_sync_key') : null
   )
   const [chainId, setChainId] = useState<string | null>(() =>
-    localStorage.getItem('gistory_chain_id')
+    typeof localStorage !== 'undefined' ? localStorage.getItem('gistory_chain_id') : null
   )
   const [devices, setDevices] = useState<RemoteDevice[]>([])
   const [lastSync, setLastSync] = useState<number | null>(null)
@@ -115,11 +132,15 @@ export default function App() {
   // Synced preferences (currently the stamp time zone). A singleton that rides
   // the payload and merges LWW, so changing it on one device updates all eight.
   const [settings, setSettings] = useState<SyncSettings>(loadSettings)
-  const [deviceName, setDeviceName] = useState(() => localStorage.getItem('gistory_device_name') || '')
+  const [deviceName, setDeviceName] = useState(() => 
+    typeof localStorage !== 'undefined' ? localStorage.getItem('gistory_device_name') || '' : ''
+  )
   // Cmd+K palette + the one-time first-run tour. Both are pure UI overlays;
   // the tour flag lives in localStorage so it shows exactly once per browser.
   const [showPalette, setShowPalette] = useState(false)
-  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('gistory_onboarded'))
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => typeof localStorage !== 'undefined' && !localStorage.getItem('gistory_onboarded'),
+  )
 
   // Refs mirror state so async sync code always reads the freshest snapshot.
   const syncAgentRef = React.useRef<SyncAgent | null>(null)

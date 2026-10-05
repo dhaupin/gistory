@@ -54,6 +54,9 @@ export function normalizeView(input?: Partial<ViewState> | null): ViewState {
 }
 
 export function loadView(): ViewState {
+  // Prerender guard (prestruct runs AppLayout in Node). The smoke test's fake
+  // storage defines localStorage WITHOUT window, so key off localStorage.
+  if (typeof localStorage === 'undefined') return {}
   try {
     return normalizeView(JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'))
   } catch {

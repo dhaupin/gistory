@@ -73,5 +73,19 @@ jobs:
       - name: Maintenance SQL check
         run: bun run db:maintain:check
 
-      - name: Production build
-        run: npx --yes vite build
+      # The full prestruct pipeline: vite build → inject brand meta →
+      # prerender the lander and legal pages to per-route HTML (plus
+      # sitemap.xml and 404.html). Exits 0 and deploys as a plain SPA if
+      # prerendering fails, so this gate proves the whole pipeline ran.
+      - name: Production build (prestruct pipeline)
+        run: npx --yes vite build && node scripts/inject-brand.js && node scripts/prerender.js
+
+      - name: Prerendered pages exist
+        run: |
+          test -f dist/index.html
+          test -f dist/terms/index.html
+          test -f dist/privacy/index.html
+          test -f dist/sitemap.xml
+          test -f dist/404.html
+          grep -q 'data-server-rendered="true"' dist/index.html
+          echo "Prerendered pages verified."

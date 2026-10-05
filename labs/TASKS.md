@@ -13,10 +13,9 @@ Conventions
 
 ## Now
 
-- (pushed: `c065046` workflow tier + arrangement wrap-up + consistency sweep —
-  CI success 32s, Migrate D1 success 56s, remote ledger 3/3 "Already up to
-  date.")
-- Nothing in flight. Remaining Next items below are all optional polish.
+- (pushing this pass: prestruct SEO integration — Done entry below. Previous
+  push `772d385`: absolute stamps + synced timezone + button unification.)
+- Nothing else in flight. Remaining Next items are all optional polish.
 
 ## Next
 
@@ -35,7 +34,49 @@ Conventions
 
 ## Done
 
-- **2026-10-05 — message/composer button unification (verified, uncommitted).**
+- **2026-10-05 — prestruct SEO integration (verified, uncommitted → pushed this
+  pass).** Lander + legal pages prerendered for crawlers; app stays hash-routed.
+  - **Routing split**: `#/...` URLs render the app (bookmarks keep working);
+    path URLs `/`, `/terms`, `/privacy` render prerendered pages; unmatched
+    paths get `dist/404.html` (static, noindex, React bundle stripped).
+    `src/AppLayout.tsx` is the router-less seam — `useIsHashRoute` decides the
+    branch, and its `hashchange` listener makes the lander's "Open the app"
+    CTA (`href="#/"`) switch live without a reload.
+  - **The alias trap (cost a full debug round)**: Vite's SSR runner cannot take
+    named exports from react-router-dom v7's CJS Node entry, so prerender
+    aliases it to `prerender/rr-shim.mjs` (createRequire interop). That alias
+    MUST live in prerender.js's inline `createServer` config — putting it in
+    `vite.config.ts` applies it to the browser too, where the shim's own
+    `await import('react-router-dom')` re-enters the alias, goes circular, and
+    the app renders **nothing, silently, with zero console errors**.
+  - **Stale-config gotcha**: dev servers started BEFORE a vite.config.ts edit
+    keep the old alias loaded even though they serve the NEW file contents —
+    "grep the served file" lies for config changes. Symptom: empty render + a
+    504 "Outdated Optimize Dep" on the oldest stale server. Fix: managed
+    preview restart (fresh port 5177 re-optimized deps and everything passed).
+  - **Prerender cache hides breakage**: `npm run build` reported 3/3 pages but
+    served all three from `.prestruct/cache` — the broken alias hid behind it.
+    `node scripts/prerender.js --force` exercises the real render path.
+  - **SSR guards key off `typeof localStorage === 'undefined'`**, not window —
+    the smoke test's fake localStorage has no window (two smoke failures
+    taught this).
+  - Prerendered pages hydrate via `data-server-rendered` on `#root`
+    (`main.tsx` picks `hydrateRoot`); `BrowserRouter` wraps AppLayout there —
+    it touches `document` and would crash Node if it rendered during
+    prerender. `index.html` is the prestruct shell; `inject-brand.js` fills
+    title/desc/OG/JSON-LD at build from `ssr.config.js` (siteUrl
+    gistory.creadev.org; WebApplication + FAQPage JSON-LD).
+  - `public/_redirects` has **no SPA fallback** (Cloudflare Pretty URLs would
+    loop); `robots.txt` + `sitemap.xml` ship; `_headers` carries COOP/COEP +
+    asset caching. react-router-dom pinned to 7.18.4 (6.x had 2 moderate
+    CVEs; v7 exports StaticRouter from the main package).
+  - ci.yml build is now the full pipeline + a "Prerendered pages exist"
+    verification step. eslint globals extended to `prerender/*.mjs` (the shim
+    tripped no-undef on `process`).
+  - Verified: typecheck ×3 · lint 0 errors · build 3/3 fresh-rendered ·
+    dist content-verified (titles/canonical/JSON-LD/data-server-rendered,
+    404 noindex + no JS) · test:ui 302/302 · ui:audit 0 · smoke 279/279 ·
+    lander-CTA-to-app switch probed live in headless Chrome.
   - **One convention everywhere**: message-row + composer icon buttons are
     ghost, icon-only (words only on Save/Cancel), and ordered Pin · Copy ·
     Edit · Delete — Delete always last, danger, confirmed. The composer's

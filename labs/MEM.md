@@ -3,52 +3,61 @@
 **This file is disposable.** It exists only so an interrupted pass can be picked
 up quickly. Wipe and rewrite it every pass; nothing here is a source of truth.
 
-Last updated: 2026-10-05 (pushed as `c065046`: workflow tier + arrangement
-wrap-up + consistency sweep; CI 32s green, Migrate D1 56s green, ledger 3/3)
+Last updated: 2026-10-05 (prestruct SEO pass verified; push in flight — see
+the prestruct section below. Previous push `772d385`.)
 
 ---
 
 ## Where we are
 
-The whole remaining product roadmap landed in one pass, verified but
-**uncommitted** (Changes panel owns delivery; push only on explicit ask):
+**Prestruct SEO pass is COMPLETE and verified** (Done entry in TASKS.md has
+the full detail). 4 fixes landed after the session handoff: alias removed from
+vite.config.ts, inline alias in prerender.js's createServer, BrowserRouter
+wraps AppLayout in main.tsx, AppLayout router-less + useIsHashRoute's
+hashchange listener actually sets state. All suites green after a managed
+preview restart (stale servers held the old config — see gotchas).
 
-1. **Onboarding tour** — `src/components/Onboarding.tsx`, wired in App
-   (`showOnboarding`, `gistory_onboarded` flag, `finishOnboarding`). Shows only
-   when the board is empty AND the flag is unset; every exit path marks seen;
-   browsers with existing threads bake the flag in a mount effect.
-2. **Cmd/Ctrl+K palette** — `src/components/CommandPalette.tsx`; App owns a
-   window keydown toggle and passes threads/projects + nav callbacks. Archived
-   threads are hidden; drafts hinted; create rows come from the query.
-3. **Draft/archived** — `ThreadStatus` (models.ts); `App.patchThreadMetadata`
-   bumps `updatedAt` (content rule); `setThreadStatus`/`setThreadRating` on top
-   of it. Home board Archived section (collapse key `section:home-archived`);
-   archived threads leave home/sidebar/project-detail/palette.
-4. **Trash page** — `src/components/TrashPage.tsx` at `#/trash` (router.ts
-   matches `trash` BEFORE the thread-id fallback). Reads the synced tombstone
-   registry; a record, not a restore. Sidebar footer link via `onTrash`.
-5. **Import adapters** — `src/lib/import-adapters.ts` (`convertImport` sniffs
-   gistory/chatgpt/claude); Settings → Snapshot names the format in its status.
-6. **Rating editor** — 1–5 star buttons in ThreadView; click current = clear.
-7. **Backup nudge** — `getLastExport/setLastExport` (store.ts); Snapshot tab
-   stamp + dismissible nudge (never or >14 days).
+## Prestruct gotchas (2026-10-05) — the ones that cost real time
+
+- **Alias placement is a silent-failure trap.** react-router-dom v7's SSR
+  named-export problem needs the rr-shim alias — but ONLY inside
+  prerender.js's inline `createServer({ resolve: { alias } })`. In
+  vite.config.ts it applies to the browser too: the shim re-imports
+  react-router-dom → re-enters the alias → circular → **app renders nothing
+  with zero console errors**. The audit's "blank page" detector is the only
+  thing that catches this class; keep it in the loop after any prerender
+  change.
+- **Vite config changes need a server restart, not just a file save.**
+  Servers started before the edit keep serving NEW file contents under the OLD
+  config (dep rewrites still pointed at `/prerender/rr-shim.mjs`). Marker
+  greps on served files pass while the app is still broken — verify config
+  changes with a fresh `freebuff-preview restart`, not a grep.
+- **`npm run build` can pass while prerendering nothing**: `.prestruct/cache`
+  answered 3/3 "(cached)" while the alias was broken. Run
+  `node scripts/prerender.js --force` to prove the real render path.
+- **Old stale optimize-dep cache**: the oldest stale server answered
+  `504 Outdated Optimize Dep` for react-router-dom — a leftover
+  `node_modules/.vite/deps` epoch. Fresh servers re-optimize on start.
+- **The lander CTA needs the hashchange listener to actually setState** —
+  `href="#/"` flips the hash but re-renders nothing by itself. The fixed
+  `useIsHashRoute` syncs from `window.location.hash` on every hashchange.
+- **SSR guards key off `typeof localStorage === 'undefined'`**, not window —
+  the smoke test's fake localStorage has no `window`.
+- **`hydratRoot` vs 404**: prerendered pages carry `data-server-rendered` on
+  `#root` (hydrate); `404.html` uses `root-404` and strips the bundle (no JS
+  at all — its only remaining `<script>` is inert JSON-LD).
+- ESLint: `prerender/*.mjs` needed adding to the node+browser globals block
+  (the shim references `process` in its Node branch).
 
 ## Verified this pass (all exit 0, after final edits)
 
 - `bun run typecheck` — 0 across all three passes (src / functions / tests)
-- `bun run sync:smoke` — 274/274
 - `bun run lint` — 0 errors, 3 known react-refresh warnings (view-state.tsx)
-- `bun run ui:audit` — 0 findings over 19 states × 2 themes × 2 viewports
-  (new states: onboarding, trash, palette, palette-search; new `press` step)
-- `bun run test:ui` — 264/264: export-import 15 · flows 36 · import-adapters 14
-  · product 31 · sidebar 8 · snapshot-metrics 32 · sortable 29 · usability 58
-  · workflow 41
-
-Suite-expectation updates made this pass (UI changed, suites followed — the
-components are correct, do not "fix" them back):
-- `snapshot-metrics`: Snapshot tab has 4 buttons now (backup-nudge dismiss is
-  icon-only `btn-icon`; exempt from `.btn` base, not from size/radius/name).
-- `export-import`: status line is "Imported N thread(s), M project(s) — label".
+- `npm run build` — 3/3 pages fresh-rendered (`--force`), dist content verified
+- `bun run test:ui` — 302/302 across 10 suites (on the fresh 5177 preview)
+- `bun run ui:audit` — 0 findings
+- `bun run sync:smoke` — 279/279
+- Headless probes: hash→app, no-hash→lander, lander-CTA→app live switch
 
 ## Harness gotchas (they will bite again)
 
@@ -80,9 +89,11 @@ bun run ui:audit      # 0 findings
 bun run test:ui       # 264/264 across 9 suites
 ```
 
-Preview notes: ports 5173–5176 all answer 200 AND serve current code (verified
-via marker greps). Test harness picks the newest. If an edit does not appear,
-check the served file before trusting any result.
+Preview notes: ports 5173–5176 are STALE (started before the vite.config.ts
+revert; they hold the old alias and render nothing — cannot be killed, ignore
+them). The managed preview lives on **5177** after the 2026-10-05 restart and
+is the only trustworthy target. After any vite.config change, restart the
+preview and pass PREVIEW_URL=http://localhost:5177 to the harness if needed.
 
 ## Button conventions (2026-10-05)
 
@@ -200,18 +211,19 @@ create-from-query, trash Back) passed unchanged.
 ## If we crash mid-pass, resume here
 
 1. `git status` + read this file and `labs/TASKS.md`.
-2. The workflow pass is COMPLETE and verified but uncommitted. Untracked new
-   files: `src/components/{Onboarding,CommandPalette,TrashPage}.tsx`,
-   `src/lib/import-adapters.ts`, `tests/ui/{workflow,import-adapters}.mjs`,
-   plus `bun.lock` (must STAY untracked — CI uses package-lock.json via npm ci).
-   Modified: App.tsx, BurgerMenu, HomeBoard, Settings, ThreadView, index.css,
-   models.ts, router.ts, store.ts, ui-audit.mjs, audit-page.mjs,
-   snapshot-metrics.mjs, export-import.mjs, TASKS.md, MEM.md.
-3. Nothing is in flight. Next roadmap items (TASKS.md Next): drag handles for
-   project-detail + sidebar rows; optional unpin-all/badges; drag inside
-   collapsed sidebar groups.
-4. Pushed: `c065046` on main, CI + Migrate D1 green. `bun.lock` still
-   untracked (correct). No work in flight.
+2. The **prestruct SEO pass is COMPLETE and verified but uncommitted**. New
+   files: `src/AppLayout.tsx`, `src/components/{Lander,TermsPage,PrivacyPage}.tsx`,
+   `src/hooks/`, `src/ui/prestruct-islands.js`, `prerender/`,
+   `scripts/{prerender,inject-brand}.js`, `ssr.config.js`, `public/{robots.txt,_redirects}`.
+   Modified: `vite.config.ts` (reverted to original), `src/main.tsx`, `src/App.tsx`,
+   `src/lib/store.ts`, `src/sync/view-state.ts`, `src/components/Footer.tsx`,
+   `index.html`, `package.json` (+react-router-dom 7.18.4, full build pipeline),
+   `package-lock.json`, `.gitignore` (+.prestruct/), `eslint.config.js`,
+   `.github/workflows/ci.yml`, `public/_headers`, `src/index.css`.
+3. Nothing else in flight. Next: push (user asked), watch CI + Migrate D1,
+   then the Pages deploy carries the lander/legal pages live.
+4. Pushed: `772d385` on main, CI + Migrate D1 green. `bun.lock` still
+   untracked (correct).
 
 ## Standing invariants (do not regress)
 

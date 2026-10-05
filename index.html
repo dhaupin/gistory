@@ -2,9 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Prestruct shell. Do not add brand meta directly:
+      inject-brand.js populates title/description/keywords/author/canonical,
+      Open Graph, Twitter Card, and JSON-LD at build time from ssr.config.js.
+
+      The placeholder values below give the injection regexes something to
+      match — they are replaced before deploy, never served as-is.
+    -->
+
+    <!-- Primary SEO (populated by inject-brand.js) -->
     <title>Gistory</title>
+    <meta name="description" content="" />
+    <meta name="keywords"    content="" />
+    <meta name="author"      content="" />
+    <meta name="robots"      content="index, follow" />
+    <link rel="canonical"    href="https://gistory.creadev.org/" />
+
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="theme-color" content="#080808" />
   </head>
   <body>
     <div id="root"></div>

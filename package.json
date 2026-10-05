@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/inject-brand.js && node scripts/prerender.js",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
     "lint": "eslint .",
     "sync:smoke": "bun tests/sync-smoke.ts",
@@ -30,7 +30,8 @@
     "lucide-react": "^1.17.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

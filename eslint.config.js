@@ -72,7 +72,9 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/**/*.mjs'],
+    // prestruct's build-time prerender/inject scripts arrive as .js (they are
+    // copied verbatim from the prestruct repo); they are Node scripts too.
+    files: ['scripts/**/*.mjs', 'scripts/*.js'],
     languageOptions: {
       globals: { ...globals.node },
     },
@@ -81,7 +83,23 @@ export default tseslint.config(
     // The browser harness runs in Node but its page.evaluate callbacks execute
     // in the page, where window/document/localStorage ARE defined. Without
     // this, every harness file drowns in no-undef false positives.
-    files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'tests/**/*.ts'],
+    //
+    // prestruct's engine files are copied verbatim and touch browser globals
+    // deliberately: prerender/inject run in Node (console/process), while
+    // islands.js and usePageMeta run in the page after hydration
+    // (IntersectionObserver, document) with SSR guards around them.
+    files: [
+      'tests/**/*.mjs',
+      'scripts/**/*.mjs',
+      'scripts/*.js',
+      'tests/**/*.ts',
+      // The rr-shim is loaded only by the prerender (Node) via the inline
+      // alias, but its browser-guarded fallback branch references browser
+      // globals — give it both sets like the other dual-context files.
+      'prerender/*.mjs',
+      'src/ui/prestruct-islands.js',
+      'src/hooks/usePageMeta.js',
+    ],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },
     },
