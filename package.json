@@ -13,6 +13,7 @@
     "sync:multidev": "bun scripts/live-multidevice.mjs",
     "test:ui": "node tests/ui/run.mjs",
     "ui:audit": "node scripts/ui-audit.mjs",
+    "probe:dist": "node scripts/dist-probe.mjs",
     "ui:browsers": "node scripts/ui-browsers.mjs",
     "db:init:local": "npx --yes wrangler d1 execute GISTRY_DB --local --file=schema.sql",
     "db:init:remote": "npx --yes wrangler d1 execute GISTRY_DB --remote --config wrangler.deploy.toml --file=schema.sql",

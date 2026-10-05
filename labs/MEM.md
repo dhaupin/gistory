@@ -10,14 +10,32 @@ the prestruct section below. Previous push `772d385`.)
 
 ## Where we are
 
-**Prestruct SEO pass is COMPLETE and verified** (Done entry in TASKS.md has
-the full detail). 4 fixes landed after the session handoff: alias removed from
-vite.config.ts, inline alias in prerender.js's createServer, BrowserRouter
-wraps AppLayout in main.tsx, AppLayout router-less + useIsHashRoute's
-hashchange listener actually sets state. All suites green after a managed
-preview restart (stale servers held the old config — see gotchas).
+**QC pass on `fcc6fa9` COMPLETE: 2 real production bugs found + fixed**, both
+by the new `scripts/dist-probe.mjs` (`bun run probe:dist`). Full detail in
+TASKS.md Done. Uncommitted — Changes panel owns delivery. Everything re-verified
+green after the fixes.
 
 ## Prestruct gotchas (2026-10-05) — the ones that cost real time
+
+- **The prerender cache must be fingerprinted by its build.** Route HTML
+  embeds Vite's hashed asset names, so a cache keyed by route alone restores
+  pages whose script tags 404 after any new `vite build` — a page that passes
+  every text check and renders nothing. Fixed with a shell sha256 in the
+  cache key + a build-failing asset tripwire in prerender.js. The probe
+  re-verifies the shipped bytes independently.
+- **Never hydrate across the hash boundary.** A hash URL is served a path
+  page the hash never touched; hydrating app-over-lander-HTML is a guaranteed
+  React #418 in production on every bookmarked link. `main.tsx` now boots by
+  `hash.startsWith('#')`: hash → render fresh (clear stale DOM), path page
+  with data-server-rendered → hydrate. The audit/test:ui suites run against
+  the DEV server (no server-rendered pages), which is why nothing caught it.
+- **Serving dist/ in-process in a probe script catches what text greps
+  cannot** (missing chunks, hydration errors) and needs no orphan processes —
+  the static server lives inside the node script and dies with it. Keep
+  `bun run probe:dist` in the loop after any build-pipeline change.
+- "Run bun.lock from the repo" reminder: still untracked on purpose (CI npm ci).
+- Migrate D1 can sit 10+ min in GitHub's runner queue; the run itself is ~1min.
+  Check `gh run view <id> --json status,jobs` before assuming failure.
 
 - **Alias placement is a silent-failure trap.** react-router-dom v7's SSR
   named-export problem needs the rr-shim alias — but ONLY inside
@@ -83,10 +101,13 @@ preview restart (stale servers held the old config — see gotchas).
 
 ```bash
 bun run typecheck     # 3 passes
-bun run sync:smoke    # 274/274
+bun run sync:smoke    # 279/279
 bun run lint          # 0 errors / 3 known warnings
 bun run ui:audit      # 0 findings
-bun run test:ui       # 264/264 across 9 suites
+bun run test:ui       # 302/302 across 10 suites (PREVIEW_URL=…5177)
+npm run build         # full prestruct pipeline; prerender tripwire gates it
+bun run probe:dist    # production-shape probe — REQUIRES the build above
+npm audit             # 0 vulnerabilities
 ```
 
 Preview notes: ports 5173–5176 are STALE (started before the vite.config.ts

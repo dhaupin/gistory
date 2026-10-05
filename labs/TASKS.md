@@ -13,8 +13,8 @@ Conventions
 
 ## Now
 
-- (pushing this pass: prestruct SEO integration — Done entry below. Previous
-  push `772d385`: absolute stamps + synced timezone + button unification.)
+- **QC pass on `fcc6fa9` found and fixed 2 REAL production bugs** (Done entry
+  below). Verified but uncommitted — Changes panel owns delivery.
 - Nothing else in flight. Remaining Next items are all optional polish.
 
 ## Next
@@ -33,6 +33,38 @@ Conventions
   `freebuff-preview restart` if it disagrees with disk.
 
 ## Done
+
+- **2026-10-05 — QC pass on the prestruct integration (verified, uncommitted).
+  Two real production bugs found by a new dist-probe; both fixed + guarded.**
+  - **Stale prerender cache shipped a broken page.** Cached route HTML embeds
+    the hashed asset filenames of the build it was rendered in, but the cache
+    was keyed by route only — after any new `vite build`, the restore wrote a
+    page whose `<script>` tags pointed at chunks that no longer exist. The
+    page looked right in every text check and rendered NOTHING in a browser
+    (CI/Pages build in fresh clones, so only local builds were exposed —
+    the pushed site was never broken). Fix in `scripts/prerender.js`: the
+    shell is fingerprinted (sha256, 16 hex) into each cache entry and stale
+    entries re-render; plus an asset-integrity tripwire (every `assets/*`
+    reference in a written page must exist in dist/) that FAILS the build —
+    deliberately not the graceful-SPA degrade, because this failure mode is
+    not a working site. `--force` also no longer clobbers-then-renders.
+  - **React #418 on bookmarked app URLs.** `/#/t1` is served the prerendered
+    lander (the hash never reaches the server), but `main.tsx` saw
+    `data-server-rendered` and hydrated the app against lander HTML — a
+    guaranteed hydration mismatch on every direct app link, in production.
+    Fix in `src/main.tsx`: a URL carrying a hash at boot renders fresh
+    (clearing the stale server DOM first so the lander doesn't flash); only
+    genuine path pages hydrate. `AppLayout`'s hash-branch is unchanged.
+  - Also: real `public/favicon.svg` replaces the 404ing `/vite.svg`.
+  - New permanent probe `scripts/dist-probe.mjs` (`bun run probe:dist`):
+    serves dist/ in-process like Pages would, then asserts the production
+    shape — per-route pages + 404 semantics + robots/sitemap, lander
+    hydration, the CTA live-switch, a direct `/#/t1` mount with NO #418, and
+    zero missing `/assets/*` references. Exits non-zero to gate a change.
+    Requires a build first. This probe caught BOTH bugs above.
+  - Verified after fixes: typecheck ×3 · lint 0 · build 3/3 + tripwire ·
+    probe:dist PASS · test:ui 302/302 · ui:audit 0 · smoke 279/279 ·
+    npm audit 0. Migrate D1 went green (11m20s, was queue-bound).
 
 - **2026-10-05 — prestruct SEO integration (verified, uncommitted → pushed this
   pass).** Lander + legal pages prerendered for crawlers; app stays hash-routed.

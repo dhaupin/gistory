@@ -23,6 +23,7 @@
 
 import fs   from 'fs'
 import path from 'path'
+import crypto from 'node:crypto'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -272,10 +273,20 @@ async function prerender() {
     const shell     = fs.readFileSync(indexPath, 'utf-8')
     let succeeded   = 0
 
+    // Fingerprint the shell this run renders against. Cached route HTML
+    // embeds the hashed asset filenames of the build it was rendered in;
+    // after a new `vite build` those files no longer exist, so a cache
+    // keyed by route alone would restore a page whose <script> tags 404 —
+    // the page looks correct in text checks and renders NOTHING in a
+    // browser. Entries whose shellHash differs (or predates the field)
+    // are re-rendered instead of restored.
+    const shellHash = crypto.createHash('sha256').update(shell).digest('hex').slice(0, 16)
+
     for (const route of ROUTES) {
-      // Incremental: skip if cached and not --force
-      if (!FORCE && cache[route.path]) {
-        const cachedHtml = cache[route.path].html
+      // Incremental: skip if cached for THIS shell and not --force
+      const cachedEntry = !FORCE && cache[route.path]
+      if (cachedEntry && cachedEntry.shellHash === shellHash) {
+        const cachedHtml = cachedEntry.html
         
         if (route.path === '/') {
           fs.writeFileSync(path.join(DIST, 'index.html'), cachedHtml, 'utf-8')
@@ -311,8 +322,8 @@ async function prerender() {
 
         html = injectMeta(html, route.meta || {}, route.path)
 
-        // Save to cache
-        cache[route.path] = { html, time: Date.now() }
+        // Save to cache, stamped with the shell it was rendered against
+        cache[route.path] = { html, shellHash, time: Date.now() }
 
         if (route.path === '/') {
           fs.writeFileSync(path.join(DIST, 'index.html'), html, 'utf-8')
@@ -341,6 +352,32 @@ async function prerender() {
     console.log('[prerender] ✓ /sitemap.xml')
 
     console.log(`[prerender] Done. ${succeeded}/${ROUTES.length} pages rendered.\n`)
+
+    // Integrity tripwire: every asset reference in a written page must exist
+    // in dist/. This failure mode (HTML pointing at chunks from an older
+    // build) ships a page that renders nothing and is invisible to text
+    // checks — so unlike SSR failures, it FAILS the build rather than
+    // degrading to a plain SPA, because a plain SPA is a working site and
+    // this is not.
+    const pageFiles = [
+      path.join(DIST, 'index.html'),
+      ...ROUTES.filter(r => r.path !== '/').map(r => path.join(DIST, r.path.slice(1), 'index.html')),
+    ]
+    const missing = []
+    for (const file of pageFiles) {
+      if (!fs.existsSync(file)) continue
+      const html = fs.readFileSync(file, 'utf-8')
+      for (const m of html.matchAll(/assets\/[A-Za-z0-9._-]+/g)) {
+        if (!fs.existsSync(path.join(DIST, m[0]))) missing.push(`${path.relative(DIST, file)} → ${m[0]}`)
+      }
+    }
+    if (missing.length) {
+      console.error('[prerender] BROKEN OUTPUT — pages reference assets that do not exist:')
+      for (const m of missing) console.error('  ' + m)
+      console.error('[prerender] Delete .prestruct/cache and rebuild.')
+      process.exit(1)
+    }
+    console.log('[prerender] Asset references verified against dist/.')
 
   } finally {
     await vite.close()
