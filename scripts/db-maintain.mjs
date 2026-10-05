@@ -250,6 +250,35 @@ async function runCheck() {
   expect('ancient device rows on real chains are dropped',
     db.prepare(`SELECT COUNT(*) AS n FROM devices WHERE id = 'ancient-dev'`).get().n === 0)
 
+  // --- Hostile knob values (the workflow_dispatch edge) ---------------------
+  // --keep/--days come from CLI flags and a manual dispatch input. They are
+  // quoted, so the shell cannot be injected — the risk is a NEGATIVE number
+  // sailing through `Number(x) || default` (truthy!) into the SQL, where
+  // `rn > -1` matches every blob of every chain. Run the hostile statements
+  // last: they mutate the fixture, but every earlier check is already done.
+  const fresh = maintenanceSql({ now, keepBlobs: -1, staleDeviceDays: -1 })
+  expect('hostile knobs are clamped in the generated SQL (no negative bounds)',
+    !fresh.statements.join('\n').match(/> -\d/),
+    fresh.statements.find((s) => s.includes('rn >'))?.slice(-120))
+
+  db.prepare(
+    `INSERT INTO devices (id, chain_id, name, last_seen) VALUES ('recent-dev', 'real-chain-01', 'New', ?)`,
+  ).run(now)
+  const staleDelete = fresh.statements.find((s) => s.startsWith('DELETE FROM devices') && s.includes('last_seen'))
+  db.exec(staleDelete)
+  expect('a negative device horizon does not delete current device rows',
+    db.prepare(`SELECT COUNT(*) AS n FROM devices WHERE id = 'recent-dev'`).get().n === 1)
+
+  const retentionDelete = fresh.statements.find((s) => s.startsWith('DELETE FROM blobs') && s.includes('rn >'))
+  db.exec(retentionDelete)
+  expect('a negative keep count still keeps the newest snapshot of every chain',
+    db.prepare(`SELECT COUNT(*) AS n FROM blobs WHERE chain_id = 'real-chain-01' AND seq = 9`).get().n === 1)
+
+  const fractional = maintenanceSql({ now, keepBlobs: 2.9, staleDeviceDays: 1.5 })
+  expect('fractional knobs floor to whole rows',
+    fractional.statements.some((s) => s.includes('rn > 2')) &&
+      fractional.statements.some((s) => s.includes(`last_seen < ${now - 1 * DAY_MS}`)))
+
   console.log('')
   if (failed) {
     console.log(`\x1b[31m${failed} maintenance check(s) failed.\x1b[0m`)
@@ -261,6 +290,16 @@ async function runCheck() {
 // --- The SQL, as data, so check mode and real runs cannot drift -------------
 
 export function maintenanceSql({ now, keepBlobs, staleDeviceDays }) {
+  // Clamp the two caller-controlled knobs before they reach the SQL. They
+  // arrive from CLI flags and a workflow_dispatch input, so a typo must
+  // degrade to "safe", never to "delete everything": `rn > -1` would wipe
+  // every chain's blobs — the only server-side copy of the data — and a
+  // negative device horizon would drop every device row. 0 and non-numeric
+  // fall back to the defaults (the `||` below), negatives clamp to the
+  // smallest safe value, and fractions floor to a whole number of snapshots.
+  const keep = Math.max(1, Math.floor(Number(keepBlobs) || KEEP_BLOBS))
+  const staleDays = Math.max(1, Math.floor(Number(staleDeviceDays) || STALE_DEVICE_DAYS))
+
   const statements = []
   const report = []
 
@@ -291,9 +330,9 @@ export function maintenanceSql({ now, keepBlobs, staleDeviceDays }) {
     SELECT chain_id, seq, ROW_NUMBER() OVER (
       PARTITION BY chain_id ORDER BY seq DESC
     ) AS rn FROM blobs
-  ) WHERE rn > ${keepBlobs}
+  ) WHERE rn > ${keep}
 )`
-  pushRule('blobs', retention, `blobs beyond the newest ${keepBlobs} per chain`)
+  pushRule('blobs', retention, `blobs beyond the newest ${keep} per chain`)
 
   // 3. live-test chains: past the per-run grace AND the absolute age bound.
   //    Chains first (their children would otherwise dangle), then children.
@@ -322,9 +361,9 @@ export function maintenanceSql({ now, keepBlobs, staleDeviceDays }) {
   // 4. Stale device rows on real chains (live-test devices went with #3).
   pushRule(
     'devices',
-    `last_seen < ${now - staleDeviceDays * DAY_MS}
+    `last_seen < ${now - staleDays * DAY_MS}
   AND chain_id NOT LIKE '${LIVE_TEST_PREFIX}%'`,
-    `devices unseen for ${staleDeviceDays} days`,
+    `devices unseen for ${staleDays} days`,
   )
 
   // 5. Report — what the Actions log shows every week.

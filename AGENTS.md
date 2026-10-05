@@ -510,8 +510,14 @@ Two traps the maintenance script's self-check caught before they reached prod:
   with no blobs (handshake-only debris — a chain-creation flood makes nothing
   else) survives a `MAX(created_at) < x` guard forever. `COALESCE(MAX(...),
   chains.created_at)`.
+- **Numeric knobs from a dispatch must be clamped, not defaulted.** `--keep`
+  and `--days` arrive from CLI flags and a workflow_dispatch input, and
+  `Number(-1) || default` is truthy — the default never fires, so a negative
+  `--keep` interpolated `rn > -1` and would have deleted every blob of every
+  chain. `maintenanceSql` clamps both knobs (≥1, fractions floored, 0/NaN →
+  defaults) at the single point `--status`, apply, and `--check` share.
 
-`bun run db:maintain:check` pins both against a real SQLite fixture; run it
+`bun run db:maintain:check` pins all three against a real SQLite fixture; run it
 whenever the maintenance SQL changes.
 
 ## Files Quick Ref
