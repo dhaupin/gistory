@@ -1,7 +1,7 @@
 // Layout - wrapper with Header + Footer
 
 import type { ReactNode } from 'react'
-import Header from './Header'
+import Header, { type SyncChipState } from './Header'
 import Footer from './Footer'
 
 interface LayoutProps {
@@ -13,6 +13,9 @@ interface LayoutProps {
   onSearchChange: (q: string) => void
   onProjectsClick: () => void
   onMenuClick?: () => void
+  /** Compact sync state for the header chip. */
+  sync?: SyncChipState
+  onSyncClick?: () => void
 }
 
 export default function Layout({
@@ -23,7 +26,9 @@ export default function Layout({
   searchQuery,
   onSearchChange,
   onProjectsClick,
-  onMenuClick
+  onMenuClick,
+  sync,
+  onSyncClick
 }: LayoutProps) {
   return (
     <div className="layout">
@@ -35,6 +40,8 @@ export default function Layout({
         onSearchChange={onSearchChange}
         onProjectsClick={onProjectsClick}
         onMenuClick={onMenuClick}
+        sync={sync}
+        onSyncClick={onSyncClick}
       />
       <main className="main-content">
         <div className="page-wrapper">

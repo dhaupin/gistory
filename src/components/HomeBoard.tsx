@@ -1,6 +1,6 @@
 // HomeBoard - main threads + projects list
 import { useState } from 'react'
-import { Folder, Plus, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight } from 'lucide-react'
+import { Folder, Plus, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight, GitFork } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
 import { sortThreads, sortProjects, sortStateFromValue, THREAD_SORT_OPTIONS, type SortState } from '../ui/sort'
 import { useViewState } from '../ui/view-state'
@@ -26,6 +26,10 @@ interface HomeBoardProps {
   onDeleteProject?: (id: string) => void
   onTogglePin?: (id: string) => void
   onTogglePinProject?: (id: string) => void
+  /** Fork a thread: full copy marked as a child via metadata.parentId. */
+  onFork?: (id: string) => void
+  /** A tag chip was clicked — filter the board by it. */
+  onTagClick?: (tag: string) => void
 }
 
 type Editing = { type: 'thread' | 'project'; id: string; name: string }
@@ -47,7 +51,9 @@ export default function HomeBoard({
   onRenameProject,
   onDeleteProject,
   onTogglePin,
-  onTogglePinProject
+  onTogglePinProject,
+  onFork,
+  onTagClick
 }: HomeBoardProps) {
   const [newThreadName, setNewThreadName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
@@ -66,10 +72,14 @@ export default function HomeBoard({
   const sortedProjects = sortProjects(projects, projectRank)
 
   // The header search box is always visible, so it has to do something here
-  // too — not only filter messages inside a thread.
+  // too — not only filter messages inside a thread. It matches thread names
+  // AND tags, so typing (or clicking) a tag finds every thread carrying it.
   const query = searchQuery.trim().toLowerCase()
   const visibleThreads = query
-    ? sortedThreads.filter(t => t.name.toLowerCase().includes(query))
+    ? sortedThreads.filter(t =>
+        t.name.toLowerCase().includes(query) ||
+        (t.metadata?.tags ?? []).some(tag => tag.toLowerCase().includes(query))
+      )
     : sortedThreads
   const visibleProjects = query
     ? sortedProjects.filter(p => p.name.toLowerCase().includes(query))
@@ -131,6 +141,11 @@ export default function HomeBoard({
     }
     items.push(
       { label: 'Rename', icon: <Edit size={14} />, onClick: () => startRename('thread', thread.id, thread.name) },
+    )
+    if (onFork) {
+      items.push({ label: 'Fork', icon: <GitFork size={14} />, onClick: () => onFork(thread.id) })
+    }
+    items.push(
       { label: 'Delete', icon: <Trash2 size={14} />, onClick: () => setDeleting({ type: 'thread', id: thread.id, name: thread.name }), variant: 'danger' },
     )
     return items
@@ -282,6 +297,23 @@ export default function HomeBoard({
                         )}
                       </span>
                     </button>
+                    {/* Tag chips sit outside the link button (no nested
+                        interactives): clicking one filters the board by it. */}
+                    {(thread.metadata?.tags?.length ?? 0) > 0 && (
+                      <span className="thread-tags">
+                        {thread.metadata!.tags.map(tag => (
+                          <button
+                            key={tag}
+                            className="tag tag-clickable"
+                            onClick={() => onTagClick?.(tag)}
+                            aria-label={`Filter by tag ${tag}`}
+                            title={`Filter by tag ${tag}`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </span>
+                    )}
                     {(onRenameThread || onDeleteThread || onTogglePin) && (
                       <ActionMenu items={threadMenuItems(thread)} />
                     )}

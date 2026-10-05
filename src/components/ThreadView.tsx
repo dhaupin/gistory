@@ -1,7 +1,7 @@
 // ThreadView - displays messages in a thread
 
 import { useState, useEffect } from 'react'
-import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight } from 'lucide-react'
+import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork } from 'lucide-react'
 import type { Message, Thread, Project } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 import { sortMessages, sortStateFromValue, MESSAGE_SORT_OPTIONS, type SortState } from '../ui/sort'
@@ -26,6 +26,12 @@ interface ThreadViewProps {
   onRemoveFromProject?: (threadId: string, projectId: string) => void
   onTogglePin?: (id: string) => void
   onTogglePinMessage?: (msgId: string) => void
+  /** Replace the thread's tag list (called with the already-updated list). */
+  onSetTags?: (id: string, tags: string[]) => void
+  /** Fork this thread: a full copy marked as a child via metadata.parentId. */
+  onFork?: (id: string) => void
+  /** A copy of the thread's content just happened (usage counter + 1). */
+  onUseThread?: (id: string) => void
 }
 
 /**
@@ -44,6 +50,40 @@ function previewOf(content: string): string {
   const words = line.split(/\s+/)
   if (words.length <= PREVIEW_WORDS) return line
   return words.slice(0, PREVIEW_WORDS).join(' ') + '…'
+}
+
+/**
+ * `{{variable}}` placeholders turn a copied prompt into a fill-in form. The
+ * regex is deliberately tolerant of whitespace and unicode names; the closing
+ * delimiter forbids nesting, so `{{a {{b}} c}}` reads as two placeholders.
+ */
+const TEMPLATE_VAR_RE = /\{\{\s*([^{}]+?)\s*\}\}/g
+
+/** Unique variable names in a prompt, first-appearance order, deduped case-insensitively. */
+function templateVars(content: string): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const m of content.matchAll(TEMPLATE_VAR_RE)) {
+    const name = m[1].trim()
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(name)
+  }
+  return out
+}
+
+/**
+ * Substitute filled values for their placeholders. Values are keyed by
+ * lowercase variable name; a placeholder with no (or an empty) value is left
+ * in the copy as written, so nothing is silently dropped from the prompt.
+ */
+function fillTemplate(content: string, values: Record<string, string>): string {
+  return content.replace(TEMPLATE_VAR_RE, (whole, name: string) => {
+    const value = values[name.trim().toLowerCase()]
+    return value ? value : whole
+  })
 }
 
 /**
@@ -71,7 +111,10 @@ export default function ThreadView({
   onAddToProject,
   onRemoveFromProject,
   onTogglePin,
-  onTogglePinMessage
+  onTogglePinMessage,
+  onSetTags,
+  onFork,
+  onUseThread
 }: ThreadViewProps) {
   const [input, setInput] = useState('')
   const [editingMsg, setEditingMsg] = useState<Message | null>(null)
@@ -79,6 +122,12 @@ export default function ThreadView({
   const [editingThread, setEditingThread] = useState(false)
   const [threadName, setThreadName] = useState(thread.name)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'thread'; id: string } | null>(null)
+  // Tag editing: one inline input at a time, next to the existing chips.
+  const [addingTag, setAddingTag] = useState(false)
+  const [tagInput, setTagInput] = useState('')
+  // Template fill-in: which placeholders to collect, and what to replace them with.
+  const [fillVars, setFillVars] = useState<{ names: string[]; content: string } | null>(null)
+  const [fillValues, setFillValues] = useState<Record<string, string>>({})
   const { view, isCollapsed, toggleCollapse, reorder } = useViewState()
 
   // Sort messages (manual drag order first, then pinned, then the active sort).
@@ -117,7 +166,35 @@ export default function ThreadView({
   }
 
   const handleCopy = (content: string) => {
-    navigator.clipboard.writeText(content)
+    const names = templateVars(content)
+    if (names.length === 0) {
+      navigator.clipboard.writeText(content)
+      onUseThread?.(thread.id)
+      return
+    }
+    // The prompt is a template: collect values first, then copy the result.
+    setFillValues({})
+    setFillVars({ names, content })
+  }
+
+  const confirmFill = () => {
+    if (!fillVars) return
+    navigator.clipboard.writeText(fillTemplate(fillVars.content, fillValues))
+    setFillVars(null)
+    setFillValues({})
+    onUseThread?.(thread.id)
+  }
+
+  const commitTag = () => {
+    const value = tagInput.trim()
+    setAddingTag(false)
+    setTagInput('')
+    if (!value) return
+    onSetTags?.(thread.id, [...(thread.metadata?.tags ?? []), value])
+  }
+
+  const removeTag = (tag: string) => {
+    onSetTags?.(thread.id, (thread.metadata?.tags ?? []).filter(t => t !== tag))
   }
 
   const startEdit = (msg: Message) => {
@@ -169,6 +246,9 @@ export default function ThreadView({
     items.push(
       { label: 'Rename', icon: <Edit size={14} />, onClick: () => setEditingThread(true) },
     )
+    if (onFork) {
+      items.push({ label: 'Fork', icon: <GitFork size={14} />, onClick: () => onFork(thread.id) })
+    }
     // Project toggle options - show all projects with checkbox
     projects.forEach(p => {
       const isInProject = thread.projectIds.includes(p.id)
@@ -223,21 +303,55 @@ export default function ThreadView({
           </>
         )}
         
-        {/* Display metadata - tags, category, rating */}
-        {thread.metadata && (
+        {/* Metadata row: editable tags (when the app passes onSetTags), then
+            the read-only category/rating/usage stamps. */}
+        {(thread.metadata || onSetTags) && (
           <div className="thread-meta">
-            {thread.metadata.tags?.length > 0 && (
-              <div className="meta-tags">
-                {thread.metadata.tags.map(tag => (
-                  <span key={tag} className="tag">{tag}</span>
-                ))}
-              </div>
-            )}
-            {thread.metadata.category && (
+            <div className="meta-tags">
+              {(thread.metadata?.tags ?? []).map(tag => (
+                <span key={tag} className="tag">
+                  {tag}
+                  {onSetTags && (
+                    <button
+                      className="tag-remove"
+                      onClick={() => removeTag(tag)}
+                      aria-label={`Remove tag ${tag}`}
+                      title={`Remove tag ${tag}`}
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </span>
+              ))}
+              {onSetTags && !addingTag && (
+                <button className="tag-add" onClick={() => setAddingTag(true)}>
+                  <Tag size={10} /> tag
+                </button>
+              )}
+              {onSetTags && addingTag && (
+                <input
+                  className="tag-input"
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') commitTag()
+                    if (e.key === 'Escape') { setAddingTag(false); setTagInput('') }
+                  }}
+                  onBlur={commitTag}
+                  placeholder="new tag"
+                  aria-label="New tag name"
+                  autoFocus
+                />
+              )}
+            </div>
+            {thread.metadata?.category && (
               <span className="meta-category">{thread.metadata.category}</span>
             )}
-            {thread.metadata.rating && (
+            {thread.metadata?.rating && (
               <span className="meta-rating">{'★'.repeat(thread.metadata.rating)}</span>
+            )}
+            {!!thread.metadata?.usageCount && (
+              <span className="meta-usage">{thread.metadata.usageCount} uses</span>
             )}
           </div>
         )}
@@ -382,6 +496,56 @@ export default function ThreadView({
           onConfirm={confirmDelete}
           onCancel={() => setDeleteConfirm(null)}
         />
+      )}
+
+      {fillVars && (
+        <div
+          className="modal-overlay"
+          onClick={() => setFillVars(null)}
+          onKeyDown={e => { if (e.key === 'Escape') setFillVars(null) }}
+        >
+          <div
+            className="modal"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Fill in template variables"
+          >
+            <div className="modal-header">
+              <h3>Fill in the template</h3>
+              <button className="close-btn" onClick={() => setFillVars(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body template-vars">
+              {fillVars.names.map((name, i) => (
+                <label key={name} className="template-var-row">
+                  <span className="template-var-name">{'{{' + name + '}}'}</span>
+                  <input
+                    className="input"
+                    value={fillValues[name.toLowerCase()] ?? ''}
+                    onChange={e =>
+                      setFillValues(prev => ({ ...prev, [name.toLowerCase()]: e.target.value }))
+                    }
+                    aria-label={`Value for ${name}`}
+                    autoFocus={i === 0}
+                  />
+                </label>
+              ))}
+              <p className="empty-text template-hint">
+                Placeholders you leave empty are copied exactly as written.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary btn-small" onClick={() => setFillVars(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary btn-small" onClick={confirmFill}>
+                <Copy size={14} /> Copy filled
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

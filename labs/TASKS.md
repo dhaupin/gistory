@@ -13,12 +13,18 @@ Conventions
 
 ## Now
 
-- (maintenance + sweep pass COMPLETE, uncommitted — see top of Done)
+- (product feature pass COMPLETE, uncommitted — see top of Done)
 
 ## Next
 
+- [ ] First-run onboarding flow (device name → passphrase → pairing QR)
+- [ ] Cmd+K command palette (search + jump + actions)
+- [ ] Draft/archived status views (PromptMetadata.status is synced but has no UI)
+- [ ] Recently-deleted view over the synced tombstone registry
+- [ ] Import adapters for ChatGPT/Claude export formats (importData is ready)
+- [ ] Rating editor (metadata.rating displays already; needs input UI)
+- [ ] Export-backup nudge after N pushes (blobs retained at newest 5/chain)
 - [ ] Drag handles for project-detail + sidebar thread rows (currently read-only to the rank)
-- [ ] Reordering while a search filter is active renumbers only the visible subset — decide the right behaviour
 - [ ] Optional: unpin-all / clear-pins bulk action, pinned-count badges
 - [ ] Optional: drag-to-reorder inside a collapsed project group in the sidebar
 
@@ -31,7 +37,56 @@ Conventions
 
 ## Done
 
-- **2026-10-04 — maintenance pass + repo sweep (all verified, uncommitted).**
+- **2026-10-04 — product feature pass (all verified, uncommitted).**
+  - **Tags end-to-end**: inline editor in ThreadView (add via chip input,
+    remove per chip) → `App.setThreadTags` (trimmed, case-insensitively
+    deduped, bumps updatedAt — tags are content); chips on home-board rows
+    are clickable filters; the header search now matches tags too.
+  - **`{{variable}}` templates**: copying a message containing placeholders
+    opens a fill-in dialog (one input per unique placeholder, deduped
+    case-insensitively); empty fields leave the placeholder as written;
+    plain messages copy directly as before. Helpers `templateVars`/
+    `fillTemplate` in ThreadView.
+  - **Usage counting**: every copy bumps `metadata.usageCount` WITHOUT
+    `updatedAt` (a copy is not an edit — verified in the browser); "N uses"
+    stamp in ThreadView; new "Most used" sort option (`usage` SortField in
+    sort.ts, ties fall through to name).
+  - **Fork/duplicate**: ActionMenu on thread view + home board; full copy
+    (thread + messages, fresh ids, pins/collapse dropped) with
+    `metadata.parentId` + `version+1`; opens the fork (same as createThread).
+  - **Sync chip in the header**: status icon + relative last-synced label
+    ("3m ago", 30s tick), click → settings; renders nothing until sync is
+    enabled. Full detail still in Settings (devices, chain, errors).
+  - **New suite `tests/ui/product.mjs` (31 checks)** covering all of the
+    above through real clicks; `run.mjs` now forwards the whole checker
+    (eq/atLeast were built but never passed to suites). Harness lessons:
+    `openPage` re-seeds localStorage on EVERY navigation (evaluateOnNew-
+    Document), so reload persistence must be tested with a seedless sibling
+    page in the same context; clipboard assertions capture the app's
+    `writeText` args via a defineProperty shadow (naive assignment is a
+    silent no-op, and headless writeText can resolve while readText returns
+    empty); text-matched clicks use ElementHandle.click for user activation.
+  - All target sizes ≥32px (audit's floor) — `.tag*` and `.sync-chip` follow
+    the `.btn-project` min-height pattern. ui:audit 0 findings; typecheck ×3,
+    smoke 274/274, lint 0 errors, test:ui 201/201 across 7 suites.
+
+- **2026-10-04 — round 2 sweep (pushed first: `90b60a3`, CI + Migrate D1 green,
+  remote ledger 3/3 "Already up to date.").**
+  - Real destructive edge found: `db-maintain.mjs` took `--keep`/`--days` from
+    CLI + a workflow_dispatch input and interpolated them raw — `Number(-1) ||
+    default` is truthy, so `--keep -1` produced `rn > -1` and would have
+    deleted EVERY blob of EVERY chain (the only server-side copy). Fixed:
+    knobs clamped inside `maintenanceSql` (≥1, fractions floored, 0/NaN →
+    defaults) — the single point `--status`, apply and `--check` all share.
+    4 new `--check` assertions (15 total) run the hostile statements for
+    real; mutation-verified (clamp removed → 4 ✗).
+  - TASKS hygiene: the "reordering under a search filter" Next item was STALE —
+    `App.reorder` already detects `allIds.length !== ids.length` and switches
+    to `moveWithinSubset` + `applyFullOrder` (AGENTS.md Gotcha 6). Removed.
+  - No src/functions changes this round.
+
+- **2026-10-04 — maintenance pass + repo sweep (all verified, pushed in
+  `90b60a3`).**
   - `pruneLimits` is wired: every 256th admitted request sweeps `rate_limits`
     (sampled from `guardRoute`, refused requests never sweep, failures
     swallowed). Was defined+tested but called by NO route — same defect shape

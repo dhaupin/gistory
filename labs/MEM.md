@@ -3,26 +3,41 @@
 **This file is disposable.** It exists only so an interrupted pass can be picked
 up quickly. Wipe and rewrite it every pass; nothing here is a source of truth.
 
-Last updated: 2026-10-04 (maintenance + sweep pass — COMPLETE, uncommitted)
+Last updated: 2026-10-04 (product feature pass — COMPLETE, uncommitted;
+`90b60a3` already pushed earlier, CI + Migrate D1 green)
 
 ---
 
 ## Where we are
 
-Maintenance pass landed (see labs/TASKS.md Done for the full list): sampled
-`pruneLimits` sweep wired into `guardRoute`; `scripts/db-maintain.mjs` with a
-self-checking `--check`; weekly `.github/workflows/maintenance.yml`; QoS stops
-retrying terminal 4xx; handshake reports real `writeAuth`; ESLint finally wired
-(`eslint.config.js` + `bun run lint` + CI) — and the linter's first run found
-the biggest bug: **restored devices never got their write secret** (401 on every
-push after reload, UI falsely demanding re-pair). All suite results green:
-smoke 274/274, typecheck 0 ×3, lint 0 errors, UI + audit + live all pass.
+Built the top tier of the product roadmap: **tags end-to-end** (editor +
+board chips as filters + tag-aware search), **`{{variable}}` template fill-in
+copy**, **fork/duplicate** (parentId + version), **usage counting** (bumps
+usageCount but NOT updatedAt — deliberate, browser-verified), **"Most used"
+sort**, and the **header sync chip** (relative last-synced, click → settings,
+hidden until sync enabled). New `tests/ui/product.mjs` (31 checks) covers all
+of it; `run.mjs` now forwards the whole checker to suites. Deferred items are
+logged in TASKS.md Next (onboarding, Cmd+K, status views, trash, import
+adapters, rating editor, export nudge).
 
-Nothing is committed — the Changes panel owns delivery when the user asks.
+**Harness gotchas learned (they will bite again):**
+- `openPage` seeds localStorage via `evaluateOnNewDocument` — it re-seeds on
+  EVERY navigation/reload. Persistence claims need a seedless sibling page in
+  the same context, never `page.reload()`.
+- Clipboard: naive `navigator.clipboard.writeText = fn` is a silent no-op;
+  shadow with `Object.defineProperty`. Headless writeText can resolve while
+  readText returns empty — assert on captured write args, not readText.
+- `el.click()` from evaluate carries no user activation → clipboard API
+  refuses. Use ElementHandle.click (real CDP input) for copy-path clicks.
 
-If resuming: nothing in flight; next candidates are the browser-level two-device
-test (live test is Node-driven, doesn't exercise React wiring) and the project-
-detail/sidebar drag handles listed in TASKS.md Next.
+All suites green this pass: typecheck ×3, smoke 274/274, lint 0 errors
+(3 documented react-refresh warnings), ui:audit 0 findings, test:ui 201/201
+(7 suites incl. product). Nothing is committed — Changes panel owns delivery.
+
+If resuming: nothing in flight. Uncommitted files: the feature set (sort.ts,
+App.tsx, ThreadView, HomeBoard, Header, Layout, index.css, product.mjs,
+run.mjs) + the round-2 files (db-maintain.mjs, AGENTS.md, TASKS.md, MEM.md).
+Push only on explicit ask.
 
 Arrangement state (unchanged, for reference):
 

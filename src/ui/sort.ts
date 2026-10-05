@@ -6,7 +6,7 @@
 
 import type { Message, Project, Thread } from '../lib/models'
 
-export type SortField = 'createdAt' | 'updatedAt' | 'name'
+export type SortField = 'createdAt' | 'updatedAt' | 'name' | 'usage'
 export type SortDir = 'asc' | 'desc'
 
 export interface SortState {
@@ -37,6 +37,7 @@ export const THREAD_SORT_OPTIONS: SortOption[] = [
   { value: 'createdAt_asc', label: 'Oldest first' },
   { value: 'updatedAt_desc', label: 'Recently updated' },
   { value: 'updatedAt_asc', label: 'Least updated' },
+  { value: 'usage_desc', label: 'Most used' },
   { value: 'name_asc', label: 'Name A-Z' },
   { value: 'name_desc', label: 'Name Z-A' },
 ]
@@ -93,6 +94,14 @@ export function sortThreads(
 ): Thread[] {
   const { field, dir } = state
   return sortPinnedFirst(threads, (a, b) => {
+    // Usage lives in metadata, not on the item itself, so it needs its own
+    // branch. Ties fall through to name so the order is stable.
+    if (field === 'usage') {
+      const av = a.metadata?.usageCount ?? 0
+      const bv = b.metadata?.usageCount ?? 0
+      if (av !== bv) return dir === 'asc' ? av - bv : bv - av
+      return a.name.localeCompare(b.name)
+    }
     let av = a[field] ?? a.createdAt
     let bv = b[field] ?? b.createdAt
     if (typeof av === 'string') av = av.toLowerCase()
@@ -108,8 +117,8 @@ export function sortMessages(
   state: SortState,
   rankOf?: RankOf<Message>,
 ): Message[] {
-  // Message lists never sort by name, so fold that field back to time.
-  const field = state.field === 'name' ? 'createdAt' : state.field
+  // Message lists never sort by name or usage, so fold those back to time.
+  const field = state.field === 'name' || state.field === 'usage' ? 'createdAt' : state.field
   const { dir } = state
   return sortPinnedFirst(messages, (a, b) => {
     const av = a[field] ?? a.createdAt

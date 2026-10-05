@@ -39,7 +39,7 @@ for (const file of files) {
   const suiteName = mod.name || file.replace(/\.mjs$/, '')
   const checker = createChecker(suiteName)
   try {
-    await mod.default({ check: checker.check, browser, baseUrl })
+    await mod.default({ ...checker, browser, baseUrl })
   } catch (err) {
     checker.check('suite ran to completion', false, String(err?.message || err))
   }

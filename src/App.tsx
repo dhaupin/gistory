@@ -626,6 +626,74 @@ setSyncError(
     setThreads(prev => prev.map(t => t.id === id ? { ...t, name, updatedAt: Date.now() } : t))
   }, [])
 
+  /** Replace a thread's tag list. Tags are content, so this bumps updatedAt:
+   *  the merged item with the newest tags wins, exactly like a rename. */
+  const setThreadTags = useCallback((id: string, tags: string[]) => {
+    const seen = new Set<string>()
+    const clean = tags
+      .map(t => t.trim())
+      .filter(t => {
+        if (!t) return false
+        const k = t.toLowerCase()
+        if (seen.has(k)) return false
+        seen.add(k)
+        return true
+      })
+    setThreads(prev => prev.map(t =>
+      t.id === id ? { ...t, metadata: { ...t.metadata, tags: clean }, updatedAt: Date.now() } : t
+    ))
+  }, [])
+
+  /**
+   * Copying a prompt counts as using it. Deliberately does NOT bump updatedAt:
+   * a copy is not an edit, and bumping it would shuffle every "Recently
+   * updated" list on every copy, and make two devices that copied the same
+   * prompt fight the whole-item LWW merge over a counter that only needs to be
+   * approximately right. Losing one device's increment to the merge is fine.
+   */
+  const bumpThreadUsage = useCallback((id: string) => {
+    setThreads(prev => prev.map(t =>
+      t.id === id
+        ? { ...t, metadata: { ...t.metadata, usageCount: (t.metadata?.usageCount ?? 0) + 1 } }
+        : t
+    ))
+  }, [])
+
+  /**
+   * Fork a thread: a full copy (thread + messages) marked as a child via
+   * `metadata.parentId`, with `version` bumped. The fork gets fresh ids so it
+   * syncs as its own item; its messages drop pins/collapse state — a fork is a
+   * copy of the words, not of the arrangement.
+   */
+  const forkThread = useCallback((id: string) => {
+    const source = threadsRef.current.find(t => t.id === id)
+    if (!source) return
+    const now = Date.now()
+    const fork: Thread = {
+      id: generateId('t'),
+      name: `${source.name} (fork)`,
+      projectIds: [...source.projectIds],
+      createdAt: now,
+      updatedAt: now,
+      metadata: {
+        ...source.metadata,
+        parentId: source.id,
+        version: (source.metadata?.version ?? 1) + 1,
+      },
+    }
+    const copied: Message[] = (messagesRef.current[id] || []).map(m => ({
+      id: generateId('m'),
+      threadId: fork.id,
+      content: m.content,
+      createdAt: now,
+    }))
+    setThreads(prev => [fork, ...prev])
+    setMessages(prev => ({ ...prev, [fork.id]: copied }))
+    setCurrentThreadId(fork.id)
+    // Open the fork you just made, like createThread does.
+    navigate('/' + fork.id)
+  }, [])
+
   // Toggling a pin bumps updatedAt so the flag wins the last-write-wins merge
   // (the merge replaces whole items and compares updatedAt ?? createdAt).
   // Same shape for threads, messages, and projects — only the collection and
@@ -812,6 +880,8 @@ setSyncError(
           onDeleteProject={deleteProject}
           onTogglePin={togglePinThread}
           onTogglePinProject={togglePinProject}
+          onFork={forkThread}
+          onTagClick={tag => setSearchQuery(tag)}
         />
       )
     }
@@ -835,6 +905,9 @@ setSyncError(
           onRemoveFromProject={removeThreadFromProject}
           onTogglePin={togglePinThread}
           onTogglePinMessage={togglePinMessage}
+          onSetTags={setThreadTags}
+          onFork={forkThread}
+          onUseThread={bumpThreadUsage}
         />
       )
     }
@@ -860,6 +933,8 @@ setSyncError(
           onDeleteProject={deleteProject}
           onTogglePin={togglePinThread}
           onTogglePinProject={togglePinProject}
+          onFork={forkThread}
+          onTagClick={tag => setSearchQuery(tag)}
         />
       )
     )
@@ -903,6 +978,8 @@ setSyncError(
         onSearchChange={setSearchQuery}
         onProjectsClick={() => navigate('/projects')}
         onMenuClick={showBurgerBtn ? () => setShowBurger(v => !v) : undefined}
+        sync={{ enabled: syncEnabled, status: syncStatus, lastSync }}
+        onSyncClick={() => navigate('/settings')}
       >
         {renderPage()}
       </Layout>

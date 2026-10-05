@@ -2006,3 +2006,150 @@ textarea::placeholder {
 .message-card.pinned {
   border-left: 3px solid var(--primary);
 }
+
+/* --- Tags ----------------------------------------------------------------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  /* Same floor as .btn-project — every interactive element stays a usable
+     touch target no matter how small its label is. */
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+.tag-clickable {
+  cursor: pointer;
+}
+
+.tag-clickable:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.thread-tags {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  /* Icon-only button: needs the floor in BOTH axes. */
+  min-height: 32px;
+  min-width: 32px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.tag-remove:hover {
+  color: var(--danger);
+}
+
+.tag-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.tag-add:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.tag-input {
+  font-size: 0.75rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  min-height: 32px;
+  width: 8rem;
+}
+
+.meta-usage {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* --- Header sync chip ------------------------------------------------------ */
+
+.sync-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  min-height: 32px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sync-chip:hover {
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.sync-chip .status-good {
+  color: var(--success-fg);
+}
+
+.sync-chip .status-bad {
+  color: var(--danger-soft-fg);
+}
+
+.sync-chip.bad {
+  color: var(--danger-soft-fg);
+  border-color: var(--danger-soft-fg);
+}
+
+/* --- Template fill-in dialog ------------------------------------------------ */
+
+.template-vars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.template-var-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.template-var-name {
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: var(--primary);
+}
+
+.template-hint {
+  font-size: 0.75rem;
+  margin: 0;
+}
