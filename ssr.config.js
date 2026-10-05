@@ -112,7 +112,7 @@ export default {
 
   notFound: {
     heading: 'Page not found',
-    body: "That page doesn't exist. The app itself lives under hash routes — try the board.",
-    primaryCta: { label: 'Open Gistory', href: '/#/' },
+    body: "That page doesn't exist — the link may be mistyped, or the page moved. Everything in Gistory starts at the home page; the app itself lives under hash routes.",
+    primaryCta: { label: 'Back to Gistory', href: '/' },
   },
 }

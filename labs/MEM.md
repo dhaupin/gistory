@@ -10,10 +10,25 @@ the prestruct section below. Previous push `772d385`.)
 
 ## Where we are
 
-**QC pass on `fcc6fa9` COMPLETE: 2 real production bugs found + fixed**, both
-by the new `scripts/dist-probe.mjs` (`bun run probe:dist`). Full detail in
-TASKS.md Done. Uncommitted — Changes panel owns delivery. Everything re-verified
-green after the fixes.
+**Navigation/404 pass COMPLETE and verified, uncommitted** (logo → lander,
+menu Dashboard link, themed 404, robots/sitemap single-system confirmed,
+prestruct#19 filed). Full detail in TASKS.md Done. Prior: QC pass on `fcc6fa9`
+found 2 production bugs via `scripts/dist-probe.mjs` — both fixed in `04ce30e`
+(pushed, CI+Migrate green).
+
+## Navigation conventions (2026-10-05)
+
+- **Logo leaves the app; the menu returns to it.** Logo click =
+  `window.location.assign('/')` (full load → lander). In-app path navigation
+  CANNOT switch to the lander: `AppLayout`'s hash branch only re-evaluates on
+  `hashchange`, and pushState never fires it — the board would stay mounted at
+  `/`. If the lander ever needs to be reachable without a reload, that
+  listener (or a popstate/state listener) is the thing to extend.
+- Burger menu footer = Dashboard (`#/`, in-app) + Recently deleted. The two
+  links share one `.sidebar-footer` wrapper because `.sidebar-footer-link`'s
+  `margin-top: auto` must apply once, not per link.
+- edge-flows H asserts the logo → lander behavior (pathname `/`, hash `''`,
+  `.lander` present) after a full navigation — `hash(page)` alone can't see it.
 
 ## Prestruct gotchas (2026-10-05) — the ones that cost real time
 

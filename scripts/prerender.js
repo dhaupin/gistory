@@ -175,12 +175,17 @@ function generate404(shell) {
   const primaryLabel   = notFoundConfig.primaryCta?.label  || 'Go home'
   const primaryHref    = notFoundConfig.primaryCta?.href   || '/'
 
+  // Class-based markup styled by the app stylesheet (src/index.css .notfound-*):
+  // 404.html keeps the stylesheet <link>, so the page matches the app in both
+  // themes without any JavaScript. The inline styles this replaced could not
+  // follow the host theme (a #000 button on a dark background was invisible).
   const bodyLines = [
-    '<div id="root-404">',
-    '  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 2rem">',
-    `    <h1 style="font-size:2.5rem;font-weight:800;margin-bottom:1rem">${heading}</h1>`,
-    `    <p style="max-width:480px;font-size:1.05rem;line-height:1.7;margin-bottom:2rem">${body}</p>`,
-    `    <a href="${primaryHref}" style="display:inline-flex;align-items:center;padding:0.75rem 1.75rem;background:#000;color:#fff;font-weight:700;font-size:0.9rem;letter-spacing:0.05em;text-transform:uppercase;border-radius:6px;text-decoration:none">${primaryLabel}</a>`,
+    '<div id="root-404" class="notfound">',
+    '  <div class="notfound-inner">',
+    `    <p class="notfound-brand">${siteName}</p>`,
+    `    <h1 class="notfound-title">${heading}</h1>`,
+    `    <p class="notfound-body">${body}</p>`,
+    `    <a class="notfound-cta" href="${primaryHref}">${primaryLabel}</a>`,
     '  </div>',
     '</div>',
   ]

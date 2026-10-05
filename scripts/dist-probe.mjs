@@ -84,6 +84,8 @@ for (const p of ['/', '/terms', '/privacy', '/definitely-not-a-page', '/robots.t
     title: (body.match(/<title>([^<]*)<\/title>/) || [])[1],
     noindex: /noindex/.test(body),
     moduleScript: /<script type="module"/.test(body),
+    // Themed 404: class-based markup + a CTA back to the lander home.
+    cta: /class="notfound-cta"/.test(body) && /href="\/"/.test(body),
   }
 }
 
@@ -147,6 +149,7 @@ const fail =
   out.http['/definitely-not-a-page'].status !== 404 ||
   !out.http['/definitely-not-a-page'].noindex ||
   out.http['/definitely-not-a-page'].moduleScript ||
+  !out.http['/definitely-not-a-page'].cta ||
   out.http['/robots.txt'].status !== 200 ||
   out.http['/sitemap.xml'].status !== 200 ||
   out.browser.lander.rootChildren < 1 ||

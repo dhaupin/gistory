@@ -223,8 +223,19 @@ export default async function run({ check, eq, baseUrl, browser }) {
     eq('H: the Projects button keeps its name but drops its text', { text: btn.text, label: btn.label }, { text: '', label: 'Projects' })
 
     await page.click('.logo-home')
-    await settle(page, 300)
-    eq('H: the logo drops back to the board', await hash(page), '#/')
+    await settle(page, 800)
+    // The logo now LEAVES the app for the prerendered lander home: a real path
+    // navigation to "/", no hash, lander markup. (Getting back to the board is
+    // the burger menu's Dashboard link.)
+    eq(
+      'H: the logo drops to the lander home',
+      await page.evaluate(() => ({
+        path: window.location.pathname,
+        hash: window.location.hash,
+        lander: !!document.querySelector('.lander'),
+      })),
+      { path: '/', hash: '', lander: true },
+    )
     await page.close()
   }
 }

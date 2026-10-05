@@ -14,7 +14,7 @@ interface HeaderProps {
   searchQuery: string
   onSearchChange: (q: string) => void
   onProjectsClick: () => void
-  /** The logo drops back to the home board. */
+  /** The logo leaves the app for the lander home page. */
   onHomeClick?: () => void
   onMenuClick?: () => void
   /** Compact, always-visible sync state; rendered only when sync is enabled. */
@@ -93,8 +93,8 @@ export default function Header({
             type="button"
             className="logo-home"
             onClick={onHomeClick}
-            title="Back to the board"
-            aria-label="Gistory — back to the board"
+            title="Gistory home"
+            aria-label="Gistory — go to the home page"
           >
             {title}
           </button>

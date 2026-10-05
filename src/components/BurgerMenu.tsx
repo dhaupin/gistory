@@ -1,6 +1,6 @@
 // BurgerMenu - sidebar with threads/projects
 import { useState } from 'react'
-import { X, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight, Home } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
 import { sortThreads, sortProjects, sortStateFromValue, THREAD_SORT_OPTIONS, type SortState } from '../ui/sort'
 import { useViewState } from '../ui/view-state'
@@ -29,6 +29,8 @@ interface BurgerMenuProps {
   onTogglePin?: (id: string) => void
   onTogglePinProject?: (id: string) => void
   onTrash?: () => void
+  /** Back to the app's home board (the dashboard) without leaving the app. */
+  onHome?: () => void
 }
 
 const UNASSIGNED = 'group:unassigned'
@@ -52,7 +54,8 @@ export default function BurgerMenu({
   onDeleteProject,
   onTogglePin,
   onTogglePinProject,
-  onTrash
+  onTrash,
+  onHome
 }: BurgerMenuProps) {
   const [newThreadName, setNewThreadName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
@@ -389,11 +392,22 @@ export default function BurgerMenu({
           </div>
         )}
 
-        {onTrash && (
-          <div className="sidebar-footer-link">
-            <button className="btn btn-ghost btn-small" onClick={onTrash}>
-              <Trash2 size={14} /> Recently deleted
-            </button>
+        {(onHome || onTrash) && (
+          <div className="sidebar-footer">
+            {onHome && (
+              <div className="sidebar-footer-link">
+                <button className="btn btn-ghost btn-small" onClick={onHome}>
+                  <Home size={14} /> Dashboard
+                </button>
+              </div>
+            )}
+            {onTrash && (
+              <div className="sidebar-footer-link">
+                <button className="btn btn-ghost btn-small" onClick={onTrash}>
+                  <Trash2 size={14} /> Recently deleted
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

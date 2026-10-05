@@ -1096,6 +1096,7 @@ setSyncError(
         createProject={createProject} 
         onSettings={() => { navigate('/settings'); setShowBurger(false) }}
         onTrash={() => { navigate('/trash'); setShowBurger(false) }}
+        onHome={() => { navigate('/'); setShowBurger(false) }}
         onRenameThread={renameThread}
         onDeleteThread={deleteThread}
         onAddToProject={addThreadToProject}
@@ -1112,7 +1113,11 @@ setSyncError(
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onProjectsClick={() => navigate('/projects')}
-        onHomeClick={() => navigate('/')}
+        // The logo leaves the app for the lander home page — a real path
+        // navigation. pushState cannot be used here: the app's hash branch
+        // only re-evaluates on hashchange, so a client-side path change
+        // would leave the app mounted at "/" with a stale board.
+        onHomeClick={() => window.location.assign('/')}
         onMenuClick={showBurgerBtn ? () => setShowBurger(v => !v) : undefined}
         sync={{ enabled: syncEnabled, status: syncStatus, lastSync }}
         onSyncClick={() => navigate('/settings')}

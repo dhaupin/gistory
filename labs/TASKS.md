@@ -13,8 +13,10 @@ Conventions
 
 ## Now
 
-- **QC pass on `fcc6fa9` found and fixed 2 REAL production bugs** (Done entry
-  below). Verified but uncommitted — Changes panel owns delivery.
+- **Navigation/404 pass (verified, uncommitted):** logo → lander home, burger
+  menu gains Dashboard, 404 themed via app CSS, robots/sitemap confirmed
+  single-system. Upstream issues prestruct#18 (cache fingerprint) and #19
+  (404 theming) filed. Full detail in the Done entry below.
 - Nothing else in flight. Remaining Next items are all optional polish.
 
 ## Next
@@ -33,6 +35,36 @@ Conventions
   `freebuff-preview restart` if it disagrees with disk.
 
 ## Done
+
+- **2026-10-05 — navigation + 404 pass (verified, uncommitted).**
+  - **Logo → lander home** (`App.tsx`): the logo's click is now a real path
+    navigation `window.location.assign('/')` instead of `navigate('/')`. A
+    client-side path change cannot work here: the app's hash branch only
+    re-evaluates on hashchange, and pushState does not fire it — the board
+    would stay mounted at `/` with a stale URL. Full load → no hash → lander
+    hydrates. Logo title/aria updated ("Gistory home").
+  - **Menu Dashboard link** (`BurgerMenu.tsx`): new `onHome` prop renders a
+    "Dashboard" footer link (Home icon) above "Recently deleted", navigating
+    `#/` in-app — the way back to the board now that the logo leaves. Footer
+    links wrapped in one `.sidebar-footer` (the per-link `margin-top: auto`
+    would fight when stacked; CSS added).
+  - **404 themed via prestruct config + app CSS:** `generate404` now emits
+    class-based markup (`.notfound-*`) instead of hardcoded inline styles —
+    the stylesheet link already survives the JS strip, so the page matches
+    the app; `@media (prefers-color-scheme: dark)` covers visitors who never
+    loaded the app (no body.dark possible without JS). ssr.config notFound
+    copy updated; CTA → `/` (lander home, consistent with the logo). dist
+    probe asserts the CTA markup survives.
+  - **Robots/sitemap single-system confirmed:** airtight find + tracked-file
+    grep found exactly ONE robots (`public/robots.txt`) and ONE sitemap
+    (prerender-generated `dist/sitemap.xml`). No legacy duplicates existed to
+    retire; index.html's `<meta name="robots">` is complementary, not a
+    second system.
+  - Upstream: **prestruct#19** filed (404 hardcoded inline styles / no theme
+    hook); #18 (cache fingerprint) filed earlier today.
+  - Verified: typecheck ×3 · lint 0 · build 3/3 + tripwire · probe:dist PASS
+    (incl. new 404-CTA check) · test:ui 302/302 (edge-flows H rewritten for
+    the new logo behavior) · ui:audit 0 · smoke 279/279.
 
 - **2026-10-05 — QC pass on the prestruct integration (verified, uncommitted).
   Two real production bugs found by a new dist-probe; both fixed + guarded.**

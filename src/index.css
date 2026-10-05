@@ -2859,3 +2859,89 @@ textarea::placeholder {
 .legal-body li {
   margin-bottom: 0.5rem;
 }
+
+/* --- Sidebar footer nav --------------------------------------------------------------
+   Wraps the bottom links (Dashboard / Recently deleted) so the auto-margin that
+   pushes them to the bottom sits on the wrapper once, not on each link. */
+
+.sidebar-footer {
+  margin-top: auto;
+}
+
+.sidebar-footer .sidebar-footer-link {
+  margin-top: 0;
+}
+
+/* --- Static 404 page (dist/404.html) --------------------------------------------------
+   Prerendered by prestruct with NO JavaScript: the app's stylesheet still loads
+   (only the module bundle is stripped), so these classes give the page the app's
+   look without any runtime. A visitor who never loaded the app has no body.dark
+   class, so the OS preference covers dark mode here. */
+
+.notfound {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.notfound-brand {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0 0 0.75rem;
+}
+
+.notfound-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin: 0 0 1rem;
+}
+
+.notfound-body {
+  max-width: 480px;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  margin: 0 0 2rem;
+  color: var(--text-dim);
+}
+
+.notfound-cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.75rem;
+  background: var(--primary);
+  color: var(--primary-fg);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+.notfound-cta:hover {
+  background: var(--primary-hover);
+}
+
+/* The app's dark theme is applied via body.dark by app JavaScript, which the
+   404 page deliberately never runs — so dark visitors get the OS preference. */
+@media (prefers-color-scheme: dark) {
+  .notfound {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --border: #333333;
+    --text: #e5e5e5;
+    --text-dim: #999999;
+    --primary: #60a5fa;
+    --primary-hover: #93c5fd;
+    --primary-fg: #08101f;
+  }
+}
