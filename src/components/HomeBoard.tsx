@@ -1,7 +1,8 @@
 // HomeBoard - main threads + projects list
 import { useState } from 'react'
-import { Folder, Plus, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight, GitFork } from 'lucide-react'
-import type { Thread, Project } from '../lib/models'
+import { Folder, Plus, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight, GitFork, Archive, ArchiveRestore } from 'lucide-react'
+
+import type { Thread, Project, ThreadStatus } from '../lib/models'
 import { sortThreads, sortProjects, sortStateFromValue, THREAD_SORT_OPTIONS, type SortState } from '../ui/sort'
 import { useViewState } from '../ui/view-state'
 import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
@@ -26,15 +27,20 @@ interface HomeBoardProps {
   onDeleteProject?: (id: string) => void
   onTogglePin?: (id: string) => void
   onTogglePinProject?: (id: string) => void
+  /** Clear every pin — threads and projects — in one go. */
+  onUnpinAll?: () => void
   /** Fork a thread: full copy marked as a child via metadata.parentId. */
   onFork?: (id: string) => void
   /** A tag chip was clicked — filter the board by it. */
   onTagClick?: (tag: string) => void
+  /** Set the working status (draft/active/archived) of a thread. */
+  onSetStatus?: (id: string, status: ThreadStatus) => void
 }
 
 type Editing = { type: 'thread' | 'project'; id: string; name: string }
 
 const PROJECTS_SECTION = 'section:home-projects'
+const ARCHIVE_SECTION = 'section:home-archived'
 
 export default function HomeBoard({
   threads,
@@ -52,8 +58,10 @@ export default function HomeBoard({
   onDeleteProject,
   onTogglePin,
   onTogglePinProject,
+  onUnpinAll,
   onFork,
-  onTagClick
+  onTagClick,
+  onSetStatus
 }: HomeBoardProps) {
   const [newThreadName, setNewThreadName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
@@ -67,6 +75,10 @@ export default function HomeBoard({
   const projectRank = (p: Project) => view[p.id]?.rank
 
   const projectsCollapsed = isCollapsed(PROJECTS_SECTION)
+  const archiveCollapsed = isCollapsed(ARCHIVE_SECTION)
+  // Pinned counts feed the badges and decide whether the bulk control shows.
+  const pinnedThreadCount = threads.filter(t => t.pinned).length
+  const pinnedProjectCount = projects.filter(p => p.pinned).length
 
   const sortedThreads = sortThreads(threads, sort, threadRank)
   const sortedProjects = sortProjects(projects, projectRank)
@@ -75,18 +87,22 @@ export default function HomeBoard({
   // too — not only filter messages inside a thread. It matches thread names
   // AND tags, so typing (or clicking) a tag finds every thread carrying it.
   const query = searchQuery.trim().toLowerCase()
-  const visibleThreads = query
-    ? sortedThreads.filter(t =>
-        t.name.toLowerCase().includes(query) ||
-        (t.metadata?.tags ?? []).some(tag => tag.toLowerCase().includes(query))
-      )
-    : sortedThreads
+  const matchesQuery = (t: Thread) =>
+    t.name.toLowerCase().includes(query) ||
+    (t.metadata?.tags ?? []).some(tag => tag.toLowerCase().includes(query))
+
+  // Archived threads leave every working surface; they live in the Archived
+  // section below until restored. Drafts stay visible with a chip marking.
+  const activeThreads = sortedThreads.filter(t => t.metadata?.status !== 'archived')
+  const archivedThreads = sortedThreads.filter(t => t.metadata?.status === 'archived')
+  const visibleThreads = query ? activeThreads.filter(matchesQuery) : activeThreads
+  const archivedVisible = query ? archivedThreads.filter(matchesQuery) : archivedThreads
   const visibleProjects = query
     ? sortedProjects.filter(p => p.name.toLowerCase().includes(query))
     : sortedProjects
 
   const getThreadsInProject = (pid: string) =>
-    threads.filter(t => t.projectIds.includes(pid))
+    activeThreads.filter(t => t.projectIds.includes(pid))
 
   const tryCreateThread = useSubmitLock(showNewThread)
   const tryCreateProject = useSubmitLock(showNewProject)
@@ -200,6 +216,22 @@ export default function HomeBoard({
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
+          {/* Bulk control appears only when pins actually exist — below two,
+              the per-row Unpin menu item is the shorter path. */}
+          {onUnpinAll && pinnedThreadCount + pinnedProjectCount >= 2 && (
+            <button
+              className="btn btn-ghost btn-small unpin-all"
+              onClick={() => onUnpinAll()}
+              aria-label={`Unpin all ${pinnedThreadCount} pinned threads and ${pinnedProjectCount} pinned projects`}
+              title={`Unpin all (${pinnedThreadCount + pinnedProjectCount} pinned)`}
+            >
+              {/* The long label collapses to icon + count at mobile widths —
+                  the full text lives in the aria-label and title. */}
+              <PinOff size={14} />
+              <span className="unpin-all-count">{pinnedThreadCount + pinnedProjectCount}</span>
+              <span className="unpin-all-label">pinned · Unpin all</span>
+            </button>
+          )}
         </div>
 
         <div className="header-actions">
@@ -297,8 +329,11 @@ export default function HomeBoard({
                         )}
                       </span>
                     </button>
-                    {/* Tag chips sit outside the link button (no nested
-                        interactives): clicking one filters the board by it. */}
+                    {/* Draft marker and tag chips sit outside the link
+                        button (no nested interactives): tags filter the board. */}
+                    {thread.metadata?.status === 'draft' && (
+                      <span className="meta-status">draft</span>
+                    )}
                     {(thread.metadata?.tags?.length ?? 0) > 0 && (
                       <span className="thread-tags">
                         {thread.metadata!.tags.map(tag => (
@@ -326,18 +361,17 @@ export default function HomeBoard({
       </div>
 
       {/* Projects section */}
-      <div className="projects-section">
-        <div className="collapsible-header">
-          <button
-            className="collapse-toggle"
-            onClick={() => toggleCollapse(PROJECTS_SECTION)}
-            aria-expanded={!projectsCollapsed}
-            aria-label={projectsCollapsed ? 'Expand projects' : 'Collapse projects'}
-          >
-            {projectsCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-          </button>
-          <h3>Projects</h3>
-        </div>
+      <div className="projects-section">          <div className="collapsible-header">
+            <button
+              className="collapse-toggle"
+              onClick={() => toggleCollapse(PROJECTS_SECTION)}
+              aria-expanded={!projectsCollapsed}
+              aria-label={projectsCollapsed ? 'Expand projects' : 'Collapse projects'}
+            >
+              {projectsCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+            </button>
+            <h3>Projects{pinnedProjectCount > 0 && <span className="pin-badge">📌 {pinnedProjectCount}</span>}</h3>
+          </div>
         {!projectsCollapsed && (
           visibleProjects.length === 0 ? (
             <p className="empty-text">
@@ -380,6 +414,49 @@ export default function HomeBoard({
           )
         )}
       </div>
+
+      {/* Archived section — out of every working list, one restore point */}
+      {archivedThreads.length > 0 && (
+        <div className="projects-section">
+          <div className="collapsible-header">
+            <button
+              className="collapse-toggle"
+              onClick={() => toggleCollapse(ARCHIVE_SECTION)}
+              aria-expanded={!archiveCollapsed}
+              aria-label={archiveCollapsed ? 'Expand archived' : 'Collapse archived'}
+            >
+              {archiveCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+            </button>
+            <h3>Archived ({archivedThreads.length})</h3>
+          </div>
+          {!archiveCollapsed && (
+            archivedVisible.length === 0 ? (
+              <p className="empty-text">No archived threads match “{searchQuery.trim()}”.</p>
+            ) : (
+              <div className="threads-grid">
+                {archivedVisible.map(thread => (
+                  <div key={thread.id} className="thread-item archived">
+                    <Archive size={13} className="pin-indicator" aria-hidden="true" />
+                    <button className="thread-link" onClick={() => onSelectThread(thread.id)}>
+                      <span className="thread-name">{thread.name}</span>
+                    </button>
+                    {onSetStatus && (
+                      <ActionMenu
+                        items={[
+                          { label: 'Restore', icon: <ArchiveRestore size={14} />, onClick: () => onSetStatus(thread.id, 'active') },
+                          ...(onDeleteThread
+                            ? [{ label: 'Delete', icon: <Trash2 size={14} />, variant: 'danger' as const, onClick: () => setDeleting({ type: 'thread', id: thread.id, name: thread.name }) }]
+                            : []),
+                        ]}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      )}
 
       {deleting && (
         <ConfirmDialog

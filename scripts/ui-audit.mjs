@@ -45,6 +45,25 @@ const EMPTY_SEED = {
   gistory_messages: {},
   gistory_projects: [],
   gistory_deleted: { threads: {}, messages: {}, projects: {} },
+  // The first-run tour is its own state below; without this flag it would sit
+  // over every empty state and the boards behind it would go unmeasured.
+  gistory_onboarded: '1',
+}
+
+// The tour itself: an empty library on its genuine first run.
+const ONBOARD_SEED = { ...EMPTY_SEED }
+delete ONBOARD_SEED.gistory_onboarded
+
+// The recently-deleted log reads the synced tombstone registry directly, so it
+// needs its own fixture: one fresh entry (inside the 90-day window) and one
+// ancient one, so the filter and the section counts both render.
+const TRASH_SEED = {
+  ...SEED,
+  gistory_deleted: {
+    threads: { 'tGONE-abc': Date.now() - 2 * 24 * 60 * 60 * 1000 },
+    messages: { 'mGONE-def': Date.now() - 200 * 24 * 60 * 60 * 1000 },
+    projects: {},
+  },
 }
 
 // A second fixture that reaches the arrangement surfaces the default seed never
@@ -111,6 +130,18 @@ const ROUTES = [
     ],
   },
   { name: 'search-filtered', hash: '#/', type: { selector: '.search-input', text: 'planning' } },
+  // First-run tour, recently-deleted log, and the Cmd+K palette.
+  { name: 'onboarding', hash: '#/', seed: ONBOARD_SEED },
+  { name: 'trash', hash: '#/trash', seed: TRASH_SEED },
+  { name: 'palette', hash: '#/', steps: [{ press: 'k', modifier: 'Control' }] },
+  {
+    name: 'palette-search',
+    hash: '#/',
+    steps: [
+      { press: 'k', modifier: 'Control' },
+      { type: { selector: '.palette-input', text: 'sync' } },
+    ],
+  },
   // Arrangement states: pinned items, custom order, collapsed groups/messages.
   { name: 'home-arranged', hash: '#/', seed: ARRANGED_SEED },
   {
@@ -184,6 +215,7 @@ const blank = []
 const consoleErrors = []
 const overflowCombos = []
 let gradientSkips = 0
+let ellipsisSkips = 0
 
 const planned = THEMES.length * VIEWPORTS.length * routes.length
 console.log(`Auditing ${routes.length} states x ${THEMES.length} themes x ${VIEWPORTS.length} viewports = ${planned} passes`)
@@ -228,6 +260,12 @@ for (const theme of THEMES) {
         for (const step of routeSteps(route)) {
           if (step.click) await clickButtonByText(page, step.click)
           if (step.clickSelector) await clickSelector(page, step.clickSelector)
+          if (step.press) {
+            await page.keyboard.down(step.modifier || 'Control')
+            await page.keyboard.press(step.press)
+            await page.keyboard.up(step.modifier || 'Control')
+            await settle(page)
+          }
           if (step.type) {
             await page.click(step.type.selector)
             await page.type(step.type.selector, step.type.text)
@@ -248,6 +286,7 @@ for (const theme of THEMES) {
         if (errs.length) consoleErrors.push({ combo, errs })
         if (findings.overflowX) overflowCombos.push({ combo, docW: findings.docW, vw: findings.vw })
         gradientSkips += findings.gradientSkips
+        ellipsisSkips += findings.ellipsisSkips || 0
         for (const key of BUCKETS) {
           for (const item of findings[key]) bucket[key].push({ ...item, combo })
         }
@@ -303,6 +342,9 @@ show('Duplicate element ids', bucket.dupIds, (i) => `#${i.id} x${i.count}  (${i.
 
 if (gradientSkips) {
   console.log(`\nNote: ${gradientSkips} text nodes skipped for contrast (unknown background over a gradient).`)
+}
+if (ellipsisSkips) {
+  console.log(`Note: ${ellipsisSkips} overflowing text nodes skipped (deliberate text-overflow: ellipsis).`)
 }
 if (SHOTS) console.log('\nScreenshots: ' + OUT)
 

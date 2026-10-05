@@ -1,10 +1,14 @@
 // Core data models for Gistory
 
+/** Working state of a thread. Absent means 'active' — threads saved before
+ *  statuses existed must behave as active without a migration. */
+export type ThreadStatus = 'draft' | 'active' | 'archived'
+
 export interface PromptMetadata {
   // Categorization
   tags: string[]
   category?: 'productivity' | 'creative' | 'technical' | 'general'
-  status?: 'draft' | 'active' | 'archived'
+  status?: ThreadStatus
   
   // Quality signals
   rating?: number        // 1-5 quality score

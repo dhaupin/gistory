@@ -28,6 +28,7 @@ interface BurgerMenuProps {
   onDeleteProject?: (id: string) => void
   onTogglePin?: (id: string) => void
   onTogglePinProject?: (id: string) => void
+  onTrash?: () => void
 }
 
 const UNASSIGNED = 'group:unassigned'
@@ -50,7 +51,8 @@ export default function BurgerMenu({
   onRenameProject,
   onDeleteProject,
   onTogglePin,
-  onTogglePinProject
+  onTogglePinProject,
+  onTrash
 }: BurgerMenuProps) {
   const [newThreadName, setNewThreadName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
@@ -68,8 +70,11 @@ export default function BurgerMenu({
     t => view[t.id]?.rank,
   )
   const sortedProjectsList = sortProjects(projects, p => view[p.id]?.rank)
-  const getThreadsInProject = (pid: string) => sortedThreads.filter(t => t.projectIds.includes(pid))
-  const unassigned = sortedThreads.filter(t => t.projectIds.length === 0)
+  // Archived threads are navigation noise in the sidebar; the home board's
+  // Archived section is where they live until restored.
+  const activeThreads = sortedThreads.filter(t => t.metadata?.status !== 'archived')
+  const getThreadsInProject = (pid: string) => activeThreads.filter(t => t.projectIds.includes(pid))
+  const unassigned = activeThreads.filter(t => t.projectIds.length === 0)
 
   const tryCreateThread = useSubmitLock(showNewThread)
   const tryCreateProject = useSubmitLock(showNewProject)
@@ -270,7 +275,7 @@ export default function BurgerMenu({
         </div>
 
         {showNewProject && (
-          <div className="form-inline" style={{ marginTop: '0.5rem' }}>
+          <div className="form-inline form-inline-stacked">
             <input
               className="input-name"
               placeholder="Project name..."
@@ -336,6 +341,12 @@ export default function BurgerMenu({
                   >
                     {project.pinned && <Pin size={12} className="pin-indicator" aria-hidden="true" />}
                     {project.name} ({projThreads.length})
+                    {/* Pinned threads inside this group, so pins stay visible
+                        even when the group is sorted away from the top. */}
+                    {(() => {
+                      const n = projThreads.filter(t => t.pinned).length
+                      return n > 0 ? <span className="pin-badge">📌 {n}</span> : null
+                    })()}
                   </div>
                   {(onRenameProject || onDeleteProject || onTogglePinProject) && (
                     <ActionMenu items={buildProjectMenuItems(project)} />
@@ -363,13 +374,26 @@ export default function BurgerMenu({
               >
                 {isCollapsed(UNASSIGNED) ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
               </button>
-              <div className="project-label project-label-dim">Unassigned ({unassigned.length})</div>
+              <div className="project-label project-label-dim">Unassigned ({unassigned.length})
+                {(() => {
+                  const n = unassigned.filter(t => t.pinned).length
+                  return n > 0 ? <span className="pin-badge">📌 {n}</span> : null
+                })()}
+              </div>
             </div>
             {!isCollapsed(UNASSIGNED) && (
               <SortableProvider ids={unassigned.map(t => t.id)} onReorder={reorder}>
                 {unassigned.map(renderThreadRow)}
               </SortableProvider>
             )}
+          </div>
+        )}
+
+        {onTrash && (
+          <div className="sidebar-footer-link">
+            <button className="btn btn-ghost btn-small" onClick={onTrash}>
+              <Trash2 size={14} /> Recently deleted
+            </button>
           </div>
         )}
       </div>

@@ -5,7 +5,8 @@ import { Settings as SettingsIcon, Link, Smartphone, RefreshCw, Check, X, Copy, 
 import { QRCodeSVG } from 'qrcode.react'
 import { Badge, Button } from '../ui'
 import ConfirmDialog from './ConfirmDialog'
-import { exportAll, exportThread, exportProject, type ExportData } from '../lib/store'
+import { exportAll, exportThread, exportProject, getLastExport, setLastExport, type ExportData } from '../lib/store'
+import { convertImport } from '../lib/import-adapters'
 import type { PromptMetadata } from '../lib/models'
 
 // Types
@@ -477,6 +478,13 @@ function DataSettings({ onImport }: { onImport: (data: ExportData) => void }) {
   const [importStatus, setImportStatus] = useState<string>('')
   const [selectedThread, setSelectedThread] = useState<string>('')
   const [selectedProject, setSelectedProject] = useState<string>('')
+  // Backup nudging: sync retains only the newest 5 snapshots per chain, so a
+  // downloaded backup is the real archive. The nudge is one-time dismissible;
+  // the last-backup stamp stays visible in this tab regardless.
+  const [lastExport, setLastExportState] = useState<number | null>(() => getLastExport())
+  const [nudgeDismissed, setNudgeDismissed] = useState(
+    () => localStorage.getItem('gistory_backup_nudge_dismissed') === '1',
+  )
   
   // Load data from store for dropdowns
   const [threads, setThreads] = useState<{id: string, name: string, metadata?: PromptMetadata}[]>([])
@@ -498,7 +506,13 @@ function DataSettings({ onImport }: { onImport: (data: ExportData) => void }) {
   const handleExportAll = () => {
     const data = exportAll()
     downloadJson(data, 'gistory-export-full.json')
+    setLastExport()
+    setLastExportState(Date.now())
   }
+
+  const BACKUP_STALE_MS = 14 * 24 * 60 * 60 * 1000
+  const backupStale = !lastExport || Date.now() - lastExport > BACKUP_STALE_MS
+  const showBackupNudge = threads.length > 0 && backupStale && !nudgeDismissed
   
   const handleExportThread = () => {
     if (!selectedThread) return
@@ -518,23 +532,57 @@ function DataSettings({ onImport }: { onImport: (data: ExportData) => void }) {
     
     try {
       const text = await file.text()
-      const data = JSON.parse(text) as ExportData
-
-      // Hand the snapshot to the app, which owns the state and the 
+      // The same dialog accepts Gistory snapshots, ChatGPT data exports, and
+      // Claude data exports — convertImport sniffs the shape.
+      const converted = convertImport(JSON.parse(text))
+      if (!converted) {
+        setImportStatus('Error: Unsupported file format — expected a Gistory, ChatGPT, or Claude export')
+        return
+      }
+      // Hand the snapshot to the app, which owns the state and the
       // persistence effects. Writing localStorage from here would leave the
       // in-memory state stale, forcing a full page reload to see the import.
-      onImport(data)
-      setImportStatus(`Imported ${(data.threads || []).length} threads, ${(data.projects || []).length} projects`)
+      onImport(converted.data)
+      const label =
+        converted.format === 'chatgpt' ? 'ChatGPT export'
+        : converted.format === 'claude' ? 'Claude export'
+        : 'Gistory snapshot'
+      setImportStatus(`Imported ${(converted.data.threads || []).length} thread(s), ${(converted.data.projects || []).length} project(s) — ${label}`)
       // Keep the export dropdowns in step with what was just imported.
       setTimeout(reloadLists, 0)
     } catch {
-      setImportStatus('Error: Invalid file format')
+      setImportStatus('Error: Invalid JSON file')
     }
   }
   
   return (
     <div className="data-settings">
       <h3>Export Data</h3>
+
+      {showBackupNudge && (
+        <div className="backup-notice" role="status">
+          <AlertTriangle size={14} />
+          <span>
+            {lastExport
+              ? 'Last full backup was over two weeks ago. '
+              : 'No full backup yet. '}
+            Sync keeps only the newest 5 snapshots per chain — download a backup to be safe.
+          </span>
+          <button
+            className="btn-icon"
+            onClick={() => {
+              localStorage.setItem('gistory_backup_nudge_dismissed', '1')
+              setNudgeDismissed(true)
+            }}
+            aria-label="Dismiss backup reminder"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      <p className="meta-usage backup-stamp">
+        Last full backup: {lastExport ? new Date(lastExport).toLocaleString() : 'never'}
+      </p>
       
       <div className="export-section">
         <button className="btn btn-primary" onClick={handleExportAll}>

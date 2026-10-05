@@ -13,20 +13,22 @@ Conventions
 
 ## Now
 
-- (product feature pass COMPLETE, uncommitted — see top of Done)
+- (pushed: `5c75845` maintenance clamp + `96f57b0` product features — CI and
+  Migrate D1 green, remote ledger 3/3 "Already up to date.")
+- **2026-10-05 — the workflow pass is built and verified, uncommitted.** All
+  seven queued features landed (see Done below): onboarding tour, Cmd+K
+  palette, draft/archived statuses, recently-deleted log, ChatGPT/Claude
+  import adapters, rating editor, backup nudge. Verified: typecheck ×3,
+  smoke 274/274, lint 0 errors, ui:audit 0 findings over 19 states,
+  test:ui 264/264 across 9 suites. Push only on explicit ask.
 
 ## Next
 
-- [ ] First-run onboarding flow (device name → passphrase → pairing QR)
-- [ ] Cmd+K command palette (search + jump + actions)
-- [ ] Draft/archived status views (PromptMetadata.status is synced but has no UI)
-- [ ] Recently-deleted view over the synced tombstone registry
-- [ ] Import adapters for ChatGPT/Claude export formats (importData is ready)
-- [ ] Rating editor (metadata.rating displays already; needs input UI)
-- [ ] Export-backup nudge after N pushes (blobs retained at newest 5/chain)
-- [ ] Drag handles for project-detail + sidebar thread rows (currently read-only to the rank)
-- [ ] Optional: unpin-all / clear-pins bulk action, pinned-count badges
-- [ ] Optional: drag-to-reorder inside a collapsed project group in the sidebar
+- [ ] Optional: drag-to-reorder inside a collapsed project group — re-evaluated
+  2026-10-05: low value (a collapsed group hides its rows by definition; the
+  keyboard path on the expanded group already covers reordering). Only build
+  if a real user asks. Note: "drag handles for project-detail + sidebar rows"
+  was STALE and removed — those grips already shipped.
 
 ## Blocked / risks
 
@@ -36,6 +38,100 @@ Conventions
   `freebuff-preview restart` if it disagrees with disk.
 
 ## Done
+
+- **2026-10-05 — UI consistency pass (verified, uncommitted).** Systematic
+  audit of fonts/buttons/inputs, action + menu ordering, and destructive-action
+  coverage:
+  - **Destructive coverage is complete**: every delete (thread/message/project
+    across board, sidebar, project detail, thread view) routes through
+    ConfirmDialog with a danger-styled confirm; sync disable has its own;
+    join-chain/create-chain/import are additive, not destructive; "Clear
+    draft" only wipes the composer draft (auto-saved as you type) so it stays
+    confirm-free — but gained a missing aria-label.
+  - **Menu conventions now enforced centrally**: destructive items always sit
+    last, and ActionMenu renders a `dropdown-divider` (role=separator) above
+    them — the CSS class existed but was never used. Verified in the DOM:
+    9 items, 1 divider, Delete last.
+  - **Inputs unified**: `.input-name` (all 10 rename fields) had a different
+    radius (4 vs 6), no font/focus rules — it now matches `.input` exactly and
+    shares the focus ring.
+  - **Buttons unified**: the header Projects button's bespoke `.btn-project`
+    skin (a fix for a raw-button bug) now sits on standard `btn btn-secondary`
+    classes; the alias rule only keeps the icon+label alignment.
+  - The last inline `style={{}}` in the tree (BurgerMenu stacked form) became
+    `.form-inline-stacked`. One font-family (system stack); lucide sizes
+    12–20px per role; `.input-sm`/`.input-lg` are dead CSS (left alone —
+    harmless variants).
+  - Verified: typecheck ×3 · lint 0 errors · ui:audit 0 findings · test:ui
+    288/288 · divider DOM probe.
+
+- **2026-10-05 — arrangement wrap-up pass (verified, uncommitted).**
+  - **Queue hygiene:** "drag handles for project-detail + sidebar rows" was
+    STALE — `SortableHandle` grips already exist in both surfaces (verified by
+    grep: BurgerMenu ×2, ProjectDetail ×2, plus HomeBoard/ThreadView). Removed.
+  - **Bulk unpin + pinned badges**: `App.unpinAll()` clears every thread AND
+    project pin in one click (each item bumped with a shared timestamp exactly
+    like its individual toggle, so the same LWW merge clears pins everywhere;
+    per-item pinning keeps working afterwards). HomeBoard header shows an
+    "Unpin all" ghost control when ≥2 pins exist, with an aggregate count —
+    which is why the action MUST clear both kinds (a per-kind action would
+    make the label lie; the edge-flows suite caught exactly that draft bug).
+    Pinned-count badges (📌 N) ride the sidebar group labels and the home
+    Projects header. Mobile: the full label hides ≤640px (icon + count carry
+    it; words live in the aria-label/title) and `.header-left` wraps — the
+    first cut overflowed 390px and ui:audit caught it (56 findings → 0).
+  - **`tests/ui/_qc-probe.mjs` → `tests/ui/edge-flows.mjs`** (permanent, 24
+    checks): archive-while-viewing + restore, palette create-from-query,
+    tour×palette overlay stacking regression, trash Back, bulk-unpin + badges
+    (scenario E). test:ui now 10 suites / 288 checks.
+  - Verified after final edits: typecheck ×3 · smoke 274/274 · lint 0 errors ·
+    ui:audit 0 findings · test:ui 288/288.
+
+- **2026-10-05 — workflow pass (verified, uncommitted).** The seven queued
+  roadmap features in one coherent pass:
+  - **First-run onboarding tour** (`Onboarding.tsx`): welcome → first prompt →
+    sync & pair. Shows once per browser (`gistory_onboarded`) and only over an
+    empty board; the sync step carries the passphrase-loss warning and
+    deep-links into Settings → Sync, so sync stays configured in exactly one
+    place. Browsers that already have threads bake the flag on first load,
+    and the render is also gated on `threads.length === 0` so pre-tour
+    installs never see a flash of the modal.
+  - **Cmd/Ctrl+K palette** (`CommandPalette.tsx`): one input, one flat list —
+    threads (name + tags; archived hidden, drafts hinted), projects, create
+    rows from the query, nav rows (projects / settings / trash). Arrow keys
+    move, Enter runs, Escape closes; every open resets and refocuses.
+  - **Draft/archived statuses**: `ThreadStatus` in models.ts;
+    `App.patchThreadMetadata` (metadata is content → bumps `updatedAt`; usage
+    counting deliberately bypasses it); mark draft/active/archive/restore in
+    the ThreadView menu; an Archived section on the home board (synced
+    collapse key `section:home-archived`) with Restore/Delete; draft chips on
+    board + thread view; archived threads leave home, sidebar, project
+    detail, and the palette until restored.
+  - **Recently-deleted log** (`TrashPage.tsx`): reads the synced tombstone
+    registry; deliberately a *record*, not a restore — no device keeps the
+    deleted content, and entries cannot be safely cleared while an old blob
+    might still carry the item. 90-day filter. Route `/trash` is matched
+    before the generic thread-id fallback in router.ts; sidebar footer link.
+  - **ChatGPT/Claude import adapters** (`lib/import-adapters.ts`):
+    `convertImport` sniffs Gistory/ChatGPT/Claude shapes; the Snapshot tab's
+    status line names the format; the suite drives the real upload control
+    with fixture files from disk.
+  - **Rating editor**: clickable 1–5 stars in ThreadView (clicking the
+    current star clears it); the read-only ★ stamp remains for consumers
+    without the handler.
+  - **Backup nudge**: `getLastExport/setLastExport` in store.ts; the Snapshot
+    tab shows a "Last full backup" stamp and a dismissible nudge when never
+    or >14 days stale (sync keeps only the newest 5 blobs per chain).
+  - Harness: new suites `workflow.mjs` (41 checks) + `import-adapters.mjs`
+    (14); `snapshot-metrics` now expects 4 buttons — the nudge dismiss is an
+    icon-only `btn-icon`, exempt from the `.btn` base-class rule but not from
+    size/radius/name; `export-import` matches the new status format
+    ("N thread(s) … — label"). `ui-audit` gained onboarding / trash / palette
+    / palette-search states and a `press` step type (Ctrl+K), and bakes
+    `gistory_onboarded` into EMPTY_SEED (the tour would otherwise sit over
+    the three empty states). The clipped-text detector now skips deliberate
+    `text-overflow: ellipsis` (counted as ellipsisSkips) — it flagged the
+    palette's ellipsized long names; clipping WITHOUT ellipsis still reports.
 
 - **2026-10-04 — product feature pass (all verified, uncommitted).**
   - **Tags end-to-end**: inline editor in ThreadView (add via chip input,

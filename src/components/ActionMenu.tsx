@@ -1,6 +1,6 @@
 // ActionMenu - dropdown menu component
 import { MoreHorizontal, Folder, Check } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import { Fragment, useState, useRef, useEffect } from 'react'
 
 export interface ActionItem {
   label: string
@@ -53,23 +53,29 @@ export default function ActionMenu({ items, trigger }: ActionMenuProps) {
       {open && (
         <div className="action-menu-dropdown" role="menu">
           {items.map((item, i) => (
-            <button
-              key={i}
-              role="menuitem"
-              className={`action-menu-item ${item.variant || 'default'}`}
-              onClick={() => {
-                item.onClick()
-                setOpen(false)
-              }}
-            >
-              {item.checked !== undefined && (
-                <span className="action-menu-check">
-                  {item.checked ? <Check size={14} /> : <Folder size={14} />}
-                </span>
+            <Fragment key={i}>
+              {/* Destructive items always sit last and are separated by a
+                  divider, so a Delete can never read as an ordinary action. */}
+              {item.variant === 'danger' && i > 0 && items[i - 1].variant !== 'danger' && (
+                <div className="dropdown-divider" role="separator" />
               )}
-              {item.icon && !item.checked && <span className="action-menu-icon">{item.icon}</span>}
-              {item.label}
-            </button>
+              <button
+                role="menuitem"
+                className={`action-menu-item ${item.variant || 'default'}`}
+                onClick={() => {
+                  item.onClick()
+                  setOpen(false)
+                }}
+              >
+                {item.checked !== undefined && (
+                  <span className="action-menu-check">
+                    {item.checked ? <Check size={14} /> : <Folder size={14} />}
+                  </span>
+                )}
+                {item.icon && !item.checked && <span className="action-menu-icon">{item.icon}</span>}
+                {item.label}
+              </button>
+            </Fragment>
           ))}
         </div>
       )}

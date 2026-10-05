@@ -139,25 +139,13 @@ body {
 }
 
 /* .btn-project had no rule at all, so it rendered as a raw browser button
-   next to its styled siblings. */
+   next to its styled siblings. Kept as an alias: the header's Projects button
+   now carries the standard `btn btn-secondary` classes and this rule only
+   covers the icon+label flex alignment it needs on top. */
 .btn-project {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  min-height: 32px;
-  padding: 0.25rem 0.625rem;
-  font-size: 0.875rem;
-  line-height: 1;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.btn-project:hover {
-  background: var(--bg);
 }
 
 /* Sidebar */
@@ -758,11 +746,23 @@ textarea::placeholder {
 
 .input-name {
   flex: 1;
-  padding: 0.5rem;
+  /* Visually identical to `.input` — same padding, radius, focus ring — so
+     rename fields never read as a different kind of control. Kept as a
+     separate class because it also carries the flex sizing. */
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
   background: var(--surface);
   color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input-name:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 
 .projects-grid {
@@ -2152,4 +2152,356 @@ textarea::placeholder {
 .template-hint {
   font-size: 0.75rem;
   margin: 0;
+}
+
+/* --- Onboarding tour -------------------------------------------------------- */
+
+.onboarding {
+  max-width: 26rem;
+}
+
+.onboarding-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+}
+
+.onboarding-body {
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+}
+
+.onboarding-input {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.onboarding-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.onboarding-dots .dot.active {
+  background: var(--primary);
+}
+
+/* --- Command palette --------------------------------------------------------- */
+
+.palette-overlay {
+  align-items: flex-start;
+  padding-top: 12vh;
+}
+
+.palette {
+  width: min(34rem, 92vw);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+}
+
+.palette-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+.palette-search-icon {
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.palette-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9375rem;
+  min-height: 32px;
+  outline: none;
+}
+
+.palette-list {
+  overflow-y: auto;
+  padding: 0.25rem 0;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.875rem;
+  padding: 0.4rem 0.6rem;
+  min-height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.palette-item.active {
+  background: var(--bg);
+}
+
+.palette-item-icon {
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.palette-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-item-hint {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.palette-enter {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.palette-footer {
+  display: flex;
+  gap: 1rem;
+  padding: 0.4rem 0.6rem 0.2rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* --- Status + rating ---------------------------------------------------------- */
+
+.meta-status {
+  font-size: 0.75rem;
+  color: var(--warning-fg);
+  background: var(--warning-bg);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+}
+
+.thread-item.archived {
+  opacity: 0.75;
+}
+
+.meta-rating-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.star-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0.1rem;
+  min-width: 32px;
+  min-height: 32px;
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.star-btn .star {
+  color: var(--border);
+}
+
+.star-btn .star.filled {
+  color: #f59e0b;
+}
+
+/* --- Trash log ------------------------------------------------------------------ */
+
+.trash-explainer {
+  text-align: left;
+  line-height: 1.5;
+  margin: 0.5rem 0;
+}
+
+.trash-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.trash-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.trash-section {
+  margin-top: 1rem;
+}
+
+.trash-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  margin: 0 0 0.4rem;
+}
+
+.trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.trash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  min-height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.trash-row-icon {
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.trash-row-id {
+  flex: 1;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.trash-row-time {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* --- Backup nudge ------------------------------------------------------------------ */
+
+.backup-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--warning-fg);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-fg);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.backup-notice span {
+  flex: 1;
+}
+
+.backup-notice .btn-icon {
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.backup-stamp {
+  margin: 0 0 0.75rem;
+}
+
+/* --- Sidebar footer link ------------------------------------------------------------ */
+
+.sidebar-footer-link {
+  margin-top: auto;
+  padding: 0.75rem 0.25rem 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-footer-link .btn {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* --- Pinned badges + bulk unpin -------------------------------------------- */
+/* 12px is the audit's text floor (exactly 12 passes); badges ride the dim
+   token so they never compete with the item name next to them. */
+.pin-badge {
+  margin-left: 0.35rem;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.unpin-all {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.unpin-all-count {
+  font-weight: 600;
+}
+
+/* The full label does not fit the mobile header next to the sort select;
+   icon + count carry the meaning, the aria-label carries the words. */
+@media (max-width: 640px) {
+  .unpin-all-label {
+    display: none;
+  }
+
+  /* With several pins the header row overflows 390px. Let the left group
+     shrink; the sort select truncates inside its own themed box. */
+  .home-board .header-left {
+    flex-wrap: wrap;
+    min-width: 0;
+    row-gap: 0.4rem;
+  }
+  .home-board .header-left .sort-select {
+    max-width: 100%;
+  }
+  .home-board .home-header .header-actions {
+    flex-shrink: 0;
+  }
+}
+
+/* Stacked inline form (the sidebar's second create form) — replaces the last
+   inline style={} in the component tree. */
+.form-inline-stacked {
+  margin-top: 0.5rem;
 }

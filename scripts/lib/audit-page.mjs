@@ -95,6 +95,7 @@ export function collectFindings() {
   const unlabeled = []
   const clipped = []
   let gradientSkips = 0
+  let ellipsisSkips = 0
   const vw = window.innerWidth
 
   for (const el of document.querySelectorAll('body *')) {
@@ -154,12 +155,20 @@ export function collectFindings() {
 
     const clipsX = el.scrollWidth > el.clientWidth + 2 && s.overflowX !== 'visible' && el.clientWidth > 0
     if (clipsX && hasOwnText(el)) {
-      clipped.push({
-        el: path(el),
-        scrollW: el.scrollWidth,
-        clientW: el.clientWidth,
-        sample: (el.textContent || '').trim().slice(0, 30),
-      })
+      // `text-overflow: ellipsis` is the app's deliberate single-line
+      // truncation pattern (palette labels, tombstone ids) — the overflow is
+      // the design, not a defect. Count it so the skip stays visible, but do
+      // not flag it: elements that clip WITHOUT ellipsis still report here.
+      if (s.textOverflow === 'ellipsis') {
+        ellipsisSkips++
+      } else {
+        clipped.push({
+          el: path(el),
+          scrollW: el.scrollWidth,
+          clientW: el.clientWidth,
+          sample: (el.textContent || '').trim().slice(0, 30),
+        })
+      }
     }
   }
 
@@ -173,6 +182,7 @@ export function collectFindings() {
     docW: document.documentElement.scrollWidth,
     overflowX: document.documentElement.scrollWidth > vw + 1,
     gradientSkips,
+    ellipsisSkips,
     overflowEls,
     contrast,
     tinyText,

@@ -17,8 +17,8 @@ import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, typ
 import { errorMessage } from './sync/errors'
 import { SyncError } from './sync/agent'
 import { SyncQos } from './sync/qos'
-import {
-  applyFullOrder,
+import type { PromptMetadata, ThreadStatus } from './lib/models'
+import { applyFullOrder,
   applyOrder,
   loadView,
   moveItem,
@@ -37,6 +37,9 @@ import ProjectsBoard from './components/ProjectsBoard'
 import ProjectDetail from './components/ProjectDetail'
 import SettingsPage from './components/Settings'
 import EmptyState from './components/EmptyState'
+import Onboarding from './components/Onboarding'
+import CommandPalette from './components/CommandPalette'
+import TrashPage from './components/TrashPage'
 import { parseSort, toSortParam, type SortState } from './ui/sort'
 
 // Production runs same-origin (Cloudflare Pages Functions at /sync).
@@ -110,6 +113,10 @@ export default function App() {
   // payload, so it is saved, pushed, and merged like the rest of the data.
   const [view, setView] = useState<ViewState>(loadView)
   const [deviceName, setDeviceName] = useState(() => localStorage.getItem('gistory_device_name') || '')
+  // Cmd+K palette + the one-time first-run tour. Both are pure UI overlays;
+  // the tour flag lives in localStorage so it shows exactly once per browser.
+  const [showPalette, setShowPalette] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('gistory_onboarded'))
 
   // Refs mirror state so async sync code always reads the freshest snapshot.
   const syncAgentRef = React.useRef<SyncAgent | null>(null)
@@ -557,6 +564,39 @@ setSyncError(
     localStorage.setItem('gistory_dark', String(darkMode))
   }, [darkMode])
 
+  // The tour is for first runs. A browser that already has threads has already
+  // onboarded, even if it predates the tour — bake the flag so the condition
+  // stays honest, and gate the render on an empty board as well (effects run
+  // after first paint, so state alone would flash the modal for them).
+  useEffect(() => {
+    if (bootstrap.threads.length > 0) localStorage.setItem('gistory_onboarded', '1')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // The tour owns the first-run moment. Ctrl+K under it would let the palette
+  // navigate away while the modal stays stranded underneath (both overlays
+  // share one z-index and the palette sits later in the DOM, so it paints on
+  // top). The mirror ref keeps the key handler dependency-free.
+  const tourOpenRef = React.useRef(false)
+  tourOpenRef.current = showOnboarding && threads.length === 0
+
+  // Cmd/Ctrl+K toggles the command palette from anywhere (never under the tour).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        if (!tourOpenRef.current) setShowPalette(v => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const finishOnboarding = useCallback(() => {
+    localStorage.setItem('gistory_onboarded', '1')
+    setShowOnboarding(false)
+  }, [])
+
   // Router
   useEffect(() => {
     initRouter()
@@ -626,8 +666,19 @@ setSyncError(
     setThreads(prev => prev.map(t => t.id === id ? { ...t, name, updatedAt: Date.now() } : t))
   }, [])
 
-  /** Replace a thread's tag list. Tags are content, so this bumps updatedAt:
-   *  the merged item with the newest tags wins, exactly like a rename. */
+  /**
+   * Patch a thread's metadata (tags, status, rating). Metadata is content, so
+   * this bumps updatedAt: the merged item with the newest metadata wins,
+   * exactly like a rename. Copy counting deliberately does NOT go through
+   * here (see bumpThreadUsage — a copy is not an edit).
+   */
+  const patchThreadMetadata = useCallback((id: string, patch: Partial<PromptMetadata>) => {
+    setThreads(prev => prev.map(t =>
+      t.id === id ? { ...t, metadata: { ...t.metadata, ...patch }, updatedAt: Date.now() } : t
+    ))
+  }, [])
+
+  /** Replace a thread's tag list: trimmed, deduped case-insensitively. */
   const setThreadTags = useCallback((id: string, tags: string[]) => {
     const seen = new Set<string>()
     const clean = tags
@@ -639,10 +690,16 @@ setSyncError(
         seen.add(k)
         return true
       })
-    setThreads(prev => prev.map(t =>
-      t.id === id ? { ...t, metadata: { ...t.metadata, tags: clean }, updatedAt: Date.now() } : t
-    ))
-  }, [])
+    patchThreadMetadata(id, { tags: clean })
+  }, [patchThreadMetadata])
+
+  const setThreadStatus = useCallback((id: string, status: ThreadStatus) => {
+    patchThreadMetadata(id, { status })
+  }, [patchThreadMetadata])
+
+  const setThreadRating = useCallback((id: string, rating: number | undefined) => {
+    patchThreadMetadata(id, { rating })
+  }, [patchThreadMetadata])
 
   /**
    * Copying a prompt counts as using it. Deliberately does NOT bump updatedAt:
@@ -740,6 +797,23 @@ setSyncError(
     }))
   }, [])
 
+  /** Clear every pin in one go — threads and projects together. The control's
+   *  count is an aggregate ("3 pinned"), so the action must clear the whole
+   *  count or the label lies. Each item is bumped with a shared timestamp
+   *  exactly like its individual toggle, so the same LWW merge clears the pin
+   *  on every device. Pinning stays per-item afterwards. */
+  const unpinAll = useCallback(() => {
+    const now = Date.now()
+    const clear = <T extends { pinned?: boolean; pinnedAt?: number }>(item: T): T => {
+      if (!item.pinned) return item
+      const next = { ...item, pinned: false, updatedAt: now }
+      delete next.pinnedAt
+      return next
+    }
+    setThreads(prev => prev.map(clear))
+    setProjects(prev => prev.map(clear))
+  }, [])
+
   const deleteThread = useCallback((id: string) => {
     const messageIds = (messagesRef.current[id] || []).map(m => m.id)
     tombstone('threads', [id])
@@ -803,7 +877,10 @@ setSyncError(
   }, [tombstone, forgetView])
 
   const currentThread = threads.find(t => t.id === currentThreadId)
-  const getThreadsInProject = (pid: string) => threads.filter(t => t.projectIds.includes(pid))
+  // Archived threads keep their project membership but leave the working
+  // boards; they live in the home board's Archived section until restored.
+  const getThreadsInProject = (pid: string) =>
+    threads.filter(t => t.projectIds.includes(pid) && t.metadata?.status !== 'archived')
 
   const renderPage = () => {
     const path = route.path
@@ -880,12 +957,19 @@ setSyncError(
           onDeleteProject={deleteProject}
           onTogglePin={togglePinThread}
           onTogglePinProject={togglePinProject}
+          onUnpinAll={unpinAll}
           onFork={forkThread}
           onTagClick={tag => setSearchQuery(tag)}
+          onSetStatus={setThreadStatus}
         />
       )
     }
     
+    // Recently-deleted log
+    if (path === '/trash') {
+      return <TrashPage deleted={deleted} onBack={() => navigate('/')} />
+    }
+
     // Thread view page
     if (currentThreadId && currentThread) {
       return (
@@ -908,6 +992,8 @@ setSyncError(
           onSetTags={setThreadTags}
           onFork={forkThread}
           onUseThread={bumpThreadUsage}
+          onSetStatus={setThreadStatus}
+          onSetRating={setThreadRating}
         />
       )
     }
@@ -933,8 +1019,10 @@ setSyncError(
           onDeleteProject={deleteProject}
           onTogglePin={togglePinThread}
           onTogglePinProject={togglePinProject}
+          onUnpinAll={unpinAll}
           onFork={forkThread}
           onTagClick={tag => setSearchQuery(tag)}
+          onSetStatus={setThreadStatus}
         />
       )
     )
@@ -961,6 +1049,7 @@ setSyncError(
         createThread={createThread} 
         createProject={createProject} 
         onSettings={() => { navigate('/settings'); setShowBurger(false) }}
+        onTrash={() => { navigate('/trash'); setShowBurger(false) }}
         onRenameThread={renameThread}
         onDeleteThread={deleteThread}
         onAddToProject={addThreadToProject}
@@ -983,6 +1072,29 @@ setSyncError(
       >
         {renderPage()}
       </Layout>
+      {showOnboarding && threads.length === 0 && (
+        <Onboarding
+          hasThreads={threads.length > 0}
+          onCreateFirst={name => { finishOnboarding(); createThread(name) }}
+          onOpenSettings={() => { finishOnboarding(); navigate('/settings') }}
+          onClose={finishOnboarding}
+        />
+      )}
+      {!tourOpenRef.current && (
+        <CommandPalette
+          open={showPalette}
+          onClose={() => setShowPalette(false)}
+          threads={threads}
+          projects={projects}
+          onSelectThread={id => { setCurrentThreadId(id); navigate('/' + id) }}
+          onOpenProject={id => navigate(`/project/${id}`)}
+          onCreateThread={createThread}
+          onCreateProject={createProject}
+          onOpenProjects={() => navigate('/projects')}
+          onOpenSettings={() => navigate('/settings')}
+          onOpenTrash={() => navigate('/trash')}
+        />
+      )}
       </div>
     </ViewStateProvider>
   )

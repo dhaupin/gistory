@@ -64,7 +64,15 @@ export default async function run({ check, baseUrl, browser }) {
   )
   const status = await importer.$eval('.import-status', (el) => el.textContent.trim())
   check('import reports success', /^Imported /i.test(status), status)
-  check('import matched the exported counts', status.includes(`${SEED.gistory_threads.length} threads`), status)
+  // The status line names the format and both counts — the counts guard the
+  // merge-by-id behaviour, the label guards format sniffing.
+  check(
+    'import matched the exported counts',
+    status.includes(`${SEED.gistory_threads.length} thread(s)`)
+      && status.includes(`${SEED.gistory_projects.length} project(s)`)
+      && status.includes('Gistory snapshot'),
+    status,
+  )
 
   await importer.waitForFunction(
     () => {

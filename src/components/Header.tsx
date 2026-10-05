@@ -87,7 +87,7 @@ export default function Header({
       <h1 className="logo">{title}</h1>
       <div className="header-actions">
         {sync?.enabled && onSyncClick && <SyncChip sync={sync} onClick={onSyncClick} />}
-        <button className="btn-project" onClick={onProjectsClick} title="Projects">
+        <button className="btn btn-secondary btn-project" onClick={onProjectsClick} title="Projects">
           <Folder size={16} /> Projects
         </button>
         <input

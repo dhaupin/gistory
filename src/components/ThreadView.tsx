@@ -1,8 +1,8 @@
 // ThreadView - displays messages in a thread
 
 import { useState, useEffect } from 'react'
-import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork } from 'lucide-react'
-import type { Message, Thread, Project } from '../lib/models'
+import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork, Star, Archive, ArchiveRestore, Check, PencilLine } from 'lucide-react'
+import type { Message, Thread, Project, ThreadStatus } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 import { sortMessages, sortStateFromValue, MESSAGE_SORT_OPTIONS, type SortState } from '../ui/sort'
 import { useViewState } from '../ui/view-state'
@@ -28,6 +28,10 @@ interface ThreadViewProps {
   onTogglePinMessage?: (msgId: string) => void
   /** Replace the thread's tag list (called with the already-updated list). */
   onSetTags?: (id: string, tags: string[]) => void
+  /** Set the working status (draft/active/archived) of the thread. */
+  onSetStatus?: (id: string, status: ThreadStatus) => void
+  /** Set (or clear, with undefined) the 1–5 quality rating. */
+  onSetRating?: (id: string, rating: number | undefined) => void
   /** Fork this thread: a full copy marked as a child via metadata.parentId. */
   onFork?: (id: string) => void
   /** A copy of the thread's content just happened (usage counter + 1). */
@@ -113,6 +117,8 @@ export default function ThreadView({
   onTogglePin,
   onTogglePinMessage,
   onSetTags,
+  onSetStatus,
+  onSetRating,
   onFork,
   onUseThread
 }: ThreadViewProps) {
@@ -249,6 +255,35 @@ export default function ThreadView({
     if (onFork) {
       items.push({ label: 'Fork', icon: <GitFork size={14} />, onClick: () => onFork(thread.id) })
     }
+    if (onSetStatus) {
+      const status = thread.metadata?.status
+      if (status === 'archived') {
+        items.push({
+          label: 'Restore from archive',
+          icon: <ArchiveRestore size={14} />,
+          onClick: () => onSetStatus(thread.id, 'active'),
+        })
+      } else {
+        if (status === 'draft') {
+          items.push({
+            label: 'Mark as active',
+            icon: <Check size={14} />,
+            onClick: () => onSetStatus(thread.id, 'active'),
+          })
+        } else {
+          items.push({
+            label: 'Mark as draft',
+            icon: <PencilLine size={14} />,
+            onClick: () => onSetStatus(thread.id, 'draft'),
+          })
+        }
+        items.push({
+          label: 'Archive',
+          icon: <Archive size={14} />,
+          onClick: () => onSetStatus(thread.id, 'archived'),
+        })
+      }
+    }
     // Project toggle options - show all projects with checkbox
     projects.forEach(p => {
       const isInProject = thread.projectIds.includes(p.id)
@@ -344,11 +379,30 @@ export default function ThreadView({
                 />
               )}
             </div>
+            {thread.metadata?.status === 'draft' && (
+              <span className="meta-status">draft</span>
+            )}
             {thread.metadata?.category && (
               <span className="meta-category">{thread.metadata.category}</span>
             )}
-            {thread.metadata?.rating && (
-              <span className="meta-rating">{'★'.repeat(thread.metadata.rating)}</span>
+            {onSetRating ? (
+              <span className="meta-rating-edit" role="group" aria-label="Thread rating">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    className="star-btn"
+                    onClick={() => onSetRating(thread.id, thread.metadata?.rating === n ? undefined : n)}
+                    aria-label={`Rate ${n} of 5${thread.metadata?.rating === n ? ' (currently set, click to clear)' : ''}`}
+                    title={`Rate ${n} of 5`}
+                  >
+                    <Star size={13} className={n <= (thread.metadata?.rating ?? 0) ? 'star filled' : 'star'} />
+                  </button>
+                ))}
+              </span>
+            ) : (
+              thread.metadata?.rating && (
+                <span className="meta-rating">{'★'.repeat(thread.metadata.rating)}</span>
+              )
             )}
             {!!thread.metadata?.usageCount && (
               <span className="meta-usage">{thread.metadata.usageCount} uses</span>
@@ -369,6 +423,7 @@ export default function ThreadView({
           <button 
             className="btn btn-ghost btn-small" 
             onClick={() => { setInput(''); clearDraft(thread.id) }}
+            aria-label="Clear draft"
             title="Clear draft"
           >
             <Trash2 size={14} />

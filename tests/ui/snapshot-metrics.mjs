@@ -38,14 +38,27 @@ export default async function run({ check, baseUrl, browser }) {
     }
   })
 
-  check('snapshot renders 3 buttons', controls.buttons.length === 3, `got ${controls.buttons.length}`)
+  // 3 export/import actions + (with a never-backed-up seed) the backup
+  // nudge's icon-only dismiss. Icon buttons use the app-wide .btn-icon
+  // pattern — they are exempt from the .btn base-class rule but not from
+  // the size/radius/label rules, and they must carry an aria-label.
+  const dismiss = controls.buttons.find((b) => b.label === 'Dismiss backup reminder')
+  const actionButtons = controls.buttons.filter((b) => b !== dismiss)
+  check('snapshot renders 3 export/import buttons', actionButtons.length === 3, `got ${actionButtons.length}`)
+  check('backup nudge offers a labelled dismiss button', !!dismiss && dismiss.label.length > 0, dismiss ? dismiss.classes : 'no nudge button')
   check('snapshot renders 2 selects', controls.selects.length === 2, `got ${controls.selects.length}`)
   check('snapshot renders 1 file input', controls.fileInputs.length === 1, `got ${controls.fileInputs.length}`)
 
   for (const b of controls.buttons) {
-    check(`button "${b.text}" carries the .btn base class`, b.classes.split(/\s+/).includes('btn'), b.classes)
-    check(`button "${b.text}" is >= 32px tall`, b.h >= 32, `${b.w}x${b.h}`)
-    check(`button "${b.text}" has a radius`, parseFloat(b.radius) > 0, b.radius)
+    const name = b.text || b.label
+    check(
+      `button "${name}" carries a themed button class`,
+      b.classes.split(/\s+/).some((c) => c === 'btn' || c === 'btn-icon'),
+      b.classes,
+    )
+    check(`button "${name}" is >= 32px tall`, b.h >= 32, `${b.w}x${b.h}`)
+    check(`button "${name}" has a radius`, parseFloat(b.radius) > 0, b.radius)
+    check(`button "${name}" is named`, (b.text + b.label).length > 0, b.classes)
   }
   for (const s of controls.selects) {
     check(`select "${s.label}" is >= 32px tall`, s.h >= 32, `${s.w}x${s.h}`)

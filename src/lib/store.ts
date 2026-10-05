@@ -58,6 +58,30 @@ export function generateId(prefix = ''): string {
   return `${prefix}${++idCounter}-${Math.random().toString(36).slice(2, 9)}`
 }
 
+// --- Backup tracking ---------------------------------------------------------
+// Sync retains only the newest 5 snapshots per chain, so a downloaded export
+// is the real archive. The Settings Snapshot tab shows this stamp and nudges
+// when it goes stale.
+
+const LAST_EXPORT_KEY = 'gistory_last_export'
+
+export function getLastExport(): number | null {
+  try {
+    const v = Number(localStorage.getItem(LAST_EXPORT_KEY))
+    return Number.isFinite(v) && v > 0 ? v : null
+  } catch {
+    return null
+  }
+}
+
+export function setLastExport(ts: number = Date.now()) {
+  try {
+    localStorage.setItem(LAST_EXPORT_KEY, String(ts))
+  } catch {
+    /* storage full — the nudge just keeps showing */
+  }
+}
+
 // Draft (auto-save) functions
 export function loadDraft(threadId: string): string {
   try {

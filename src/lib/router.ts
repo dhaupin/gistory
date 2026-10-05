@@ -19,6 +19,9 @@ export function parseRoute(hash: string) {
       params.id = parts[1]
     } else if (parts[0] === 'project' && parts[1]) {
       params.id = parts[1]
+    } else if (parts[0] === 'trash') {
+      // Recently-deleted log — no params. Must be matched BEFORE the generic
+      // fallback below, which would read "trash" as a thread id.
     } else if (parts[0]) {
       // Assume it's a thread ID
       params.threadId = parts[0]
