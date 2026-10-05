@@ -2505,3 +2505,12 @@ textarea::placeholder {
 .form-inline-stacked {
   margin-top: 0.5rem;
 }
+
+/* --- Relative timestamps ---------------------------------------------------- */
+/* Same dim treatment as .thread-meta so the stamp never competes with the
+   item name; the exact time lives in the title attribute. */
+.stamp {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}

@@ -5,6 +5,7 @@ import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, 
 import type { Message, Thread, Project, ThreadStatus } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 import { sortMessages, sortStateFromValue, MESSAGE_SORT_OPTIONS, type SortState } from '../ui/sort'
+import { createdEditedStamp } from '../ui/relative-time'
 import { useViewState } from '../ui/view-state'
 import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
 import ActionMenu, { ActionItem } from './ActionMenu'
@@ -319,6 +320,12 @@ export default function ThreadView({
             <div className="thread-title-row">
               {thread.pinned && <Pin size={14} className="pin-indicator" role="img" aria-label="Pinned" />}
               <h3 className="thread-title">{thread.name}</h3>
+              <span
+                className="stamp"
+                title={`Created ${new Date(thread.createdAt).toLocaleString()}${thread.updatedAt ? ` · Edited ${new Date(thread.updatedAt).toLocaleString()}` : ''}`}
+              >
+                {createdEditedStamp(thread.createdAt, thread.updatedAt)}
+              </span>
               {onSortChange && (
                 <select 
                   value={`${sort?.field || 'createdAt'}_${sort?.dir || 'desc'}`}
@@ -495,6 +502,12 @@ export default function ThreadView({
                       {collapsedMsg ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                     </button>
                     {msg.pinned && <Pin size={12} className="pin-indicator" role="img" aria-label="Pinned" />}
+                    <span
+                      className="stamp"
+                      title={`Created ${new Date(msg.createdAt).toLocaleString()}${msg.updatedAt ? ` · Edited ${new Date(msg.updatedAt).toLocaleString()}` : ''}`}
+                    >
+                      {createdEditedStamp(msg.createdAt, msg.updatedAt)}
+                    </span>
                     <div className="message-actions">
                       {onTogglePinMessage && (
                         <button

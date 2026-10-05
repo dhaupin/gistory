@@ -13,14 +13,10 @@ Conventions
 
 ## Now
 
-- (pushed: `5c75845` maintenance clamp + `96f57b0` product features — CI and
-  Migrate D1 green, remote ledger 3/3 "Already up to date.")
-- **2026-10-05 — the workflow pass is built and verified, uncommitted.** All
-  seven queued features landed (see Done below): onboarding tour, Cmd+K
-  palette, draft/archived statuses, recently-deleted log, ChatGPT/Claude
-  import adapters, rating editor, backup nudge. Verified: typecheck ×3,
-  smoke 274/274, lint 0 errors, ui:audit 0 findings over 19 states,
-  test:ui 264/264 across 9 suites. Push only on explicit ask.
+- (pushed: `c065046` workflow tier + arrangement wrap-up + consistency sweep —
+  CI success 32s, Migrate D1 success 56s, remote ledger 3/3 "Already up to
+  date.")
+- Nothing in flight. Remaining Next items below are all optional polish.
 
 ## Next
 
@@ -38,6 +34,34 @@ Conventions
   `freebuff-preview restart` if it disagrees with disk.
 
 ## Done
+
+- **2026-10-05 — live-fire sync + multi-device probe (verified, pushed with
+  the timestamp pass).** `sync:live` 22/22 against the deployed relay. New
+  `scripts/live-multidevice.mjs` (`bun run sync:multidev`, 10 checks): FOUR
+  simulated devices — creator + 3 token-joiners — push distinct libraries and
+  all converge on the union; asserts handshake-create installs the write
+  secret (claim() must be a no-op) and the chain reports all 4 devices.
+  Protocol notes: pull() returns {blobs, failures} and each blob merges
+  individually (carrying its sender for the tie-break); handshake-create
+  installing the secret makes claim() false — asserting claim()===true was
+  wrong, not the app. This is the exact shape of the user's 8-instance plan.
+
+- **2026-10-05 — visible timestamps (verified, uncommitted).**
+  - New `src/ui/relative-time.ts`: `formatAgo` (future times clamp to "just
+    now" — device clock skew) + `createdEditedStamp` ("edited 3m ago"; falls
+    back to "created …" when never edited or predating updatedAt; the >1s
+    guard keeps same-second saves reading as created). Header.tsx still has
+    its own `formatAgo` for the chip (ticked re-render); the pure helper is
+    the shared home for everything else.
+  - Stamps on: home board rows, thread header, every message head. Exact
+    times always in the `title` ("Created … · Edited …"). 12px dim text —
+    audit-clean.
+  - edge-flows scenario F (7 checks): edited vs created variants on one
+    board, exact-time title, live rename flipping created → edited just
+    now, per-message stamps, header title carrying both times. test:ui =
+    295 checks / 10 suites.
+  - Verified: typecheck ×3 · lint 0 errors · ui:audit 0 · test:ui 295/295 ·
+    smoke 274/274.
 
 - **2026-10-05 — UI consistency pass (verified, uncommitted).** Systematic
   audit of fonts/buttons/inputs, action + menu ordering, and destructive-action

@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "sync:smoke": "bun tests/sync-smoke.ts",
     "sync:live": "bun scripts/live-sync.mjs",
+    "sync:multidev": "bun scripts/live-multidevice.mjs",
     "test:ui": "node tests/ui/run.mjs",
     "ui:audit": "node scripts/ui-audit.mjs",
     "ui:browsers": "node scripts/ui-browsers.mjs",

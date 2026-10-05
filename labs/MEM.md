@@ -3,7 +3,8 @@
 **This file is disposable.** It exists only so an interrupted pass can be picked
 up quickly. Wipe and rewrite it every pass; nothing here is a source of truth.
 
-Last updated: 2026-10-05 (workflow pass — COMPLETE and verified, uncommitted)
+Last updated: 2026-10-05 (pushed as `c065046`: workflow tier + arrangement
+wrap-up + consistency sweep; CI 32s green, Migrate D1 56s green, ledger 3/3)
 
 ---
 
@@ -83,6 +84,33 @@ Preview notes: ports 5173–5176 all answer 200 AND serve current code (verified
 via marker greps). Test harness picks the newest. If an edit does not appear,
 check the served file before trusting any result.
 
+## Live-fire sync (2026-10-05)
+
+- `pull()` returns `{blobs, failures, serverSeq}` — merge EACH blob
+  individually (`mergePayload(merged, blob, deviceId)`), never the whole pull
+  result; each blob carries its sender for the deviceId tie-break.
+- `handshake` that CREATES a chain installs the write secret, so a later
+  `claim()` returns FALSE (already secured). In a probe, `!await a.claim()`
+  is the correct assertion; claiming true would mean creation is broken.
+- `bun run sync:multidev` = 4-device convergence live probe (creator + 3
+  joiners, distinct pushes, union convergence, device-list check). Throwaway
+  `live-test-` chains are append-only and safe to leave behind.
+- Full live suites: sync:live (2 devices, 22 checks) + sync:multidev (4
+  devices, 10 checks). Run them BEFORE any real user wires up their instances.
+
+## Visible timestamps (2026-10-05)
+
+- `src/ui/relative-time.ts` is the shared time helper (pure, non-React so
+  react-refresh never complains). `createdEditedStamp` treats updatedAt
+  within 1s of createdAt as "not really edited" — same-second saves stay
+  "created", which reads better on fresh threads.
+- Header.tsx keeps its own formatAgo (the sync chip re-renders on a 30s tick;
+  board stamps render per navigation, which is honest enough). If a user
+  ever complains stamps go stale on a long-lived page, promote the tick.
+- test:ui timing: full suite + smoke in ONE terminal command exceeds the
+  180s cap — run them as separate commands (audit+typecheck+lint fit
+  together; test:ui is the long pole at ~3min alone).
+
 ## UI consistency pass (2026-10-05)
 
 - `.dropdown-divider` sat in CSS unused for ages — the divider convention was
@@ -149,7 +177,8 @@ create-from-query, trash Back) passed unchanged.
 3. Nothing is in flight. Next roadmap items (TASKS.md Next): drag handles for
    project-detail + sidebar rows; optional unpin-all/badges; drag inside
    collapsed sidebar groups.
-4. Push only on explicit ask.
+4. Pushed: `c065046` on main, CI + Migrate D1 green. `bun.lock` still
+   untracked (correct). No work in flight.
 
 ## Standing invariants (do not regress)
 

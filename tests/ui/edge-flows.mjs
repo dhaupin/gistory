@@ -150,4 +150,43 @@ export default async function run({ check, eq, baseUrl, browser }) {
     eq('E: no badge remains', (await count(page, '.pin-badge')), 0)
     await page.close()
   }
+
+  // --- F. Relative timestamps -------------------------------------------------
+  {
+    const page = await openPage(browser, { url: baseUrl + '#/', seed: SEED })
+    await settle(page, 400)
+    const rowStamp = (id) => page.$eval(`[data-sortable-id="${id}"] .stamp`, el => el.textContent)
+    // t1 carries updatedAt in SEED, t2 does not — both stamp variants on one board.
+    check('F: an edited thread shows an edited stamp', /^edited /.test(await rowStamp('t1')), await rowStamp('t1'))
+    check('F: an unedited thread shows a created stamp', /^created /.test(await rowStamp('t2')), await rowStamp('t2'))
+    eq(
+      'F: the stamp title carries the exact time',
+      await page.$eval('[data-sortable-id="t2"] .stamp', el => el.getAttribute('title')),
+      new Date(1700000600000).toLocaleString(),
+    )
+
+    // Editing flips created -> edited without a reload (rename via the row menu).
+    await clickSelector(page, '[data-sortable-id="t2"] .action-menu-trigger')
+    await clickByText(page, '.action-menu-item', 'Rename')
+    await page.type('[data-sortable-id="t2"] .input-name', ' (renamed)')
+    await page.keyboard.press('Enter')
+    await settle(page, 400)
+    eq('F: renaming flips the stamp to edited just now', await rowStamp('t2'), 'edited just now')
+    await page.close()
+
+    // Message heads carry their own stamps; the thread header distinguishes
+    // created and edited in its title.
+    const page2 = await openPage(browser, { url: baseUrl + '#/t1', seed: SEED })
+    await settle(page, 400)
+    eq('F: every message head shows a stamp', (await count(page2, '.message-head .stamp')), 3)
+    const msgStamp = await page2.$eval('.message-head .stamp', el => el.textContent)
+    check('F: message stamps default to created', /^created /.test(msgStamp), msgStamp)
+    const headerTitle = await page2.$eval('.thread-title-row .stamp', el => el.getAttribute('title'))
+    check(
+      'F: the thread header title carries both times',
+      headerTitle.includes('Created ') && headerTitle.includes('Edited '),
+      headerTitle,
+    )
+    await page2.close()
+  }
 }

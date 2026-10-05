@@ -4,6 +4,7 @@ import { Folder, Plus, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight, Git
 
 import type { Thread, Project, ThreadStatus } from '../lib/models'
 import { sortThreads, sortProjects, sortStateFromValue, THREAD_SORT_OPTIONS, type SortState } from '../ui/sort'
+import { createdEditedStamp } from '../ui/relative-time'
 import { useViewState } from '../ui/view-state'
 import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
 import { useSubmitLock } from '../ui/hooks'
@@ -319,6 +320,9 @@ export default function HomeBoard({
                       {thread.pinned && <Pin size={12} className="pin-indicator" aria-hidden="true" />}
                       <span className="thread-name">{thread.name}</span>
                       <span className="thread-meta">
+                        <span className="stamp" title={new Date(thread.updatedAt ?? thread.createdAt).toLocaleString()}>
+                          {createdEditedStamp(thread.createdAt, thread.updatedAt)}
+                        </span>
                         {thread.projectIds.length > 0 && (
                           <span className="thread-projects">
                             {thread.projectIds.map(id => {
