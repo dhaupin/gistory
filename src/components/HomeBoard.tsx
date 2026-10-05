@@ -4,7 +4,7 @@ import { Folder, Plus, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight, Git
 
 import type { Thread, Project, ThreadStatus } from '../lib/models'
 import { sortThreads, sortProjects, sortStateFromValue, THREAD_SORT_OPTIONS, type SortState } from '../ui/sort'
-import { createdEditedStamp } from '../ui/relative-time'
+import { createdEditedStamp, stampTitle } from '../ui/relative-time'
 import { useViewState } from '../ui/view-state'
 import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
 import { useSubmitLock } from '../ui/hooks'
@@ -36,6 +36,8 @@ interface HomeBoardProps {
   onTagClick?: (tag: string) => void
   /** Set the working status (draft/active/archived) of a thread. */
   onSetStatus?: (id: string, status: ThreadStatus) => void
+  /** IANA zone for the displayed created/edited stamps (absent = device). */
+  timeZone?: string
 }
 
 type Editing = { type: 'thread' | 'project'; id: string; name: string }
@@ -62,7 +64,8 @@ export default function HomeBoard({
   onUnpinAll,
   onFork,
   onTagClick,
-  onSetStatus
+  onSetStatus,
+  timeZone
 }: HomeBoardProps) {
   const [newThreadName, setNewThreadName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
@@ -268,7 +271,7 @@ export default function HomeBoard({
             }}
           />
           <button className="btn btn-primary btn-small" onClick={handleCreateThread}>Create</button>
-          <button className="btn btn-ghost btn-small" onClick={() => { setShowNewThread(false); setNewThreadName('') }}>Cancel</button>
+          <button className="btn btn-secondary btn-small" onClick={() => { setShowNewThread(false); setNewThreadName('') }}>Cancel</button>
         </div>
       )}
 
@@ -287,7 +290,7 @@ export default function HomeBoard({
             }}
           />
           <button className="btn btn-primary btn-small" onClick={handleCreateProject}>Create</button>
-          <button className="btn btn-ghost btn-small" onClick={() => { setShowNewProject(false); setNewProjectName('') }}>Cancel</button>
+          <button className="btn btn-secondary btn-small" onClick={() => { setShowNewProject(false); setNewProjectName('') }}>Cancel</button>
         </div>
       )}
 
@@ -320,8 +323,11 @@ export default function HomeBoard({
                       {thread.pinned && <Pin size={12} className="pin-indicator" aria-hidden="true" />}
                       <span className="thread-name">{thread.name}</span>
                       <span className="thread-meta">
-                        <span className="stamp" title={new Date(thread.updatedAt ?? thread.createdAt).toLocaleString()}>
-                          {createdEditedStamp(thread.createdAt, thread.updatedAt)}
+                        <span
+                          className="stamp"
+                          title={stampTitle(thread.updatedAt ?? thread.createdAt, timeZone)}
+                        >
+                          {createdEditedStamp(thread.createdAt, thread.updatedAt, timeZone)}
                         </span>
                         {thread.projectIds.length > 0 && (
                           <span className="thread-projects">

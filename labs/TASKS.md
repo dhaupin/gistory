@@ -35,6 +35,44 @@ Conventions
 
 ## Done
 
+- **2026-10-05 — message/composer button unification (verified, uncommitted).**
+  - **One convention everywhere**: message-row + composer icon buttons are
+    ghost, icon-only (words only on Save/Cancel), and ordered Pin · Copy ·
+    Edit · Delete — Delete always last, danger, confirmed. The composer's
+    destructive is now an **Eraser** "Clear draft" (it was a Trash2 that read
+    as delete); Copy/Edit/Pin lost their words but gained aria-labels.
+  - **Cross-app Cancel unification**: every Cancel is now btn-secondary (the
+    two HomeBoard new-form Cancels were ghost — the only stragglers). Save is
+    primary ×5; ConfirmDialog keeps danger/primary by `destructive`.
+  - **Delete-confirm sweep re-run**: every delete still routes through
+    ConfirmDialog; composer Clear stays confirm-free (auto-saved draft, not
+    content) — documented as deliberate.
+  - Tests moved from text to aria-label clicks where buttons lost their
+    words (product.mjs Copy ×3, flows.mjs Edit). Verified: typecheck ×3 ·
+    smoke 279/279 · lint 0 · audit 0 · test:ui 302/302.
+
+- **2026-10-05 — absolute stamps + synced time zone + header tweaks (verified,
+  uncommitted).**
+  - **Absolute date/time stamps**: `created/edited YYYY-MM-DD HH:MM` via
+    `formatStampTime` (Intl, `en-CA` ISO shape, h23) — back-traceable to agent
+    convos, unlike relative times. Seconds + zone in the hover `title`.
+  - **Synced time zone setting**: `SyncSettings { timeZone?, updatedAt? }`
+    rides the payload as a singleton (`mergeSettings`: item-style LWW +
+    deviceId tie-break, ties prefer the side with a value, absent-remote keeps
+    local). Settings → General select ("Device time zone" + curated 22-zone
+    list — a select keeps imported values valid, Intl fallback for garbage).
+    Persists via `gistory_settings`, exports/imports merge by LWW. App threads
+    it to HomeBoard/ThreadView stamps + Settings.
+  - **Header**: Projects button is now icon-only (folder glyph, aria-label
+    keeps the name); the "Gistory" logo is a real button back to `#/`.
+  - Harness: `clickButtonByText` now prefers open `.action-menu-dropdown`s —
+    the logo's "Gistory" text collided with the p1 menu item in flows.mjs.
+  - Tests: edge-flows F reworked to UTC-pinned absolute expectations + new G
+    (zone select → stored → board renders 23:23 in Berlin) + H (icon button,
+    logo navigation) — 37 checks; smoke section 2d (5 settings merge checks,
+    279 total); test:ui 302/302. Verified: typecheck ×3 · lint 0 · audit 0 ·
+    smoke 279/279.
+
 - **2026-10-05 — live-fire sync + multi-device probe (verified, pushed with
   the timestamp pass).** `sync:live` 22/22 against the deployed relay. New
   `scripts/live-multidevice.mjs` (`bun run sync:multidev`, 10 checks): FOUR

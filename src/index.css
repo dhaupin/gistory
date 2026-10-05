@@ -90,6 +90,25 @@ body {
   margin: 0;
 }
 
+/* The logo is a button back to the board. Inherits the h1's type; this rule
+   strips the button chrome and keeps the 32px touch floor. */
+.logo-home {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 0.125rem;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.logo-home:hover {
+  color: var(--primary);
+}
+
 .search-input {
   width: 100px;
   min-height: 32px;
@@ -141,11 +160,12 @@ body {
 /* .btn-project had no rule at all, so it rendered as a raw browser button
    next to its styled siblings. Kept as an alias: the header's Projects button
    now carries the standard `btn btn-secondary` classes and this rule only
-   covers the icon+label flex alignment it needs on top. */
+   covers the icon-only alignment and its tighter horizontal footprint. */
 .btn-project {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
 }
 
 /* Sidebar */

@@ -151,42 +151,80 @@ export default async function run({ check, eq, baseUrl, browser }) {
     await page.close()
   }
 
-  // --- F. Relative timestamps -------------------------------------------------
+  // --- F. Absolute timestamps in a fixed zone ----------------------------------
+  // The UTC seed pins every stamp: t1 was edited 40s after creation, t2 was
+  // never edited, and 1700000600000 is 2023-11-14 22:23 UTC.
   {
-    const page = await openPage(browser, { url: baseUrl + '#/', seed: SEED })
+    const utcSeed = { ...SEED, gistory_settings: { timeZone: 'UTC' } }
+    const page = await openPage(browser, { url: baseUrl + '#/', seed: utcSeed })
     await settle(page, 400)
     const rowStamp = (id) => page.$eval(`[data-sortable-id="${id}"] .stamp`, el => el.textContent)
-    // t1 carries updatedAt in SEED, t2 does not — both stamp variants on one board.
-    check('F: an edited thread shows an edited stamp', /^edited /.test(await rowStamp('t1')), await rowStamp('t1'))
-    check('F: an unedited thread shows a created stamp', /^created /.test(await rowStamp('t2')), await rowStamp('t2'))
+    eq('F: an edited thread shows an edited stamp', await rowStamp('t1'), 'edited 2023-11-14 22:21')
+    eq('F: an unedited thread shows a created stamp', await rowStamp('t2'), 'created 2023-11-14 22:23')
     eq(
-      'F: the stamp title carries the exact time',
+      'F: the stamp title carries seconds and the zone',
       await page.$eval('[data-sortable-id="t2"] .stamp', el => el.getAttribute('title')),
-      new Date(1700000600000).toLocaleString(),
+      '2023-11-14 22:23:20 (UTC)',
     )
 
-    // Editing flips created -> edited without a reload (rename via the row menu).
+    // Editing flips created -> edited with today's date (rename via the row menu).
     await clickSelector(page, '[data-sortable-id="t2"] .action-menu-trigger')
     await clickByText(page, '.action-menu-item', 'Rename')
     await page.type('[data-sortable-id="t2"] .input-name', ' (renamed)')
     await page.keyboard.press('Enter')
     await settle(page, 400)
-    eq('F: renaming flips the stamp to edited just now', await rowStamp('t2'), 'edited just now')
+    const after = await rowStamp('t2')
+    check('F: renaming flips the stamp to an edited date', /^edited \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(after), after)
     await page.close()
 
     // Message heads carry their own stamps; the thread header distinguishes
     // created and edited in its title.
-    const page2 = await openPage(browser, { url: baseUrl + '#/t1', seed: SEED })
-    await settle(page, 400)
+    const page2 = await openPage(browser, { url: baseUrl + '#/t1', seed: utcSeed })
+    await settle(page2, 400)
     eq('F: every message head shows a stamp', (await count(page2, '.message-head .stamp')), 3)
     const msgStamp = await page2.$eval('.message-head .stamp', el => el.textContent)
-    check('F: message stamps default to created', /^created /.test(msgStamp), msgStamp)
-    const headerTitle = await page2.$eval('.thread-title-row .stamp', el => el.getAttribute('title'))
-    check(
+    check('F: message stamps default to created', /^created 2023-11-14 \d{2}:\d{2}$/.test(msgStamp), msgStamp)
+    eq(
       'F: the thread header title carries both times',
-      headerTitle.includes('Created ') && headerTitle.includes('Edited '),
-      headerTitle,
+      await page2.$eval('.thread-title-row .stamp', el => el.getAttribute('title')),
+      'Created 2023-11-14 22:13:20 (UTC) · Edited 2023-11-14 22:21:40 (UTC)',
     )
     await page2.close()
+  }
+
+  // --- G. The time zone setting -------------------------------------------------
+  {
+    const page = await openPage(browser, { url: baseUrl + '#/settings', seed: SEED })
+    await clickByText(page, '.tab', 'General')
+    eq('G: the time zone select exists', (await count(page, '.settings-section select')), 1)
+    eq('G: it defaults to the device zone', await page.$eval('.settings-section select', el => el.value), '')
+
+    // Europe/Berlin is UTC+1 in November: the same timestamp reads an hour later.
+    await page.select('.settings-section select', 'Europe/Berlin')
+    await settle(page, 300)
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('gistory_settings') || '{}'))
+    eq('G: the choice is stored (synced shape)', { timeZone: stored.timeZone, bumped: (stored.updatedAt ?? 0) > 0 }, { timeZone: 'Europe/Berlin', bumped: true })
+
+    await page.evaluate(() => { window.location.hash = '#/' })
+    await settle(page, 400)
+    eq(
+      'G: board stamps render in the chosen zone',
+      await page.$eval('[data-sortable-id="t2"] .stamp', el => el.textContent),
+      'created 2023-11-14 23:23',
+    )
+    await page.close()
+  }
+
+  // --- H. Header: icon-only Projects button + clickable logo -------------------
+  {
+    const page = await openPage(browser, { url: baseUrl + '#/t1', seed: SEED })
+    await settle(page, 400)
+    const btn = await page.$eval('.header .btn-project', el => ({ text: el.textContent.trim(), label: el.getAttribute('aria-label') }))
+    eq('H: the Projects button keeps its name but drops its text', { text: btn.text, label: btn.label }, { text: '', label: 'Projects' })
+
+    await page.click('.logo-home')
+    await settle(page, 300)
+    eq('H: the logo drops back to the board', await hash(page), '#/')
+    await page.close()
   }
 }

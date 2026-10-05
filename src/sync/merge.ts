@@ -22,6 +22,17 @@ export interface DeletedRegistry {
   messages: Record<string, number>
 }
 
+/**
+ * Singleton preferences that ride the sync payload. Deliberately tiny: only
+ * things every device should agree on (currently the IANA time zone used for
+ * displayed timestamps). Absent timeZone means "use the device zone".
+ */
+export interface SyncSettings {
+  timeZone?: string
+  /** LWW clock for the singleton — bumped whenever a device changes anything. */
+  updatedAt?: number
+}
+
 export interface SyncData {
   threads: Thread[]
   messages: MessagesByThread
@@ -29,6 +40,8 @@ export interface SyncData {
   deleted: DeletedRegistry
   /** Synced arrangement: drag order + collapsed flags. See ./view-state. */
   view: ViewState
+  /** Synced preferences. Optional so payloads predating settings still merge. */
+  settings?: SyncSettings
 }
 
 export interface SyncPayload {
@@ -37,6 +50,7 @@ export interface SyncPayload {
   projects?: Project[]
   deleted?: Partial<DeletedRegistry>
   view?: Partial<ViewState>
+  settings?: SyncSettings
   senderDeviceId?: string
   sentAt?: number
 }
@@ -161,6 +175,29 @@ function mergeMessages(
   return result
 }
 
+/**
+ * Merge the singleton settings object. Same LWW + deviceId tie-break as items,
+ * compared on `updatedAt`. A tie with only one side carrying a value prefers
+ * that side, so a device that has set a preference wins over one that never
+ * touched settings even if their clocks agree exactly.
+ */
+export function mergeSettings(
+  local?: SyncSettings,
+  incoming?: SyncSettings,
+  sender = '',
+  myDeviceId = '',
+): SyncSettings {
+  const l = local || {}
+  const i = incoming || {}
+  const lt = l.updatedAt ?? 0
+  const it = i.updatedAt ?? 0
+  if (it > lt) return i
+  if (it < lt) return l
+  if (l.timeZone == null && i.timeZone != null) return i
+  if (l.timeZone != null && i.timeZone == null) return l
+  return sender > myDeviceId ? i : l
+}
+
 /** Merge one decrypted remote payload into the local dataset. */
 export function mergePayload(
   local: SyncData,
@@ -196,6 +233,7 @@ export function mergePayload(
   return {
     deleted,
     view: mergeView(local.view ?? emptyView(), remote.view, sender, myDeviceId),
+    settings: mergeSettings(local.settings, remote.settings, sender, myDeviceId),
     threads,
     projects: mergeList(
       local.projects,

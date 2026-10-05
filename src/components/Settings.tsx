@@ -8,6 +8,7 @@ import ConfirmDialog from './ConfirmDialog'
 import { exportAll, exportThread, exportProject, getLastExport, setLastExport, type ExportData } from '../lib/store'
 import { convertImport } from '../lib/import-adapters'
 import type { PromptMetadata } from '../lib/models'
+import { TIME_ZONES } from '../ui/relative-time'
 
 // Types
 interface SettingsProps {
@@ -23,9 +24,12 @@ interface SettingsProps {
   syncStatus: 'idle' | 'syncing' | 'error'
   syncError: string | null
   darkMode: boolean
+  /** IANA zone for displayed stamps; '' = this device's zone. */
+  timeZone: string
 
   // Actions
   onToggleDark: () => void
+  onSetTimeZone: (tz: string) => void
   onEnableSync: (passphrase: string) => Promise<void>
   onJoinSync: (passphrase: string, token: string) => Promise<void>
   onDisableSync: () => void
@@ -82,7 +86,12 @@ function SettingsPage(props: SettingsProps) {
       
       <div className="settings-content">
         {activeTab === 'general' && (
-          <GeneralSettings darkMode={props.darkMode} onToggleDark={props.onToggleDark} />
+          <GeneralSettings
+            darkMode={props.darkMode}
+            onToggleDark={props.onToggleDark}
+            timeZone={props.timeZone}
+            onSetTimeZone={props.onSetTimeZone}
+          />
         )}
         {activeTab === 'sync' && <SyncSettings {...props} />}
         {activeTab === 'devices' && <DevicesSettings {...props} />}
@@ -95,7 +104,17 @@ function SettingsPage(props: SettingsProps) {
 // Appearance lives in App (single source of truth) — this only renders the
 // control, so the header toggle and this one can never disagree. The `dark`
 // class is applied to <body> by App, which is what the theme variables key off.
-function GeneralSettings({ darkMode, onToggleDark }: { darkMode: boolean; onToggleDark: () => void }) {
+function GeneralSettings({
+  darkMode,
+  onToggleDark,
+  timeZone,
+  onSetTimeZone,
+}: {
+  darkMode: boolean
+  onToggleDark: () => void
+  timeZone: string
+  onSetTimeZone: (tz: string) => void
+}) {
   return (
     <div className="settings-section">
       <h3>Appearance</h3>
@@ -112,6 +131,26 @@ function GeneralSettings({ darkMode, onToggleDark }: { darkMode: boolean; onTogg
           <span className="toggle-knob" />
         </button>
       </div>
+
+      <div className="setting-row">
+        <span id="time-zone-label">Time zone</span>
+        <select
+          className="sort-select"
+          value={timeZone}
+          onChange={e => onSetTimeZone(e.target.value)}
+          aria-labelledby="time-zone-label"
+        >
+          <option value="">Device time zone</option>
+          {TIME_ZONES.map(tz => (
+            <option key={tz} value={tz}>{tz}</option>
+          ))}
+        </select>
+      </div>
+      <p className="setting-desc">
+        Used for the created/edited times shown on threads and messages, so the
+        same prompt reads the same wall-clock time on every device. Syncs with
+        the rest of your data.
+      </p>
     </div>
   )
 }

@@ -180,7 +180,11 @@ export async function openPage(browser, { url, seed = SEED, dark = false, width 
 /** Click the first <button> whose trimmed text matches exactly. */
 export async function clickButtonByText(page, text) {
   const clicked = await page.evaluate((t) => {
-    const button = [...document.querySelectorAll('button')].find(
+    // Open action-menu dropdowns come first: a menu item's text (a project
+    // named "Gistory", a thread renamed to "Settings") can collide with a
+    // header element, and the dropdown is the thing under test.
+    const scope = document.querySelector('.action-menu-dropdown') || document
+    const button = [...scope.querySelectorAll('button')].find(
       (b) => b.textContent.trim() === t,
     )
     if (!button) return false

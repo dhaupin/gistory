@@ -1,7 +1,7 @@
 // Gistory App - Main Entry Point
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData } from './lib/store'
+import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData, loadSettings, saveSettings } from './lib/store'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
 import {
@@ -13,7 +13,7 @@ import {
   suggestDeviceName,
   type RemoteDevice,
 } from './sync/agent'
-import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, type SyncData, type SyncPayload } from './sync/merge'
+import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, type SyncData, type SyncPayload, type SyncSettings } from './sync/merge'
 import { errorMessage } from './sync/errors'
 import { SyncError } from './sync/agent'
 import { SyncQos } from './sync/qos'
@@ -112,6 +112,9 @@ export default function App() {
   // Synced arrangement: manual drag order + collapsed flags. Part of the sync
   // payload, so it is saved, pushed, and merged like the rest of the data.
   const [view, setView] = useState<ViewState>(loadView)
+  // Synced preferences (currently the stamp time zone). A singleton that rides
+  // the payload and merges LWW, so changing it on one device updates all eight.
+  const [settings, setSettings] = useState<SyncSettings>(loadSettings)
   const [deviceName, setDeviceName] = useState(() => localStorage.getItem('gistory_device_name') || '')
   // Cmd+K palette + the one-time first-run tour. Both are pure UI overlays;
   // the tour flag lives in localStorage so it shows exactly once per browser.
@@ -137,6 +140,9 @@ export default function App() {
   useEffect(() => { saveDeleted(deleted) }, [deleted])
   useEffect(() => { viewRef.current = view }, [view])
   useEffect(() => { saveView(view) }, [view])
+  const settingsRef = React.useRef<SyncSettings>(settings)
+  useEffect(() => { settingsRef.current = settings }, [settings])
+  useEffect(() => { saveSettings(settings) }, [settings])
 
   // --- Sync helpers ---------------------------------------------------------
 
@@ -146,6 +152,7 @@ export default function App() {
     projects: projectsRef.current,
     deleted: deletedRef.current,
     view: viewRef.current,
+    settings: settingsRef.current,
   }), [])
 
   const applyMerged = useCallback((data: SyncData) => {
@@ -163,11 +170,15 @@ export default function App() {
     projectsRef.current = data.projects
     deletedRef.current = data.deleted
     viewRef.current = pruned
+    // Settings merge LWW like items: another device's newer preference applies
+    // here verbatim, our newer one is already in data.settings after the merge.
+    settingsRef.current = data.settings ?? settingsRef.current
     setThreads(data.threads)
     setMessages(data.messages)
     setProjects(data.projects)
     setDeleted(data.deleted)
     setView(pruned)
+    setSettings(settingsRef.current)
   }, [])
 
   /**
@@ -445,7 +456,7 @@ setSyncError(
   useEffect(() => {
     if (!syncEnabled || !syncReady) return
     ensureQos().schedule()
-  }, [threads, messages, projects, deleted, view, syncEnabled, syncReady, ensureQos])
+  }, [threads, messages, projects, deleted, view, settings, syncEnabled, syncReady, ensureQos])
 
   // Stop the scheduler when sync is disabled so no timer outlives the setting.
   useEffect(() => {
@@ -480,10 +491,19 @@ setSyncError(
     messagesRef.current = merged.messages
     projectsRef.current = merged.projects
     viewRef.current = merged.view
+    settingsRef.current = merged.settings
     setThreads(merged.threads)
     setMessages(merged.messages)
     setProjects(merged.projects)
     setView(merged.view)
+    setSettings(merged.settings)
+  }, [])
+
+  /** Set the syncable stamp time zone. Bumping updatedAt is what makes the
+   *  preference propagate: after a merge, the settings object with the newest
+   *  clock wins on every device, same as any item. */
+  const setTimeZone = useCallback((tz: string) => {
+    setSettings(prev => ({ ...prev, timeZone: tz || undefined, updatedAt: Date.now() }))
   }, [])
 
   // --- Arrangement (drag order + collapse) ----------------------------------
@@ -934,6 +954,8 @@ setSyncError(
           onGenerateToken={handleGenerateToken}
           onRefresh={() => syncNow()}
           onImportData={handleImportData}
+          timeZone={settings.timeZone || ''}
+          onSetTimeZone={setTimeZone}
         />
       )
     }
@@ -961,6 +983,7 @@ setSyncError(
           onFork={forkThread}
           onTagClick={tag => setSearchQuery(tag)}
           onSetStatus={setThreadStatus}
+          timeZone={settings.timeZone}
         />
       )
     }
@@ -994,6 +1017,7 @@ setSyncError(
           onUseThread={bumpThreadUsage}
           onSetStatus={setThreadStatus}
           onSetRating={setThreadRating}
+          timeZone={settings.timeZone}
         />
       )
     }
@@ -1023,6 +1047,7 @@ setSyncError(
           onFork={forkThread}
           onTagClick={tag => setSearchQuery(tag)}
           onSetStatus={setThreadStatus}
+          timeZone={settings.timeZone}
         />
       )
     )
@@ -1066,6 +1091,7 @@ setSyncError(
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onProjectsClick={() => navigate('/projects')}
+        onHomeClick={() => navigate('/')}
         onMenuClick={showBurgerBtn ? () => setShowBurger(v => !v) : undefined}
         sync={{ enabled: syncEnabled, status: syncStatus, lastSync }}
         onSyncClick={() => navigate('/settings')}

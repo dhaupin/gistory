@@ -1,12 +1,14 @@
 // localStorage + state management
 
 import type { Message, Project, Thread, MessagesByThread } from './models'
-import type { DeletedRegistry } from '../sync/merge'
+import type { DeletedRegistry, SyncSettings } from '../sync/merge'
+import { mergeSettings } from '../sync/merge'
 import { loadView, mergeView, viewKeyItem, type ViewState } from '../sync/view-state'
 
 const THREADS_KEY = 'gistory_threads'
 const MESSAGES_KEY = 'gistory_messages'
 const PROJECTS_KEY = 'gistory_projects'
+const SETTINGS_KEY = 'gistory_settings'
 const DRAFT_KEY_PREFIX = 'gistory_draft_'
 
 export function loadData(): {
@@ -103,6 +105,19 @@ export function clearDraft(threadId: string) {
   localStorage.removeItem(DRAFT_KEY_PREFIX + threadId)
 }
 
+export function loadSettings(): SyncSettings {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')
+    return raw && typeof raw === 'object' ? raw : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveSettings(settings: SyncSettings) {
+  return writeJson(SETTINGS_KEY, settings)
+}
+
 // Export types
 export interface ExportData {
   version: number
@@ -112,6 +127,8 @@ export interface ExportData {
   projects: Project[]
   /** Synced arrangement (drag order + collapsed flags). Optional on import. */
   view?: ViewState
+  /** Synced preferences (time zone). Optional on import; merged by LWW. */
+  settings?: SyncSettings
 }
 
 // Export all data
@@ -123,7 +140,8 @@ export function exportAll(): ExportData {
     threads,
     messages,
     projects,
-    view: loadView()
+    view: loadView(),
+    settings: loadSettings()
   }
 }
 
@@ -197,7 +215,7 @@ export function exportProject(projectId: string): ExportData | null {
 export function importData(
   data: ExportData,
   deleted?: DeletedRegistry,
-): { threads: Thread[], messages: MessagesByThread, projects: Project[], view: ViewState } {
+): { threads: Thread[], messages: MessagesByThread, projects: Project[], view: ViewState, settings: SyncSettings } {
   const existing = loadData()
   const importedThreads = data.threads || []
   const importedMessages = data.messages || {}
@@ -243,6 +261,9 @@ export function importData(
     messages: messageMap,
     projects: Array.from(projectMap.values()),
     // Arrangement merges by key, newest edit wins — same rule as sync.
-    view: mergeView(loadView(), data.view)
+    view: mergeView(loadView(), data.view),
+    // Preferences merge by LWW too, so importing an older backup never
+    // drags the time zone backwards past a newer local change.
+    settings: mergeSettings(loadSettings(), data.settings)
   }
 }

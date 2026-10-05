@@ -12,6 +12,7 @@ interface LayoutProps {
   searchQuery: string
   onSearchChange: (q: string) => void
   onProjectsClick: () => void
+  onHomeClick?: () => void
   onMenuClick?: () => void
   /** Compact sync state for the header chip. */
   sync?: SyncChipState
@@ -26,6 +27,7 @@ export default function Layout({
   searchQuery,
   onSearchChange,
   onProjectsClick,
+  onHomeClick,
   onMenuClick,
   sync,
   onSyncClick
@@ -39,6 +41,7 @@ export default function Layout({
         searchQuery={searchQuery}
         onSearchChange={onSearchChange}
         onProjectsClick={onProjectsClick}
+        onHomeClick={onHomeClick}
         onMenuClick={onMenuClick}
         sync={sync}
         onSyncClick={onSyncClick}

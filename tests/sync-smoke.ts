@@ -447,6 +447,48 @@ check('rankBetween appends past the last entry', rankBetween(3072, undefined) ==
 check('a wide gap is not rebalanced', !needsRebalance(1024, 3072))
 check('a narrow gap asks for a rebalance', needsRebalance(1024, 1024.5))
 
+section('2d. Synced settings — the time zone singleton')
+
+// Same LWW clock as items: the settings object with the newer updatedAt wins,
+// so changing the zone on one device updates the other seven.
+const settingsNewer = mergePayload(
+  { ...base(), settings: { timeZone: 'UTC', updatedAt: 100 } },
+  { settings: { timeZone: 'Europe/Berlin', updatedAt: 200 } },
+  'devA',
+)
+check('a newer settings object wins', settingsNewer.settings?.timeZone === 'Europe/Berlin')
+
+const settingsOlder = mergePayload(
+  { ...base(), settings: { timeZone: 'UTC', updatedAt: 300 } },
+  { settings: { timeZone: 'Europe/Berlin', updatedAt: 200 } },
+  'devA',
+)
+check('a local settings edit is not dragged backwards', settingsOlder.settings?.timeZone === 'UTC')
+
+// Exact tie with only one side carrying a value: prefer the side that HAS a
+// preference, so a device that set the zone beats one that never touched it.
+const settingsTieWithValue = mergePayload(
+  { ...base(), settings: {} },
+  { settings: { timeZone: 'UTC', updatedAt: 0 } },
+  'devA',
+)
+check('an equal tie prefers the side with a value', settingsTieWithValue.settings?.timeZone === 'UTC')
+
+// Old payloads predate settings entirely — they must not wipe local prefs.
+const settingsAbsentRemote = mergePayload(
+  { ...base(), settings: { timeZone: 'UTC', updatedAt: 100 } },
+  { threads: [thread('t9', 900)] },
+  'devA',
+)
+check('a payload without settings keeps the local zone', settingsAbsentRemote.settings?.timeZone === 'UTC')
+
+const settingsBothEmpty = mergePayload(
+  { ...base() },
+  {},
+  'devA',
+)
+check('a fresh chain carries empty settings without error', settingsBothEmpty.settings?.timeZone === undefined)
+
 check(
   'moveItem relocates without mutating the source',
   moveItem(['a', 'b', 'c'], 0, 2).join(',') === 'b,c,a' && moveItem(['a', 'b'], 2, 9).join(',') === 'a,b',

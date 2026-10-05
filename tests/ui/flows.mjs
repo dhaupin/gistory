@@ -141,7 +141,8 @@ export default async function run({ check, baseUrl, browser }) {
   check('new message persisted to localStorage', (store.messages.t2 || []).some((m) => m.content === 'A brand new prompt'))
 
   // --- 3. Edit that message -------------------------------------------------
-  await clickButtonByText(page, 'Edit')
+  // Row buttons are icon-only; Edit is matched by its aria-label.
+  await clickSelector(page, '.message-card button[aria-label="Edit message"]')
   await settle(page, 300)
   await fill(page, '.message-edit .input-area', 'Edited prompt text')
   // Scope this: the composer also has a "Save" button, and it comes first in

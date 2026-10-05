@@ -1,11 +1,11 @@
 // ThreadView - displays messages in a thread
 
 import { useState, useEffect } from 'react'
-import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork, Star, Archive, ArchiveRestore, Check, PencilLine } from 'lucide-react'
+import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork, Star, Archive, ArchiveRestore, Check, PencilLine, Eraser } from 'lucide-react'
 import type { Message, Thread, Project, ThreadStatus } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 import { sortMessages, sortStateFromValue, MESSAGE_SORT_OPTIONS, type SortState } from '../ui/sort'
-import { createdEditedStamp } from '../ui/relative-time'
+import { createdEditedStamp, stampTitle } from '../ui/relative-time'
 import { useViewState } from '../ui/view-state'
 import { SortableProvider, SortableRow, SortableHandle } from '../ui/sortable'
 import ActionMenu, { ActionItem } from './ActionMenu'
@@ -35,6 +35,8 @@ interface ThreadViewProps {
   onSetRating?: (id: string, rating: number | undefined) => void
   /** Fork this thread: a full copy marked as a child via metadata.parentId. */
   onFork?: (id: string) => void
+  /** IANA zone for the displayed created/edited stamps (absent = device). */
+  timeZone?: string
   /** A copy of the thread's content just happened (usage counter + 1). */
   onUseThread?: (id: string) => void
 }
@@ -121,7 +123,8 @@ export default function ThreadView({
   onSetStatus,
   onSetRating,
   onFork,
-  onUseThread
+  onUseThread,
+  timeZone
 }: ThreadViewProps) {
   const [input, setInput] = useState('')
   const [editingMsg, setEditingMsg] = useState<Message | null>(null)
@@ -322,9 +325,9 @@ export default function ThreadView({
               <h3 className="thread-title">{thread.name}</h3>
               <span
                 className="stamp"
-                title={`Created ${new Date(thread.createdAt).toLocaleString()}${thread.updatedAt ? ` · Edited ${new Date(thread.updatedAt).toLocaleString()}` : ''}`}
+                title={`Created ${stampTitle(thread.createdAt, timeZone)}${thread.updatedAt ? ` · Edited ${stampTitle(thread.updatedAt, timeZone)}` : ''}`}
               >
-                {createdEditedStamp(thread.createdAt, thread.updatedAt)}
+                {createdEditedStamp(thread.createdAt, thread.updatedAt, timeZone)}
               </span>
               {onSortChange && (
                 <select 
@@ -427,18 +430,22 @@ export default function ThreadView({
           onKeyDown={e => e.key === 'Enter' && e.ctrlKey && handleAdd()}
         />
         <div className="input-actions">
+          {/* Icon-only, ghost, in the same order as every message row:
+              Clear · Copy · Save. A message row's fourth slot (Delete) has no
+              composer counterpart — the composer's destructive is Clear. */}
           <button 
             className="btn btn-ghost btn-small" 
             onClick={() => { setInput(''); clearDraft(thread.id) }}
             aria-label="Clear draft"
             title="Clear draft"
           >
-            <Trash2 size={14} />
+            <Eraser size={14} />
           </button>
           <button 
             className="btn btn-ghost btn-small" 
             onClick={() => handleCopy(input)}
             disabled={!input}
+            aria-label="Copy input"
             title="Copy input"
           >
             <Copy size={14} />
@@ -504,14 +511,14 @@ export default function ThreadView({
                     {msg.pinned && <Pin size={12} className="pin-indicator" role="img" aria-label="Pinned" />}
                     <span
                       className="stamp"
-                      title={`Created ${new Date(msg.createdAt).toLocaleString()}${msg.updatedAt ? ` · Edited ${new Date(msg.updatedAt).toLocaleString()}` : ''}`}
+                      title={`Created ${stampTitle(msg.createdAt, timeZone)}${msg.updatedAt ? ` · Edited ${stampTitle(msg.updatedAt, timeZone)}` : ''}`}
                     >
-                      {createdEditedStamp(msg.createdAt, msg.updatedAt)}
+                      {createdEditedStamp(msg.createdAt, msg.updatedAt, timeZone)}
                     </span>
                     <div className="message-actions">
                       {onTogglePinMessage && (
                         <button
-                          className="btn btn-secondary btn-small"
+                          className="btn btn-ghost btn-small"
                           onClick={() => onTogglePinMessage(msg.id)}
                           aria-label={msg.pinned ? 'Unpin message' : 'Pin message'}
                           title={msg.pinned ? 'Unpin message' : 'Pin message'}
@@ -520,21 +527,26 @@ export default function ThreadView({
                         </button>
                       )}
                       <button 
-                        className="btn btn-secondary btn-small" 
+                        className="btn btn-ghost btn-small" 
                         onClick={() => handleCopy(msg.content)}
+                        aria-label="Copy message"
+                        title="Copy message"
                       >
-                        <Copy size={14} /> Copy
+                        <Copy size={14} />
                       </button>
                       <button 
-                        className="btn btn-secondary btn-small" 
+                        className="btn btn-ghost btn-small" 
                         onClick={() => startEdit(msg)}
+                        aria-label="Edit message"
+                        title="Edit message"
                       >
-                        <Edit size={14} /> Edit
+                        <Edit size={14} />
                       </button>
                       <button 
                         className="btn btn-danger btn-small" 
                         onClick={() => handleDeleteMessage(msg.id)}
                         aria-label="Delete message"
+                        title="Delete message"
                       >
                         <Trash2 size={14} />
                       </button>

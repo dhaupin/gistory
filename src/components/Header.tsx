@@ -14,6 +14,8 @@ interface HeaderProps {
   searchQuery: string
   onSearchChange: (q: string) => void
   onProjectsClick: () => void
+  /** The logo drops back to the home board. */
+  onHomeClick?: () => void
   onMenuClick?: () => void
   /** Compact, always-visible sync state; rendered only when sync is enabled. */
   sync?: SyncChipState
@@ -78,17 +80,37 @@ export default function Header({
   searchQuery,
   onSearchChange,
   onProjectsClick,
+  onHomeClick,
   onMenuClick,
   sync,
   onSyncClick
 }: HeaderProps) {
   return (
     <header className="header">
-      <h1 className="logo">{title}</h1>
+      <h1 className="logo">
+        {onHomeClick ? (
+          <button
+            type="button"
+            className="logo-home"
+            onClick={onHomeClick}
+            title="Back to the board"
+            aria-label="Gistory — back to the board"
+          >
+            {title}
+          </button>
+        ) : (
+          title
+        )}
+      </h1>
       <div className="header-actions">
         {sync?.enabled && onSyncClick && <SyncChip sync={sync} onClick={onSyncClick} />}
-        <button className="btn btn-secondary btn-project" onClick={onProjectsClick} title="Projects">
-          <Folder size={16} /> Projects
+        <button
+          className="btn btn-secondary btn-project"
+          onClick={onProjectsClick}
+          title="Projects"
+          aria-label="Projects"
+        >
+          <Folder size={16} aria-hidden="true" />
         </button>
         <input
           className="search-input"

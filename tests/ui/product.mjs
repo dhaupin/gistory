@@ -178,7 +178,8 @@ export default async function run({ check, eq, baseUrl, browser }) {
       (m) => m.id === 'm3',
     )
     const updatedAtBefore = (await threads(page)).find((t) => t.id === 't1').updatedAt
-    await clickByText(page, '.message-card .message-actions button', 'Copy')
+    // The row buttons are icon-only now — Copy is matched by its aria-label.
+    await clickSelector(page, '.message-card .message-actions button[aria-label="Copy message"]')
     eq('a message without placeholders copies without a dialog', (await page.$$('.modal')).length, 0)
     eq('the clipboard holds the message as written', await clipboardText(page), m3.content)
     eq('the usage stamp appears after the first copy', await page.$eval('.meta-usage', (el) => el.textContent.trim()), '1 uses')
@@ -214,7 +215,7 @@ export default async function run({ check, eq, baseUrl, browser }) {
   {
     const page = await openWithClipboard(browser, { url: baseUrl + '#/t9', seed: TEMPLATE_SEED })
 
-    await clickByText(page, '.message-card .message-actions button', 'Copy')
+    await clickSelector(page, '.message-card .message-actions button[aria-label="Copy message"]')
     await settle(page, 300)
     eq('a template message opens the fill dialog instead of copying', (await page.$$('.modal')).length, 1)
     eq(
@@ -235,7 +236,7 @@ export default async function run({ check, eq, baseUrl, browser }) {
     eq('the filled copy counts as usage', await page.$eval('.meta-usage', (el) => el.textContent.trim()), '1 uses')
 
     // Partial fill: an empty value must leave the placeholder as written.
-    await clickByText(page, '.message-card .message-actions button', 'Copy')
+    await clickSelector(page, '.message-card .message-actions button[aria-label="Copy message"]')
     await page.type('input[aria-label="Value for topic"]', 'robots')
     await clickByText(page, '.modal-footer button', 'Copy filled')
     eq(

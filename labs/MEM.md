@@ -84,6 +84,39 @@ Preview notes: ports 5173–5176 all answer 200 AND serve current code (verified
 via marker greps). Test harness picks the newest. If an edit does not appear,
 check the served file before trusting any result.
 
+## Button conventions (2026-10-05)
+
+- **Icon buttons carry aria-label AND title** — tests match on aria-label,
+  users hover on title, audit's noName check reads aria. A button without
+  words has no excuse to be missing either.
+- **Icon-only via aria-label clicks in tests**: after un-wording Copy/Edit,
+  the text-match clicks silently broke the day the labels changed — match
+  `[aria-label="…"]` for icon buttons from the start.
+- **Composer vs row buttons**: same variant (ghost), same order, Eraser (not
+  Trash2) for clear-draft so the destructive glyph is never ambiguous.
+  Delete-in-a-row without a confirm dialog = bug; clear-draft is the only
+  confirm-free destructive (auto-saved, retype to undo).
+- Cancel = btn-secondary, Save = btn-primary, destructive confirm =
+  btn-danger — across forms, dialogs, menus. Grep `Cancel</button>` after
+  adding a form.
+
+## Absolute stamps + synced settings (2026-10-05)
+
+- **Synced singletons live in `SyncSettings`** (merge.ts), merge by the same
+  LWW clock as items (`mergeSettings`). The pattern extends to any future
+  synced preference: tiny object, `updatedAt` bumped on change, absent-remote
+  keeps local.
+- **Text-collision class of bug**: making the logo clickable gave it the text
+  "Gistory", which is ALSO project p1's name in SEED — flows.mjs's
+  text-match click hit the logo and navigated home. `clickButtonByText` now
+  scopes to an open `.action-menu-dropdown` first. Whenever a new element
+  takes item-like text into the header, re-check every text-match test.
+- `formatStampTime` uses Intl with try/catch: an invalid zone from an imported
+  payload falls back to `toLocaleString` instead of throwing (Intl throws on
+  unknown zones).
+- The zone list is curated (22 zones + device default), NOT `Intl.supported
+  ValuesOf('timeZone')` — a select keeps values valid by construction.
+
 ## Live-fire sync (2026-10-05)
 
 - `pull()` returns `{blobs, failures, serverSeq}` — merge EACH blob
