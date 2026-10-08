@@ -11,6 +11,8 @@
     "sync:smoke": "bun tests/sync-smoke.ts",
     "sync:live": "bun scripts/live-sync.mjs",
     "sync:multidev": "bun scripts/live-multidevice.mjs",
+    "sync:redteam": "bun tests/redteam.ts",
+    "sync:barrage": "bun tests/barrage.ts",
     "test:ui": "node tests/ui/run.mjs",
     "ui:audit": "node scripts/ui-audit.mjs",
     "probe:dist": "node scripts/dist-probe.mjs",

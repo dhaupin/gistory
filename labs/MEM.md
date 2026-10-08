@@ -3,19 +3,31 @@
 **This file is disposable.** It exists only so an interrupted pass can be picked
 up quickly. Wipe and rewrite it every pass; nothing here is a source of truth.
 
-Last updated: 2026-10-06 (3-item hardening pass verified — DEPLOY.md, daily
-maintenance cron, legacy-chain removal + devices PK. Push in flight. Previous
-push `04ce30e`.)
+Last updated: 2026-10-06 (barrage pass verified — 8k+ requests, zero 500/503,
+no product changes. Push in flight. Previous push `68d3996`.)
 
 ---
 
 ## Where we are
 
-**3-item hardening pass COMPLETE and verified, uncommitted** (DEPLOY.md, daily
-maintenance cron, legacy-chain removal + devices composite PK). Full detail in
-TASKS.md Now. Prior: navigation/404 pass + sync security audit (uncommitted,
-same push); QC pass on `fcc6fa9` found 2 production bugs via
-`scripts/dist-probe.mjs` — both fixed in `04ce30e` (pushed, CI+Migrate green).
+**Barrage pass COMPLETE, uncommitted.** `bun run sync:barrage` = 6 campaigns,
+8,000+ requests vs the real Functions in-process (with spoofed
+CF-Connecting-IP so the flood bucket engages): fuzz 1500 bodies → zero
+500/503; burst wall held; rotation bounded by the per-IP bucket; stuffing
+budget-separated; storage-fill measured (fresh chains evade retention —
+accepted risk, the one to watch); poison amplification measured. No product
+bugs — the guards held everywhere. Previous: red-team pass (17 scenarios, 1
+real fix: no-store on guard 429/503). Gotchas: deviceId regex needs ≥4 chars;
+JSON.stringify drops `__proto__` literals — send raw JSON to test the WAF;
+poison pushes need the chain's REAL secret; WAF-rejected fuzz traffic costs
+~0 D1 ops (rejections happen before the guard reads).
+
+## Prior: 3-item hardening pass — PUSHED as `68d3996`
+
+DEPLOY.md, daily maintenance cron, legacy-chain removal + devices composite
+PK. Prior: navigation/404 pass + sync security audit (in the same push); QC
+pass on `fcc6fa9` found 2 production bugs via `scripts/dist-probe.mjs` — both
+fixed in `04ce30e`.
 
 ## Legacy-chain removal (2026-10-06)
 

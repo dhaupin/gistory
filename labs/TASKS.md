@@ -13,19 +13,18 @@ Conventions
 
 ## Now
 
-- **3-item hardening pass (verified, uncommitted):** (1) DEPLOY.md — first-deploy
-  runbook + free-plan edge rate-limit walkthrough (50 req/10s ≈ 300/min per IP,
-  the free plan only offers a 10s window) + graceful-fallback section (the
-  relay's own guards make the rule defense-in-depth, not a dependency);
-  (2) maintenance.yml cron weekly → daily (README/AGENTS mentions updated);
-  (3) legacy chain support removed entirely — claim.ts deleted, handshake now
-  REQUIRES a write secret at creation (checked before the chain row exists),
-  push refuses a hashless chain (500), devices rekeyed to composite PK
-  (chain_id, id) via migrations/0004 so a device joining a second chain no
-  longer moves its row. Smoke 281/281, typecheck×3, lint, db checks, test:ui
-  41/41, ui:audit 0 findings, probe:dist PASS. Push on user go-ahead.
-- Previous: sync security audit + navigation/404 pass (uncommitted, same
-  push). Upstream prestruct#18/#19 filed.
+- **Barrage pass (verified, uncommitted):** `bun run sync:barrage`
+  (tests/barrage.ts) — 8,000+ in-process requests: mutation fuzz (1500
+  hostile bodies, ZERO 500/503), burst flood (wall held at 120/min),
+  rotation flood across 2 IPs (per-IP bucket is the wall), secret stuffing
+  (budget separation verified), storage-fill measurement (fresh chains evade
+  retention — the one to watch), poison spam (victim amplification
+  measured). Instrumented: D1-ops per admitted vs refused request. No
+  product bugs found; no code changes this pass. typecheck×3 + smoke 281/281
+  + lint clean. Push on go-ahead.
+- Previous: red-team pass (17 scenarios, 1 real fix: no-store on guard
+  429/503) + 3-item hardening pass — PUSHED as `68d3996`. Upstream
+  prestruct#18/#19 filed.
 - Nothing else in flight.
 
 ## Next

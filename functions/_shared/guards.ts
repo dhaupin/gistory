@@ -34,7 +34,7 @@
 // exact rules without needing a running database to fail first.
 
 import type { D1Database } from './sync'
-import { MAX_BODY_BYTES, errorResponse } from './sync'
+import { CORS_HEADERS, MAX_BODY_BYTES, errorResponse } from './sync'
 
 // --- Policies ---------------------------------------------------------------
 //
@@ -524,9 +524,7 @@ export function throttledResponse(retryAfterMs: number, message: string): Respon
     status: 429,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      ...CORS_HEADERS,
       'Retry-After': String(retryAfterSeconds(retryAfterMs)),
       'X-RateLimit-Remaining': '0',
     },
@@ -546,9 +544,7 @@ export function breakerResponse(retryAfterMs: number): Response {
       status: 503,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        ...CORS_HEADERS,
         'Retry-After': String(retryAfterSeconds(retryAfterMs)),
       },
     },
