@@ -32,11 +32,6 @@ export function errorMessage(err: unknown): string {
   if (/wrong write secret/i.test(message)) {
     return 'This device is not allowed to write to the chain. Re-pair it with a current pairing code.'
   }
-  // Two devices raced to claim a pre-write-auth chain. The loser cannot write,
-  // and the winner's code is the one needed.
-  if (/secured by another device|already secured with a different write secret/i.test(message)) {
-    return 'This chain was secured by another device first. Re-pair this one with that device’s current pairing code.'
-  }
   // A blob the client cannot read. Wrong passphrase is the common cause;
   // tampering is the other, and both look identical from here.
   if (/could not be decrypted/i.test(message)) {

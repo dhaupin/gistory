@@ -114,14 +114,13 @@ class SyncAgent {
 
 ### Worker API
 ```
-POST /sync/handshake { chainId, deviceId, deviceName, writeSecret? } → { chainId, serverSeq, version, devices[] }
+POST /sync/handshake { chainId, deviceId, deviceName, writeSecret } → { chainId, serverSeq, version, devices[], writeAuth }   // secret REQUIRED when creating
 POST /sync/push      { chainId, deviceId, data, writeSecret }       → { seq, serverSeq }   // seq is server-assigned
-POST /sync/claim     { chainId, deviceId, writeSecret }             → { claimed, alreadySecured }
 GET  /sync/pull      ?chain=X&since=Y&deviceId=Z       → { blobs[{seq,deviceId,data,createdAt}], serverSeq }
 GET  /sync/status    ?chain=X&deviceId=Z               → { chainId, serverSeq, version, devices[] }
 ```
 
-`writeSecret` is only honoured by `handshake` when that call *creates* the chain, and is ignored entirely by `claim`.
+`writeSecret` is REQUIRED by `handshake` when that call *creates* the chain — a create without one is refused (400) before any row exists. Later devices learn the secret from the pairing token.
 
 The client never assigns `seq`. It inserts with `INSERT ... SELECT MAX(seq)+1 ... RETURNING seq`
 so sequence numbers are unique per chain even when devices push at the same time.
@@ -195,7 +194,7 @@ SHA-256, so it never holds anything derived from the user's passphrase and the
 about how much of the digest was right.
 
 `handshake` installs the hash **only when it creates the chain**. Inferring that
-afterwards would let anyone who knew the chainId claim an existing chain by
+afterwards would let anyone who knew the chainId take an existing chain over by
 handshaking with their own secret, so `chainIsNew` is read *before* `ensureChain`.
 
 Pairing tokens are now `GS1-<chainId>.<writeSecret>`. The dot is unambiguous
@@ -203,16 +202,15 @@ because base64url never contains one. A token without the secret is an older
 code: that device can read but not write, and the UI says so rather than
 failing at the first push.
 
-**Chains that predate write auth** have a NULL `push_hash` and keep accepting
-writes without a secret, so existing installs are not locked out.
-`POST /sync/claim` lets the owner install one. That endpoint is **first-come-
-wins**, which is a real and bounded limitation: the server holds no secret for an
-unclaimed chain, so it cannot distinguish the owner from someone holding an old
-QR. It cannot go worse than denial of future writes — blobs stay AES-GCM
-ciphertext, so claiming grants no access to anyone’s data. New chains are
-unaffected. Re-claiming with the *same* secret is an idempotent retry; claiming
-with a different one is refused (409) rather than silently locking out every
-other device.
+**Pre-write-auth chains are gone entirely.** For about two hours in production
+a chain could be created without a secret and claimed later via `POST
+/sync/claim` — first-come-wins, which was a real takeover window (a claim
+could never read anyone's data, only deny future writes). Claim is retired:
+`handshake` REQUIRES the secret when the call creates the chain, checked BEFORE
+the chain row exists, so a refused handshake leaves nothing behind and no chain
+can ever come into existence unsecured. Push refuses a chain whose stored hash
+is missing (500 — a storage-integrity violation, never a legacy state), and
+`/sync/claim` answers 404.
 
 ### 5. Guards: throttle, breaker, and WAF
 
@@ -230,8 +228,8 @@ hammering, and what a valid write secret looks like.
 | `push-chain` | chainId | 600/min | a chain being filled with junk blobs |
 | `pull` | deviceId | 240/min | a pull loop starving pushes of D1 time, and `status`, which leaks the device list |
 | `handshake` | deviceId | 20/min | walking chain ids to enumerate chains |
-| `claim` | chainId | 5/min | racing many claim attempts on one chain |
-| `write-fail` | chainId | 20/min | guessing a write secret |
+| `write-fail` | chainId | 20/min | guessing a write secret — a MISSING or malformed secret is charged here too, so the cheapest flood (omit the field) is not free |
+| `flood` | connecting IP (CF-Connecting-IP) | 1200/min | an identity-rotating flood: every other bucket is keyed by client-supplied ids, so this is the one bucket a caller cannot walk around. Checked FIRST in `guardRoute`, on every route. The header is set by Cloudflare and stripped if inbound; `X-Forwarded-For` is deliberately ignored. Missing header (tests, `wrangler dev`) skips the bucket |
 
 `push` is sized from the client's own debounce, not from a guess: `SyncQos`
 pushes at most once per 1.5s (~40/min worst case), so 120/min means an ordinary
@@ -255,6 +253,10 @@ A stored `window_start` **in the future is treated as absent**. These timestamps
 come from whichever PoP served the request, so a device can legitimately see a
 window a few seconds ahead of its own clock; counting that as "inside the window"
 would refuse every request until real time caught up.
+
+All relay responses also carry `Cache-Control: no-store` — responses contain
+chain ids, device names, and sequence numbers; no intermediary has any reason
+to cache them.
 
 Fixed window, not a sliding log: a log grows per request and needs a
 read-modify-write of every recent hit. The known cost is that a caller can send
@@ -314,7 +316,7 @@ of the `rate_limits` table (`shouldSweepLimits` in `guards.ts`), using the
 row is created by the *first* request from a new subject, and per-subject
 limits do not bound how many new subjects arrive — a flood of fresh device ids
 creates one row per request. Refused requests never sweep (maintenance, not
-correctness), and a failed sweep is swallowed. The weekly
+correctness), and a failed sweep is swallowed. The daily
 `.github/workflows/maintenance.yml` runs the same sweep over the whole table,
 plus blob retention and test-debris cleanup — see scripts/db-maintain.mjs.
 
@@ -537,7 +539,6 @@ whenever the maintenance SQL changes.
 | `labs/MEM.md` | Disposable crash-guard / recovery bank |
 | `functions/sync/push.ts` | Accept encrypted blobs → D1, assign seq |
 | `functions/sync/pull.ts` | Return filtered blobs ← D1 |
-| `functions/sync/claim.ts` | Install a write secret on a pre-write-auth chain |
 | `functions/sync/status.ts` | Chain health checkpoint (throttled — it leaks the device list) |
 | `functions/_shared/sync.ts` | D1 helpers/validation shared by the routes |
 | `functions/_shared/guards.ts` | Throttle policies + counter, circuit breaker, WAF, `withBreaker` |
@@ -550,7 +551,7 @@ whenever the maintenance SQL changes.
 | `scripts/ui-browsers.mjs` | Installs the headless browser on demand |
 | `scripts/lib/*.mjs` | Shared launch/fixture/collector helpers for the harness |
 | `tests/ui/*.mjs` | Browser tests (interaction flows, export/import round trip, snapshot metrics) |
-| `.github/workflows/maintenance.yml` | Weekly D1 maintenance (Mondays 03:17 UTC): verify gate → apply; dispatch defaults to dry run |
+| `.github/workflows/maintenance.yml` | Daily D1 maintenance (03:17 UTC): verify gate → apply; dispatch defaults to dry run |
 | `eslint.config.js` | Flat ESLint config — high-value rules only (unused vars, react-hooks, no-undef); `bun run lint` |
 | `.puppeteerrc.cjs` | `skipDownload` so installs/builds never fetch Chromium |
 | `wrangler.toml` | Local-dev-only Wrangler config (placeholder D1 id, **no** `pages_build_output_dir`); prod bindings live in the Pages dashboard |

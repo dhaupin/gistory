@@ -27,10 +27,11 @@ CREATE TABLE IF NOT EXISTS chains (
 );
 
 CREATE TABLE IF NOT EXISTS devices (
-  id        TEXT PRIMARY KEY,
   chain_id  TEXT NOT NULL,
+  id        TEXT NOT NULL,
   name      TEXT NOT NULL,
-  last_seen INTEGER NOT NULL
+  last_seen INTEGER NOT NULL,
+  PRIMARY KEY (chain_id, id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_devices_chain ON devices (chain_id);

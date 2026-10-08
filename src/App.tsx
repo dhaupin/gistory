@@ -417,15 +417,10 @@ setSyncError(
     // read. Without it the paired device could only ever pull.
     const secret = localStorage.getItem('gistory_write_secret')
     if (!secret) {
-      // Chain predates write auth. Mint one, claim it, and hand it over.
-      const fresh = newWriteSecret()
-      localStorage.setItem('gistory_write_secret', fresh)
-      try {
-        await syncAgentRef.current?.claim()
-      } catch {
-        /* Offline: the claim retries the next time this device syncs. */
-      }
-      return pairingTokenFromChain(chain, fresh)
+      // A device paired before write auth holds no secret: a token minted here
+      // could only ever read, and the claim path that used to upgrade such a
+      // device is gone. Re-enabling sync creates a fresh, secured chain.
+      throw new Error('This device cannot mint a pairing code — turn sync off and on again to create a fresh chain.')
     }
     return pairingTokenFromChain(chain, secret)
   }
@@ -435,11 +430,12 @@ setSyncError(
     const key = localStorage.getItem('gistory_sync_key')
     const chain = localStorage.getItem('gistory_chain_id')
     if (!key || !chain) return
-    // Chains set up before write auth have no secret stored; they still sync,
-    // and the owner can secure one from Settings. The secret MUST be handed to
-    // the agent here: it lives only in config, the agent never reads storage
-    // itself, and a restore that drops it would pass handshake but get 401 on
-    // every push (reads work, writes falsely demand re-pairing).
+    // A device paired with a pre-write-auth code has no secret stored: it can
+    // still pull, and every push is refused until it pairs again with a
+    // current code. The secret MUST be handed to the agent here: it lives only
+    // in config, the agent never reads storage itself, and a restore that
+    // drops it would pass handshake but get 401 on every push (reads work,
+    // writes falsely demand re-pairing).
     const writeSecret = localStorage.getItem('gistory_write_secret') ?? undefined
 
     let cancelled = false

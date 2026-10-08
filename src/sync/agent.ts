@@ -36,11 +36,6 @@ function buf2base64(buf: ArrayBuffer | Uint8Array): string {
   return btoa(binary)
 }
 
-/** 43+ chars of base64url, matching what the server accepts. */
-function isValidWriteSecret(secret: unknown): secret is string {
-  return typeof secret === 'string' && /^[A-Za-z0-9_-]{43,128}$/.test(secret)
-}
-
 function base642buf(base64: string): Uint8Array {
   const binary = atob(base64)
   const bytes = new Uint8Array(binary.length)
@@ -389,33 +384,6 @@ export class SyncAgent {
     this.lastSeq = Math.max(this.lastSeq, since)
     this.persistSeq()
     return { blobs: out, serverSeq, failures }
-  }
-
-  /**
- * Install this device's write secret on a chain that predates write auth.
- * Safe to call when the chain is already secured with the same secret.
- */
-async claim(): Promise<boolean> {
-    this.assertReady()
-    if (!isValidWriteSecret(this.config.writeSecret)) return false
-    try {
-      const res = await this.request<{ claimed: boolean; alreadySecured: boolean }>(
-        '/sync/claim',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chainId: this.config.chainId,
-            deviceId: this.deviceId,
-            writeSecret: this.config.writeSecret,
-          }),
-        },
-      )
-      return res.claimed === true
-    } catch {
-      // Already secured with a different secret, or the server is unreachable.
-      return false
-    }
   }
 
   // Chain health: head sequence + known devices.

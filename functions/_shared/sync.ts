@@ -26,6 +26,10 @@ export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
+  // Responses carry chain ids, device names, and sequence numbers. They are
+  // harmless to a caller who already knows the chain, but no intermediary has
+  // any reason to cache them — and a cached device list would leak.
+  'Cache-Control': 'no-store',
 }
 
 export function json(data: unknown, status = 200): Response {
@@ -171,9 +175,11 @@ export async function chainIsNew(db: D1Database, chainId: string): Promise<boole
 }
 
 /**
- * Set the chain's write-secret hash. Only ever called when the hash is still
- * NULL, so a race between two claimants resolves to the first writer and the
- * loser is rejected rather than silently overwriting an existing capability.
+ * Set the chain's write-secret hash. The UPDATE only lands while the hash is
+ * still NULL, so if two devices somehow race to create the same chain id the
+ * first secret wins and the loser is rejected rather than silently
+ * overwriting the existing capability. (Every chain is secured at creation —
+ * see handshake — so in practice only that path ever calls this.)
  */
 export async function setChainPushHash(
   db: D1Database,
@@ -211,15 +217,18 @@ export async function registerDevice(
   deviceId: string,
   deviceName: string,
 ): Promise<void> {
+  // Keyed by (chain_id, id), not bare id: one row per (chain, device) pair.
+  // A device joining a second chain gets a second row — re-keying by bare id
+  // would MOVE the row out of the first chain and drop it from that chain's
+  // device list. Re-registering the same pair just refreshes name/last_seen.
   await db
     .prepare(
-      `INSERT INTO devices (id, chain_id, name, last_seen) VALUES (?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         chain_id = excluded.chain_id,
+      `INSERT INTO devices (chain_id, id, name, last_seen) VALUES (?, ?, ?, ?)
+       ON CONFLICT(chain_id, id) DO UPDATE SET
          name = excluded.name,
          last_seen = excluded.last_seen`,
     )
-    .bind(deviceId, chainId, deviceName, Date.now())
+    .bind(chainId, deviceId, deviceName, Date.now())
     .run()
 }
 

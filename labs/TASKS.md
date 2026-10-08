@@ -13,11 +13,20 @@ Conventions
 
 ## Now
 
-- **Navigation/404 pass (verified, uncommitted):** logo → lander home, burger
-  menu gains Dashboard, 404 themed via app CSS, robots/sitemap confirmed
-  single-system. Upstream issues prestruct#18 (cache fingerprint) and #19
-  (404 theming) filed. Full detail in the Done entry below.
-- Nothing else in flight. Remaining Next items are all optional polish.
+- **3-item hardening pass (verified, uncommitted):** (1) DEPLOY.md — first-deploy
+  runbook + free-plan edge rate-limit walkthrough (50 req/10s ≈ 300/min per IP,
+  the free plan only offers a 10s window) + graceful-fallback section (the
+  relay's own guards make the rule defense-in-depth, not a dependency);
+  (2) maintenance.yml cron weekly → daily (README/AGENTS mentions updated);
+  (3) legacy chain support removed entirely — claim.ts deleted, handshake now
+  REQUIRES a write secret at creation (checked before the chain row exists),
+  push refuses a hashless chain (500), devices rekeyed to composite PK
+  (chain_id, id) via migrations/0004 so a device joining a second chain no
+  longer moves its row. Smoke 281/281, typecheck×3, lint, db checks, test:ui
+  41/41, ui:audit 0 findings, probe:dist PASS. Push on user go-ahead.
+- Previous: sync security audit + navigation/404 pass (uncommitted, same
+  push). Upstream prestruct#18/#19 filed.
+- Nothing else in flight.
 
 ## Next
 

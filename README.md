@@ -32,6 +32,10 @@ The whole product — static app **and** `/sync` API — ships as a single Pages
 project. Pages serves the assets from `dist/` and the API from the repo-root
 `functions/` directory in the same deployment. No separate Worker.
 
+> [DEPLOY.md](DEPLOY.md) is the condensed runbook, including the recommended
+> Cloudflare edge rate-limiting rule on `/sync/*` (free plan, IP-keyed) and
+> the graceful fallback when it is not set.
+
 ### No database ids in this repository
 
 Gistory is open source, so **no real D1 `database_id` is committed**. The
@@ -188,11 +192,10 @@ blob — and since a client cannot read a blob encrypted under a different key,
 one such blob would pin its watermark and block every legitimate change behind
 it, permanently.
 
-Chains created before this existed keep working without a secret, and their
-owner can install one via `POST /sync/claim`. That claim is first-come-wins —
-the server has no prior secret for such a chain, so it cannot tell the owner
-apart from someone holding an older pairing code. It cannot do worse than
-refuse future writes: blobs stay ciphertext, so it reveals no one's data.
+Every chain is secured at creation: `handshake` requires a write secret when
+it creates a chain, and push refuses a chain whose stored hash is missing.
+The older `POST /sync/claim` upgrade path (first-come-wins on unsecured
+chains) is retired — see `AGENTS.md` for the history.
 
 ### Guards
 
@@ -210,7 +213,6 @@ as well as push *size*:
 | `push-chain` | chain | 600/min |
 | `pull` | device | 240/min |
 | `handshake` | device | 20/min |
-| `claim` | chain | 5/min |
 | `write-fail` | chain | 20/min |
 
 Exceeding one returns `429` with a `Retry-After` header. Two rules are
@@ -249,7 +251,7 @@ something prunes them.
 The relay is append-only by design, so a scheduled job is what keeps three
 tables from growing forever:
 
-- **`rate_limits`** — full sweep of long-expired buckets (the weekly job catches
+- **`rate_limits`** — full sweep of long-expired buckets (the daily job catches
   what dead isolates left behind).
 - **`blobs`** — per chain, only the newest few full-state snapshots are kept
   (default 5). Any surviving snapshot is a complete restore point, and the
@@ -275,8 +277,8 @@ bun run db:maintain:remote             # real D1 (needs wrangler.deploy.toml)
 bun run db:maintain:check              # verifies the SQL on in-memory SQLite
 ```
 
-`.github/workflows/maintenance.yml` runs the remote path weekly (Mondays 03:17
-UTC) after re-running the full verify suite on the same commit, and prints row
+`.github/workflows/maintenance.yml` runs the remote path daily (03:17 UTC)
+after re-running the full verify suite on the same commit, and prints row
 counts every run — free observability. A manual dispatch defaults to a dry run;
 untick `dry_run` to apply. It never deletes a real chain, and the retention SQL
 is regression-tested against the “one chain's victims must not delete another

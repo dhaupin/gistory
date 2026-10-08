@@ -43,6 +43,7 @@ export const onRequestGet = withBreaker(async (db, context) => {
     scope: 'pull',
     subject: deviceId,
     policy: POLICIES.pull,
+    request: context.request,
   })
   if (!verdict.ok) return verdict.response
 

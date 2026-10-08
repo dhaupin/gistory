@@ -83,16 +83,25 @@ export const POLICIES = {
    */
   handshake: { limit: 20, windowMs: 60_000 },
   /**
-   * Claiming is a once-ever operation per chain. Five a minute is far above
-   * the UI's needs and low enough to make racing many claim attempts pointless.
-   */
-  claim: { limit: 5, windowMs: 60_000 },
-  /**
    * Repeated write-secret failures for one chain. This is the guess-the-secret
    * guard: the secret is 256 bits of base64url, so guessing is hopeless, but
    * this also throttles a wrong-pairing loop from burning D1 writes forever.
+   * A MISSING or malformed secret is charged here too — omitting the field is
+   * the cheapest possible flood, and it must not be free.
    */
   writeFailures: { limit: 20, windowMs: 60_000 },
+  /**
+   * Per-IP backstop across ALL /sync routes, checked FIRST in `guardRoute`.
+   * Every other bucket is keyed by a client-supplied id (deviceId, chainId),
+   * so a flood that rotates identities gets a fresh budget per request. The
+   * connecting IP is set by Cloudflare and cannot be rotated or spoofed by the
+   * caller (inbound values are stripped). 1200/min sits far above any
+   * legitimate client — the app debounces pushes to ~40/min per device and a
+   * paged sync is ~20 requests, so even a small office behind one NAT is safe —
+   * and far below what a flood costs in D1 operations. A missing header (unit
+   * tests, `wrangler dev`) skips the bucket rather than guessing.
+   */
+  flood: { limit: 1200, windowMs: 60_000 },
 } as const satisfies Record<string, RatePolicy>
 
 // Fixed windows need eviction or the table grows without bound. One bucket row
@@ -549,6 +558,19 @@ export function breakerResponse(retryAfterMs: number): Response {
 // --- The one call a route makes ---------------------------------------------
 
 /**
+ * The caller's connecting IP, from the one header a caller cannot control.
+ * Cloudflare sets `CF-Connecting-IP` on every request it proxies and strips
+ * any inbound value, so this cannot be rotated by a flood the way a deviceId
+ * can. `X-Forwarded-For` is deliberately ignored — it is attacker-chosen. A
+ * missing header (unit tests, `wrangler dev`) means "no IP bucket".
+ */
+export function clientIp(request?: Request): string | null {
+  if (!request) return null
+  const ip = request.headers.get('cf-connecting-ip')?.trim()
+  return ip ? ip.slice(0, 64) : null
+}
+
+/**
  * Run the breaker and the throttle, in that order, before a route does any
  * work. Returns the response to send when the request must be refused, or
  * `{ ok: true }` to proceed.
@@ -564,11 +586,33 @@ export function breakerResponse(retryAfterMs: number): Response {
  */
 export async function guardRoute(
   db: D1Database,
-  options: { scope: string; subject: string; policy: RatePolicy },
+  options: { scope: string; subject: string; policy: RatePolicy; request?: Request },
 ): Promise<{ ok: true } | { ok: false; response: Response }> {
   const verdict = breakerPeek()
   if (verdict.retryAfterMs > 0) {
     return { ok: false, response: breakerResponse(verdict.retryAfterMs) }
+  }
+
+  // The per-IP flood bucket, FIRST — before the route's own bucket. Identity
+  // buckets are all keyed by client-supplied values, so this is the only guard
+  // a rotating flood cannot walk around. See POLICIES.flood.
+  const ip = clientIp(options.request)
+  if (ip) {
+    try {
+      const flood = await consumeLimit(db, 'flood', ip, POLICIES.flood)
+      if (!flood.ok) {
+        return {
+          ok: false,
+          response: throttledResponse(
+            flood.retryAfterMs,
+            'Too many sync requests — slow down and try again shortly.',
+          ),
+        }
+      }
+    } catch {
+      // D1 unavailable: degrade to allow and let the route's own work hit the
+      // same wall — the breaker is what turns an outage into fast 503s.
+    }
   }
 
   try {
@@ -611,9 +655,8 @@ export async function guardRoute(
  * purely to feed the breaker, and the ones that forgot would leave the breaker
  * starved of failures exactly when the database was down — the one situation it
  * exists for.
- *
- * A thrown error means the storage layer itself failed: `push.ts` and `claim.ts`
- * already catch the specific errors they can describe, so this is the fallback
+ *   * A thrown error means the storage layer itself failed: `push.ts`
+   * already catches the specific errors it can describe, so this is the fallback
  * for the rest (and for a genuinely broken D1).
  *
  * The response is a 503 rather than a 500 because it is temporary and the

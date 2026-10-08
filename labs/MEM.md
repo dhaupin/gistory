@@ -3,18 +3,44 @@
 **This file is disposable.** It exists only so an interrupted pass can be picked
 up quickly. Wipe and rewrite it every pass; nothing here is a source of truth.
 
-Last updated: 2026-10-05 (prestruct SEO pass verified; push in flight — see
-the prestruct section below. Previous push `772d385`.)
+Last updated: 2026-10-06 (3-item hardening pass verified — DEPLOY.md, daily
+maintenance cron, legacy-chain removal + devices PK. Push in flight. Previous
+push `04ce30e`.)
 
 ---
 
 ## Where we are
 
-**Navigation/404 pass COMPLETE and verified, uncommitted** (logo → lander,
-menu Dashboard link, themed 404, robots/sitemap single-system confirmed,
-prestruct#19 filed). Full detail in TASKS.md Done. Prior: QC pass on `fcc6fa9`
-found 2 production bugs via `scripts/dist-probe.mjs` — both fixed in `04ce30e`
-(pushed, CI+Migrate green).
+**3-item hardening pass COMPLETE and verified, uncommitted** (DEPLOY.md, daily
+maintenance cron, legacy-chain removal + devices composite PK). Full detail in
+TASKS.md Now. Prior: navigation/404 pass + sync security audit (uncommitted,
+same push); QC pass on `fcc6fa9` found 2 production bugs via
+`scripts/dist-probe.mjs` — both fixed in `04ce30e` (pushed, CI+Migrate green).
+
+## Legacy-chain removal (2026-10-06)
+
+- **Chains are ALWAYS secured at creation.** `handshake` 400s a create without
+  a valid write secret BEFORE `ensureChain`, so a refused handshake leaves no
+  chain row. Push 500s on a NULL `push_hash` (storage-integrity violation,
+  never a legacy state). `/sync/claim` is deleted — 404 via Pages routing.
+- **Smoke agents that create chains need `writeSecret` in their config**
+  (agentA/P/W + the §5 attacker handshake). Joiners that push carry the token's
+  secret. The §5 poison scenario is now framed as a KEY mismatch (attacker has
+  the token but a different passphrase), which is what it always tested.
+- **Devices composite PK** (`migrations/0004`): a device joining a second
+  chain used to MOVE its row (bare-id PK + `ON CONFLICT(id)` upsert), dropping
+  it from the first chain's device list. Now one row per (chain_id, id).
+  `touchDevice` already matched the pair; db-maintain inserts plainly, no
+  change needed there. Verified: migrations-vs-schema.sql parity (cosmetic
+  RENAME quoting only) + PK behavior on real SQLite.
+- **Gotcha:** `orphanPush` was already a smoke variable — naming a new const
+  the same thing breaks `tsc -p tsconfig.test.json`, not bun (bun strips
+  types without full checking; the smoke run passed BEFORE typecheck did).
+- **CF free-plan rate limiting:** ONE rule, IP-keyed, counting window is
+  **10 seconds only** (no 1-min option on free), Block duration 10s. 300/min
+  per IP therefore = **50 req/10s**. Custom response bodies are Pro+. Documented
+  in DEPLOY.md with graceful fallback (relay guards are the authority; the
+  edge rule is defense-in-depth).
 
 ## Navigation conventions (2026-10-05)
 

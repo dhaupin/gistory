@@ -70,7 +70,6 @@ import type { Message, Thread } from '../src/lib/models'
 import { onRequestPost as handshakePost } from '../functions/sync/handshake'
 import { onRequestPost as pushPost } from '../functions/sync/push'
 import { onRequestGet as pullGet } from '../functions/sync/pull'
-import { onRequestPost as claimPost } from '../functions/sync/claim'
 import { onRequestGet as statusGet } from '../functions/sync/status'
 
 // --- tiny test harness -------------------------------------------------------
@@ -134,7 +133,6 @@ const env = { GISTRY_DB: d1 }
 const routes: Record<string, (ctx: any) => Promise<Response>> = {
   'POST /sync/handshake': handshakePost,
   'POST /sync/push': pushPost,
-  'POST /sync/claim': claimPost,
   'GET /sync/pull': pullGet,
   'GET /sync/status': statusGet,
 }
@@ -728,7 +726,11 @@ check(
 section('3. End-to-end sync through the Pages Functions (SQLite)')
 
 useDevice('A')
-const agentA = new SyncAgent({ passphrase: PASS, deviceName: 'Device A', chainId: CHAIN_A })
+// Chains are always created secured now: the creating device generates the
+// write secret and carries it in its agent config, exactly as App.tsx's
+// handleEnableSync does. Joining devices learn it from the pairing token.
+const SECRET_A = newWriteSecret()
+const agentA = new SyncAgent({ passphrase: PASS, deviceName: 'Device A', chainId: CHAIN_A, writeSecret: SECRET_A })
 await agentA.init()
 const handshakeA = await agentA.handshake()
 check('device A handshakes and creates the chain', handshakeA.serverSeq === 0, String(handshakeA.serverSeq))
@@ -758,7 +760,8 @@ const seedSeq = await agentA.push({ threads: seedThreads, messages: {}, projects
 check('A push is assigned seq 1 by the server', seedSeq === 1, String(seedSeq))
 
 useDevice('B')
-const agentB = new SyncAgent({ passphrase: PASS, deviceName: 'Device B', chainId: CHAIN_A })
+// B holds the pairing token, so it carries the same write secret.
+const agentB = new SyncAgent({ passphrase: PASS, deviceName: 'Device B', chainId: CHAIN_A, writeSecret: SECRET_A })
 await agentB.init()
 const handshakeB = await agentB.handshake()
 check('device B joins the existing chain at head seq 1', handshakeB.serverSeq === 1, String(handshakeB.serverSeq))
@@ -857,7 +860,8 @@ const CHAIN_P = 'chain-pager-0003'
 
 const storageP = makeStorage() as any
 activeStorage = storageP
-const agentP = new SyncAgent({ passphrase: PASS, deviceName: 'Pager P', chainId: CHAIN_P })
+const SECRET_P = newWriteSecret()
+const agentP = new SyncAgent({ passphrase: PASS, deviceName: 'Pager P', chainId: CHAIN_P, writeSecret: SECRET_P })
 await agentP.init()
 await agentP.handshake()
 
@@ -918,24 +922,26 @@ check('a capped page still reports the full head', limitedBody.serverSeq === TOT
 
 // --- 5. A poisoned blob must not wedge the chain ---------------------------
 
-// The server has no auth beyond knowing the chainId, and the chainId travels
-// in the pairing QR. Anyone holding it can therefore append a blob encrypted
-// with a *different* key. The victim cannot decrypt it, and the watermark rule
-// ("stop before the first failure so it can be retried later") pins the
-// watermark below it permanently — so one junk blob blocks every legitimate
-// change behind it, forever.
+// The pairing token carries the chainId AND the write secret, but the
+// passphrase is whatever each device types. Anyone holding the token can
+// therefore append a blob encrypted under a *different* key. The victim
+// cannot decrypt it, and the watermark rule ("stop before the first failure
+// so it can be retried later") pins the watermark below it permanently — so
+// one junk blob blocks every legitimate change behind it, forever.
 section('5. A blob the client cannot decrypt does not wedge the chain')
 
 const CHAIN_W = 'chain-poison-0001'
 const WRONG_PASS = 'a completely different passphrase'
 
-// The chain has to exist before anything can be pushed to it, so the attacker
-// handshakes first — which needs no secret beyond the chainId itself.
+// The attacker holds the pairing token (chainId + write secret) but types a
+// different passphrase — the poison scenario is a KEY mismatch, not a missing
+// secret. Their handshake creates the chain, so it installs the token's secret.
+const SECRET_W = newWriteSecret()
 await handshakePost({
   request: new Request('https://local.test/sync/handshake', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chainId: CHAIN_W, deviceId: 'attacker-device', deviceName: 'Attacker' }),
+    body: JSON.stringify({ chainId: CHAIN_W, deviceId: 'attacker-device', deviceName: 'Attacker', writeSecret: SECRET_W }),
   }),
   env,
 })
@@ -957,13 +963,13 @@ await pushPost({
   request: new Request('https://local.test/sync/push', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chainId: CHAIN_W, deviceId: 'attacker-device', data: junk }),
+    body: JSON.stringify({ chainId: CHAIN_W, deviceId: 'attacker-device', data: junk, writeSecret: SECRET_W }),
   }),
   env,
 })
 
 useDevice('W')
-const agentW = new SyncAgent({ passphrase: PASS, deviceName: 'Victim W', chainId: CHAIN_W })
+const agentW = new SyncAgent({ passphrase: PASS, deviceName: 'Victim W', chainId: CHAIN_W, writeSecret: SECRET_W })
 await agentW.init()
 await agentW.handshake()
 
@@ -1127,12 +1133,16 @@ try {
 }
 check('a device without the secret cannot write', readerPush === 1, String(readerPush))
 
-// --- 6b. Claiming a chain that predates write auth --------------------------
+// --- 6b. Chains without write auth no longer exist -------------------------
 
-section('6b. Claiming an existing (pre write-auth) chain')
+section('6b. Legacy (pre write-auth) chains are refused')
 
+// Legacy support — chains creatable without a secret and claimable later —
+// was dropped on purpose: first-come-wins claiming was a real takeover window,
+// and the legacy window in production lasted about two hours. A handshake that
+// creates a chain now REQUIRES the secret, checked before the row exists.
 const CHAIN_L = 'chain-legacy-0001'
-await handshakePost({
+const noSecretCreate = await handshakePost({
   request: new Request('https://local.test/sync/handshake', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1140,63 +1150,32 @@ await handshakePost({
   }),
   env,
 })
-const legacyBefore = sqlite
-  .query('SELECT push_hash FROM chains WHERE id = ?')
-  .get(CHAIN_L) as { push_hash: string | null }
-check('a pre-write-auth chain has no secret stored', legacyBefore?.push_hash == null)
+check('creating a chain without a write secret is refused', noSecretCreate.status === 400, String(noSecretCreate.status))
+check(
+  'the refused handshake created no chain row',
+  !sqlite.query('SELECT id FROM chains WHERE id = ?').get(CHAIN_L),
+)
 
-const legacySecret = 'legacySecretValue_0123456789abcdefghijklmnop'
-const claimOk = await claimPost({
-  request: new Request('https://local.test/sync/claim', {
+// The claim endpoint was the takeover window; it is retired entirely.
+const claimGone = await fetch('https://local.test/sync/claim', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ chainId: CHAIN_L, deviceId: 'legacy-owner', writeSecret: otherSecret }),
+})
+check('the claim endpoint is retired (404)', claimGone.status === 404, String(claimGone.status))
+
+// An unsecured chain row is unreachable through the API now. If storage were
+// ever tampered into that state, push must refuse rather than write unauthed.
+sqlite.query("INSERT INTO chains (id, created_at, version) VALUES ('chain-orphan-01', 1, 1)").run()
+const unsecuredPush = await pushPost({
+  request: new Request('https://local.test/sync/push', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chainId: CHAIN_L, deviceId: 'legacy-owner', writeSecret: legacySecret }),
+    body: JSON.stringify({ chainId: 'chain-orphan-01', deviceId: 'orphan-device', data: 'aaa.bbb' }),
   }),
   env,
 })
-check('the owner can claim a legacy chain', claimOk.status === 200, String(claimOk.status))
-check(
-  'claiming installs the secret hash',
-  !!((sqlite.query('SELECT push_hash FROM chains WHERE id = ?').get(CHAIN_L) as any)?.push_hash),
-)
-
-useDevice('L1')
-const agentL = new SyncAgent({
-  passphrase: PASS,
-  deviceName: 'Legacy owner',
-  chainId: CHAIN_L,
-  writeSecret: legacySecret,
-})
-await agentL.init()
-await agentL.handshake()
-check(
-  'the owner can push after claiming',
-  (await agentL.push({ threads: [thread('l1', 1, 'after')], messages: {}, projects: [], deleted: emptyDeleted() })) > 0,
-)
-
-const reClaim = await claimPost({
-  request: new Request('https://local.test/sync/claim', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chainId: CHAIN_L, deviceId: 'legacy-owner', writeSecret: legacySecret }),
-  }),
-  env,
-})
-check('re-claiming with the same secret is a harmless retry', reClaim.status === 200, String(reClaim.status))
-
-const steal = await claimPost({
-  request: new Request('https://local.test/sync/claim', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chainId: CHAIN_L, deviceId: 'someone-else', writeSecret: otherSecret }),
-  }),
-  env,
-})
-check('a second claim with a different secret is refused', steal.status === 409, String(steal.status))
-check(
-  'the original secret still works after a refused claim',
-  (await agentL.push({ threads: [thread('l2', 2, 'still')], messages: {}, projects: [], deleted: emptyDeleted() })) > 0,
-)
+check('a push to a chain row with no push_hash is refused', unsecuredPush.status === 500, String(unsecuredPush.status))
 
 // --- 6c. Pairing token round-trip -------------------------------------------
 
@@ -1227,10 +1206,6 @@ check(
   'a wrong write secret tells the user to re-pair',
   /not allowed to write/i.test(errorMessage(new Error(wrongSecretBody.error || ''))),
   errorMessage(new Error(wrongSecretBody.error || '')),
-)
-check(
-  'losing a claim race names the other device',
-  /secured by another device/i.test(errorMessage(new Error('This chain was secured by another device first'))),
 )
 check(
   'an unrelated error is passed through unchanged',
@@ -1670,6 +1645,85 @@ activeStorage = storageG
 const stillPushes = await agentG.push({ threads: [], messages: {}, projects: [], deleted: emptyDeleted() })
 check('guessing does not spend the owner push budget', typeof stillPushes === 'number', String(stillPushes))
 
+// ── Flood resistance ─────────────────────────────────────────────────────────
+// Two adversarial shapes beyond the guess-the-secret budget above: the CHEAPEST
+// push flood (omit the write secret entirely) and the identity-rotating flood
+// (every per-identity bucket is keyed by client-supplied ids, so rotation gets
+// a fresh budget per request). The per-IP bucket is keyed by CF-Connecting-IP,
+// which a caller cannot rotate — and which the smoke's other calls never send,
+// so this bucket stays untouched by the rest of this file.
+
+// A missing write secret is charged to the same guess budget as a wrong one.
+// Without this, omitting the field buys unlimited uncharged 401s.
+{
+  const chainNF = 'nf-chain-01'
+  const secretNF = newWriteSecret()
+  await handshakePost({
+    request: new Request('https://local.test/sync/handshake', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chainId: chainNF, deviceId: 'nf-owner', deviceName: 'NF owner', writeSecret: secretNF }),
+    }),
+    env,
+  })
+  const ownerRes = await pushPost({
+    request: new Request('https://local.test/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chainId: chainNF, deviceId: 'nf-owner', data: 'aaa.bbb', writeSecret: secretNF }),
+    }),
+    env,
+  })
+  check('a freshly secured chain accepts its owner', ownerRes.status === 200, String(ownerRes.status))
+
+  // Fresh deviceId per attempt: the per-device push bucket must never be what
+  // stops this — the write-fail budget is.
+  let missingSecretBlocked = false
+  let attempts = 0
+  for (; attempts <= POLICIES.writeFailures.limit; attempts++) {
+    const res = await pushPost({
+      request: new Request('https://local.test/sync/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chainId: chainNF, deviceId: 'no-secret-' + attempts, data: 'aaa.bbb' }),
+      }),
+      env,
+    })
+    if (res.status === 429) { missingSecretBlocked = true; break }
+    if (res.status !== 401) break
+  }
+  check('a missing write secret is charged to the guess budget', missingSecretBlocked, `after ${attempts} attempts`)
+}
+
+// The per-IP backstop: 1200 pulls from one IP with a DIFFERENT deviceId each
+// time — the pull bucket never triggers (240 fresh per id), so the refusal can
+// only come from the flood bucket. Then: a different IP is unaffected, and a
+// request with no connecting IP (tests, wrangler dev) skips the bucket.
+{
+  const FLOOD_IP = '198.51.100.10'
+  const pullFrom = (ip: string | null, deviceId: string) =>
+    pullGet({
+      request: new Request(
+        `https://local.test/sync/pull?chain=${CHAIN_G}&since=0&deviceId=${deviceId}`,
+        ip ? { headers: { 'cf-connecting-ip': ip } } : undefined,
+      ),
+      env,
+    })
+
+  let flood429: Response | null = null
+  let i = 0
+  for (; i < POLICIES.flood.limit + 10; i++) {
+    const res = await pullFrom(FLOOD_IP, 'pull-flood-' + i)
+    if (res.status === 429) { flood429 = res; break }
+  }
+  check('an IP that rotates device ids is throttled by the flood bucket', flood429 !== null, `after ${i} pulls`)
+  check('the flood refusal carries Retry-After', !!flood429?.headers.get('Retry-After'))
+  const otherIp = await pullFrom('198.51.100.11', 'pull-other-ip')
+  check('a different IP is unaffected by another IP\'s flood bucket', otherIp.status === 200, String(otherIp.status))
+  const noIp = await pullFrom(null, 'pull-no-ip')
+  check('a request with no connecting IP skips the flood bucket', noIp.status === 200, String(noIp.status))
+}
+
 // The WAF is enforced by the real route, not only by the pure helper.
 const wafRes = await pushPost({
   request: new Request('https://local.test/sync/push', {
@@ -1770,30 +1824,31 @@ check('the push route refuses a non-object body', wafRes.status === 400, String(
   check('the refusal names the reason', /control character/i.test(bodyText), bodyText)
 }
 
-// A throttle on a real route emits 429 + Retry-After.
+// A throttle on a real route emits 429 + Retry-After. Handshake is the tightest
+// bucket (POLICIES.handshake, 20/min) because it answers "does this chain
+// exist?" — the flood here is exactly the chain-id walk it exists to make
+// expensive. The throttle runs BEFORE the chain row is created, so a blocked
+// walk also leaves nothing behind.
 activeStorage = makeStorage() as any
-const claimChain = 'chain-guard-claim'
-const ownerStorage = makeStorage() as any
-activeStorage = ownerStorage
-const owner = new SyncAgent({ passphrase: PASS, deviceName: 'Owner', chainId: claimChain })
-await owner.init()
-await owner.handshake()
-
-activeStorage = makeStorage() as any
-let claimStatus = 0
-for (let i = 0; i < POLICIES.claim.limit + 2; i++) {
-  const res = await claimPost({
-    request: new Request('https://local.test/sync/claim', {
+let floodStatus = 0
+for (let i = 0; i < POLICIES.handshake.limit + 2; i++) {
+  const res = await handshakePost({
+    request: new Request('https://local.test/sync/handshake', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chainId: claimChain, deviceId: 'claim-guesser', writeSecret: newWriteSecret() }),
+      body: JSON.stringify({
+        chainId: `chain-flood-${String(i).padStart(2, '0')}`,
+        deviceId: 'handshake-walker',
+        deviceName: 'Walker',
+        writeSecret: newWriteSecret(),
+      }),
     }),
     env,
   })
-  claimStatus = res.status
+  floodStatus = res.status
   if (res.status === 429) break
 }
-check('claiming is throttled after the limit', claimStatus === 429, String(claimStatus))
+check('handshake flooding (chain-id walking) is throttled', floodStatus === 429, String(floodStatus))
 
 // Status reveals *who else is in the chain* (device ids and names), so it is
 // throttled too — an unthrottled caller could walk chain ids and harvest them.

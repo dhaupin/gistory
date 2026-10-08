@@ -1,4 +1,4 @@
-# Weekly D1 maintenance for the Gistory relay.
+# Daily D1 maintenance for the Gistory relay.
 #
 # The relay is append-only by design, so a periodic job is the only thing that
 # keeps three tables from growing forever:
@@ -62,10 +62,14 @@ on:
         type: string
         default: "90"
   schedule:
-    # 03:17 UTC on Mondays — an off-minute, so shared schedulers are not
-    # thundering on the same instant. See the note above about skipped
+    # 03:17 UTC daily — an off-minute, so shared schedulers are not
+    # thundering on the same instant. Daily rather than weekly because blob
+    # retention is the only bound on how much full-state-snapshot storage a
+    # chain can accumulate; a week of a busy chain is a lot of snapshots to
+    # keep, and a smaller newest-N window costs nothing (any surviving
+    # snapshot is a complete restore point). See the note above about skipped
     # schedule runs in inactive repositories.
-    - cron: "17 3 * * 1"
+    - cron: "17 3 * * *"
 
 concurrency:
   group: maintain-d1
@@ -143,7 +147,7 @@ jobs:
           echo "::endgroup::"
           echo "::notice title=Dry run::Nothing was written. Dispatch with dry_run=false to apply."
 
-      # The real thing: on the weekly schedule (gated by `verify` above), or a
+      # The real thing: on the daily schedule (gated by `verify` above), or a
       # manual dispatch with the dry-run box unticked. Every statement is
       # idempotent and pre-verified by db:maintain:check, so a schedule run
       # cannot do more than the tested SQL says.

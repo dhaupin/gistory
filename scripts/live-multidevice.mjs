@@ -4,7 +4,7 @@
  * Complements scripts/live-sync.mjs (two devices, full guard coverage) by
  * testing what a user with many instances is actually about to do: several
  * devices joining ONE chain and converging. Four simulated devices — one
- * creates + claims, three join via the pairing token — then all push distinct
+ * creates (installing the write secret), three join via the pairing token — then all push distinct
  * libraries and pull until settled. Every device must end with the identical
  * union of all four libraries, and the chain must report all four devices.
  * Throwaway `live-test-` chain, append-only, same as live-sync.
@@ -57,10 +57,14 @@ try {
   const status = await creator.handshake()
   const CHAIN = status.chainId
   check('creator created the chain', CHAIN.startsWith('live-test-'), CHAIN)
-  // handshake that CREATES the chain installs the write secret, so a later
-  // claim must already be secured (claim() === false). If this ever returns
-  // true, chain creation silently stopped installing the secret.
-  check('creating a chain installs the write secret (claim is a no-op)', !(await creator.claim()))
+  // handshake that CREATES the chain installs the write secret — the claim
+  // endpoint it replaced was retired (it was a first-come-wins takeover window).
+  const claimProbe = await fetch(`${BASE}/sync/claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chainId: CHAIN, deviceId: 'claim-probe', writeSecret: 'x'.repeat(43) }),
+  })
+  check('the claim endpoint is retired (404)', claimProbe.status === 404, String(claimProbe.status))
   const token = pairingTokenFromChain(CHAIN, secret)
 
   for (let i = 1; i < 4; i++) {

@@ -50,18 +50,28 @@ export const onRequestPost = withBreaker(async (db, context) => {
     scope: 'handshake',
     subject: deviceId,
     policy: POLICIES.handshake,
+    request: context.request,
   })
   if (!verdict.ok) return verdict.response
 
-  // `isNew` is read BEFORE ensureChain: only the device that creates a chain may
-  // install its write secret. If we inferred it afterwards, anyone who knew the
-  // chainId could claim an existing chain by handingaking with their own secret.
+  // `isNew` is read BEFORE ensureChain: only the device that creates a chain
+  // may install its write secret. Inferring it afterwards would let anyone who
+  // knew the chainId take the chain over with their own secret.
   const isNew = await chainIsNew(db, chainId)
+  const secret = body.writeSecret
+
+  // Legacy chains — creatable without a write secret, claimable later — were
+  // dropped on purpose: first-come-wins claiming was a real takeover window.
+  // A chain can now only ever come into existence secured, so the check runs
+  // BEFORE the row is created and a refused handshake leaves nothing behind.
+  if (isNew && !isValidWriteSecret(secret)) {
+    return errorResponse('Creating a chain requires a write secret', 400)
+  }
+
   await ensureChain(db, chainId)
 
-  if (isNew && body.writeSecret !== undefined) {
-    if (!isValidWriteSecret(body.writeSecret)) return errorResponse('Invalid write secret')
-    await setChainPushHash(db, chainId, await hashWriteSecret(body.writeSecret))
+  if (isNew) {
+    await setChainPushHash(db, chainId, await hashWriteSecret(secret))
   }
 
   await registerDevice(db, chainId, deviceId, deviceName)
