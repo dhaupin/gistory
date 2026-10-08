@@ -6,3 +6,6 @@ dist/
 wrangler.deploy.toml
 .ui-audit/
 .prestruct/
+
+# Vant brain workspace (lives in the repo dir, travels only via horcrux/)
+models/

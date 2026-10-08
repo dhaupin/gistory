@@ -13,18 +13,27 @@ Conventions
 
 ## Now
 
-- **Barrage pass (verified, uncommitted):** `bun run sync:barrage`
-  (tests/barrage.ts) — 8,000+ in-process requests: mutation fuzz (1500
-  hostile bodies, ZERO 500/503), burst flood (wall held at 120/min),
-  rotation flood across 2 IPs (per-IP bucket is the wall), secret stuffing
-  (budget separation verified), storage-fill measurement (fresh chains evade
-  retention — the one to watch), poison spam (victim amplification
-  measured). Instrumented: D1-ops per admitted vs refused request. No
-  product bugs found; no code changes this pass. typecheck×3 + smoke 281/281
-  + lint clean. Push on go-ahead.
-- Previous: red-team pass (17 scenarios, 1 real fix: no-store on guard
-  429/503) + 3-item hardening pass — PUSHED as `68d3996`. Upstream
-  prestruct#18/#19 filed.
+- **Crashtest launched (2026-10-08):** new project at dhaupin/crashtest —
+  adversarial QA for agent-built software (in-process redteam/fuzz/barrage,
+  hardening report + risk ledger). Full PRD + AGENTS + DEPLOY + README + MIT
+  scaffolded at ~/crashtest, committed f8b4b7e (identity freebuff-web).
+  PUSH BLOCKED: Freebuff credential is gistory-scoped (403) — user to add
+  crashtest to app scope, then `git push` from ~/crashtest. rookworks home
+  staged at ~/rookworks-staging (brain + org + rook stone, 2 commits) —
+  same access ask for weisync/rookworks (not yet resolvable). Gistory repo
+  keeps only the gistory-brain horcrux; rook brain stays gitignored local
+  + stones travel via rookworks.
+- Previous: branding + brain setup pass (uncommitted): package renamed
+  prompt-keeper → `gistory` (lockfile refreshed); brains `rook` +
+  `gistory`; `horcrux/gistory-p_gistory-castles-2026.svg` (Brains: 1);
+  org rookworks/engineering/gistory-core; vant issues #119/#120/#121 filed.
+  Push on go-ahead.
+- Previous: barrage pass (6 campaigns, zero 500/503) + red-team pass (17
+  scenarios, no-store fix) — PUSHED as `68d3996` for hardening; suites still
+  uncommitted.
+- Vant first-user feedback filed: #119 (org-grant boot hydration), #120
+  (dept/team name = parent id), #121 (health lib/bin false negatives) —
+  issues only, no PR (axolotl pushing).
 - Nothing else in flight.
 
 ## Next
