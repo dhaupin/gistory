@@ -64,7 +64,16 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chainId: CHAIN, deviceId: 'claim-probe', writeSecret: 'x'.repeat(43) }),
   })
-  check('the claim endpoint is retired (404)', claimProbe.status === 404, String(claimProbe.status))
+  // Pages routing answered 404 until a deploy rebuilt Functions routing; it
+  // now answers 405 (method-not-allowed) because only `onRequestOptions` moved
+  // into the routing table — POST /sync/claim has no handler in functions/.
+  // Either answer proves the endpoint cannot create a chain, which is the
+  // actual security property this probe checks.
+  check(
+    'the claim endpoint is retired (404/405)',
+    claimProbe.status === 404 || claimProbe.status === 405,
+    String(claimProbe.status),
+  )
   const token = pairingTokenFromChain(CHAIN, secret)
 
   for (let i = 1; i < 4; i++) {
