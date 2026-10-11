@@ -368,6 +368,18 @@ body {
   color: var(--text);
 }
 
+/* Message-edit textarea: grows to fit the text instead of staying at the
+   composer's 60px. The composer (.input-area) is a fixed-height box you write
+   into; the editor replaces an existing message whose height is already
+   known, so it starts at that height and only ever grows. */
+.edit-area {
+  min-height: 60px;
+  height: auto;
+  resize: none;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
 .input-actions {
   display: flex;
   justify-content: flex-end;
@@ -433,6 +445,10 @@ textarea::placeholder {
   cursor: pointer;
   border: none;
   transition: background 0.15s;
+  /* Rendered on <a> just as often as on <button> — never inherit the
+     browser's link underline, which is what made the lander CTAs look
+     like underlined text in a rounded box. */
+  text-decoration: none;
 }
 
 .btn-primary {
@@ -2809,6 +2825,24 @@ textarea::placeholder {
 
 .lander-footer-divider {
   opacity: 0.5;
+}
+
+/* Composer variable hint — explains the inline-{{var}} convention without a
+   dedicated button. Snug to the action row, deliberately quieter than text.
+   The inline `code` stays ≥12px: the audit enforces a 12px floor and the hint
+   must not re-create the 'tiny mono text' anti-pattern it defends against. */
+.composer-hint {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin: 0.25rem 0 0;
+}
+.composer-hint code {
+  font-family: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85rem;
 }
 
 /* Legal pages share the lander chrome */

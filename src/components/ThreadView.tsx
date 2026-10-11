@@ -1,6 +1,6 @@
 // ThreadView - displays messages in a thread
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork, Star, Archive, ArchiveRestore, Check, PencilLine, Eraser } from 'lucide-react'
 import type { Message, Thread, Project, ThreadStatus } from '../lib/models'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
@@ -131,7 +131,7 @@ export default function ThreadView({
   const [editText, setEditText] = useState('')
   const [editingThread, setEditingThread] = useState(false)
   const [threadName, setThreadName] = useState(thread.name)
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'thread'; id: string } | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'thread' | 'draft'; id: string } | null>(null)
   // Tag editing: one inline input at a time, next to the existing chips.
   const [addingTag, setAddingTag] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -212,6 +212,18 @@ export default function ThreadView({
     setEditText(msg.content)
   }
 
+  // The edit textarea grows to the height of the text it holds. The composer
+  // can stay a fixed box (you type into it), but the editor replaces an
+  // existing message whose rendered height is already there to match: it opens
+  // at the text's height instead of squashing it into the 60px composer box.
+  const editAreaRef = useRef<HTMLTextAreaElement | null>(null)
+  useEffect(() => {
+    const el = editAreaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + 2}px`
+  }, [editText, editingMsg])
+
   const saveEdit = () => {
     if (!editingMsg) return
     onUpdateMessage(editingMsg.id, editText)
@@ -238,6 +250,9 @@ export default function ThreadView({
     if (!deleteConfirm) return
     if (deleteConfirm.type === 'message') {
       onDeleteMessage(deleteConfirm.id)
+    } else if (deleteConfirm.type === 'draft') {
+      setInput('')
+      clearDraft(thread.id)
     } else {
       onDeleteThread?.(deleteConfirm.id)
     }
@@ -435,7 +450,7 @@ export default function ThreadView({
               composer counterpart — the composer's destructive is Clear. */}
           <button 
             className="btn btn-ghost btn-small" 
-            onClick={() => { setInput(''); clearDraft(thread.id) }}
+            onClick={() => { setDeleteConfirm({ type: 'draft', id: thread.id }) }}
             aria-label="Clear draft"
             title="Clear draft"
           >
@@ -454,6 +469,14 @@ export default function ThreadView({
             <Save size={14} /> Save
           </button>
         </div>
+        {/* Variables have no dedicated button by design — they are typed inline
+            as {{name}} and the fill-in form appears on Copy. That is invisible
+            until someone types one, so the empty/blank composer whispers how. */}
+        {(input.trim() === '' || (fillVars === null && input.includes('{{'))) && (
+          <p className="composer-hint">
+            Placeholders like <code>{'{{language}}'}</code> become a fill-in form when you copy the prompt.
+          </p>
+        )}
       </div>
 
       <SortableProvider
@@ -483,9 +506,11 @@ export default function ThreadView({
               {editingMsg?.id === msg.id ? (
                 <div className="message-edit">
                   <textarea
-                    className="input-area"
+                    className="input-area edit-area"
                     value={editText}
                     onChange={e => setEditText(e.target.value)}
+                    ref={editAreaRef}
+                    autoFocus
                   />
                   <div className="message-actions">
                     <button className="btn btn-primary btn-small" onClick={saveEdit}>
@@ -567,11 +592,13 @@ export default function ThreadView({
       {deleteConfirm && (
         <ConfirmDialog
           open
-          title={deleteConfirm.type === 'message' ? 'Delete message?' : 'Delete thread?'}
+          title={deleteConfirm.type === 'message' ? 'Delete message?' : deleteConfirm.type === 'draft' ? 'Clear the draft?' : 'Delete thread?'}
           message={deleteConfirm.type === 'message' 
             ? 'This will permanently delete this message.' 
-            : 'This will permanently delete this thread and all its messages.'}
-          confirmLabel="Delete"
+            : deleteConfirm.type === 'draft'
+              ? 'This wipes everything written in the composer. It cannot be undone.'
+              : 'This will permanently delete this thread and all its messages.'}
+          confirmLabel={deleteConfirm.type === 'draft' ? 'Clear draft' : 'Delete'}
           destructive
           onConfirm={confirmDelete}
           onCancel={() => setDeleteConfirm(null)}

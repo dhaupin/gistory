@@ -9,7 +9,10 @@ export default function Footer() {
         <span className="footer-divider">·</span>
         <a href="#/settings" className="footer-link">Settings</a>
         <span className="footer-divider">·</span>
-        <a href="/" className="footer-link">Home</a>
+        {/* Inside the app the hash router is the address book: a bare "/"
+            would leave the SPA entirely and land on the public lander (full
+            page load), so "Home" gets the same anchor form as the rest. */}
+        <a href="#/" className="footer-link">Home</a>
         <span className="footer-divider">·</span>
         <a href="/terms" className="footer-link">Terms</a>
         <span className="footer-divider">·</span>

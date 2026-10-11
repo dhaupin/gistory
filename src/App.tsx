@@ -942,7 +942,7 @@ setSyncError(
           messages={messages}
           sort={sort}
           onSortChange={setSort}
-          onSelect={id => { setCurrentThreadId(id); navigate('/') }}
+          onSelect={id => { setCurrentThreadId(id); navigate('/' + id) }}
           onDeleteProject={deleteProject}
           onRenameProject={renameProject}
           onTogglePin={togglePinThread}
