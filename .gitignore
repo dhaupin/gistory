@@ -9,3 +9,4 @@ wrangler.deploy.toml
 
 # Vant brain workspace (lives in the repo dir, travels only via horcrux/)
 models/
+bun.lock
