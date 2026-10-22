@@ -10,6 +10,10 @@
   <link rel="icon" type="image/svg+xml" href="{{ '/favicon.svg' | relative_url }}">
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
   <link rel="stylesheet" href="{{ '/pagefind/pagefind.css' | relative_url }}" data-pagefind-ignore>
+  <!-- Prism.js for syntax highlighting — the pattern prestruct's own docs ship
+       (dark code blocks + data-language badge + copy button). -->
+  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" defer>
+  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" defer>
   <!-- Theme before first paint: the attr on <html> drives the dark token
        overrides in main.css, so there is no flash of the wrong mode. -->
   <script>
@@ -198,6 +202,68 @@
     }
   })
   input.addEventListener('input', () => doSearch(input.value))
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>
+  // Syntax highlighting + copy buttons — ported from prestruct's docs layout,
+  // scoped to the content column. Fenced blocks with an info string highlight
+  // via the Prism grammar; unlabeled ones get a heuristic tag first.
+  function initDocsCodeBlocks() {
+    const preBlocks = document.querySelectorAll('.docs-content pre')
+    preBlocks.forEach((pre) => {
+      const code = pre.querySelector('code')
+      if (!code) return
+      const langClass = Array.from(code.classList).find((c) => c.startsWith('language-'))
+      const lang = langClass ? langClass.replace('language-', '') : detectLanguage(code.textContent)
+      if (lang) {
+        pre.setAttribute('data-language', lang)
+        if (window.Prism && window.Prism.languages[lang]) {
+          code.innerHTML = window.Prism.highlight(code.textContent, window.Prism.languages[lang], lang)
+        }
+      }
+      if (pre.querySelector('.docs-copy-btn')) return
+      const copyBtn = document.createElement('button')
+      copyBtn.className = 'docs-copy-btn'
+      copyBtn.setAttribute('aria-label', 'Copy code')
+      copyBtn.setAttribute('title', 'Copy to clipboard')
+      copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
+      copyBtn.addEventListener('click', async function () {
+        try {
+          await navigator.clipboard.writeText(code.textContent)
+          copyBtn.classList.add('copied')
+          copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+          setTimeout(() => {
+            copyBtn.classList.remove('copied')
+            copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
+          }, 2000)
+        } catch (err) {
+          console.error('Failed to copy:', err)
+        }
+      })
+      pre.appendChild(copyBtn)
+    })
+  }
+  // Same heuristic tagger prestruct ships, for fenced blocks without an info
+  // string (the wake-path diagram, quick-start snippets). Typescript first:
+  // the npm sample really is TS, and the text fallback must stay last.
+  function detectLanguage(code) {
+    const patterns = {
+      typescript: [/\binterface\b \w+ \{/, /: (string|number|boolean|void)\b/, /\bawait import\b/],
+      yaml: [/^\w+:\s*\S/m, /^\s+-\s+\w+/],
+      text: [/[\s\S]/],
+    }
+    for (const [lang, regexes] of Object.entries(patterns)) {
+      if (regexes.some((re) => re.test(code))) return lang
+    }
+    return null
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDocsCodeBlocks)
+  } else {
+    initDocsCodeBlocks()
+  }
 </script>
 </body>
 </html>

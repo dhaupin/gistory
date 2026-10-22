@@ -9,9 +9,20 @@
 // collapsible — and both read from ssr.config.js's FAQ_ITEMS, the same list
 // the FAQPage JSON-LD emits, so the schema can't drift from the page.
 
+import { useEffect } from 'react'
 import { Copy, Cloud, Tags, GitFork, Command, ShieldCheck, FileClock, Lock, Star, Check, ArrowRight, ChevronDown } from 'lucide-react'
 import { FAQ_ITEMS } from '../../ssr.config.js'
 import Footer from './Footer'
+
+// One real prompt sample for the Prism treatment (see the effect inside the
+// component) — a template literal so the {{placeholders}} survive JSX and the
+// prerender byte for byte. Kept out of the step body: users copy it.
+const FILL_EXAMPLE = `# weekly digest — one thread
+repos: {{repos}}
+tone: {{tone}}
+---
+Summarize the week's issues and PRs for {{repos}} in a {{tone}} tone.
+Call out anything that needs a decision, then list the follow-ups.`
 
 const FEATURES = [
   {
@@ -62,6 +73,90 @@ const STEPS = [
 ]
 
 export default function Lander() {
+  // Progressive code styling: Prism (the same prestruct docs carry) highlights
+  // the sample block and every slab gets a copy button — browser-only, so the
+  // prerendered HTML crawlers see is untouched and Node never sees Prism.
+  // Deliberately scoped to .lander: the app shell (ThreadView <pre>) must not
+  // get CDN scripts or syntax colors on user prompt text.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const pres = Array.from(document.querySelectorAll('.lander pre'))
+    if (!pres.length) return
+    let cancelled = false
+    const add = (tag: 'link' | 'script', src: string) =>
+      new Promise<void>((done, fail) => {
+        const el = document.createElement(tag)
+        if (tag === 'link') {
+          ;(el as HTMLLinkElement).rel = 'stylesheet'
+          ;(el as HTMLLinkElement).href = src
+        } else {
+          ;(el as HTMLScriptElement).src = src
+          ;(el as HTMLScriptElement).async = false
+        }
+        el.onload = () => done()
+        el.onerror = () => fail(new Error('failed to load ' + src))
+        document.head.appendChild(el)
+      })
+    Promise.all([
+      add('link', 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css'),
+      add('script', 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js'),
+      add('script', 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js'),
+    ])
+      .then(() => {
+        if (cancelled) return
+        const Prism = (window as {
+          Prism?: {
+            languages?: Record<string, unknown>
+            highlight: (code: string, grammar: unknown, lang: string) => string
+          }
+        }).Prism
+        if (!Prism || !Prism.languages) return
+        pres.forEach((pre) => {
+          const code = pre.querySelector('code')
+          if (!code) return
+          const langClass = Array.from(code.classList).find((c) => c.startsWith('language-'))
+          if (langClass) {
+            const lang = langClass.replace('language-', '')
+            pre.setAttribute('data-language', lang)
+            // Re-highlight in case autoloader's async grammar landed first.
+            if (Prism.languages[lang]) {
+              code.innerHTML = Prism.highlight(
+                code.textContent ?? '',
+                Prism.languages[lang],
+                lang,
+              )
+            }
+          }
+          if (pre.querySelector('.lander-copy-btn')) return
+          const copyBtn = document.createElement('button')
+          copyBtn.className = 'lander-copy-btn'
+          copyBtn.setAttribute('aria-label', 'Copy code')
+          copyBtn.setAttribute('title', 'Copy to clipboard')
+          copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
+          copyBtn.addEventListener('click', async function () {
+            try {
+              await navigator.clipboard.writeText(code.textContent)
+              copyBtn.classList.add('copied')
+              copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+              setTimeout(() => {
+                copyBtn.classList.remove('copied')
+                copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
+              }, 2000)
+            } catch (err) {
+              console.error('Failed to copy:', err)
+            }
+          })
+          pre.appendChild(copyBtn)
+        })
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('lander code highlight unavailable:', err)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <div className="lander">
       <header className="lander-nav">
@@ -123,6 +218,10 @@ export default function Lander() {
             </li>
           ))}
         </ol>
+        <div className="lander-example">
+          <p className="lander-example-hint">What one thread reads like — copy it filled in:</p>
+          <pre><code className="language-yaml">{FILL_EXAMPLE}</code></pre>
+        </div>
       </section>
 
       <section className="lander-section">

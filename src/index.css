@@ -2862,6 +2862,77 @@ textarea::placeholder {
   line-height: 1.6;
 }
 
+/* "How it works" sample — the product's one code block. Same dark-slab look
+   the docs ship (#1e1e1e in both themes, language badge + copy button), so
+   the two sites read as one system. */
+.lander-example {
+  max-width: 640px;
+  margin: 1.75rem auto 0;
+}
+
+.lander-example-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.lander-example pre {
+  position: relative;
+  background: #1e1e1e;
+  color: #e5e7eb;
+  border-radius: 8px;
+  padding: 2.4rem 1rem 0.9rem;
+  margin: 0;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+
+.lander-example pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+}
+
+.lander-example pre[class*='language-'] { background: #1e1e1e; }
+.lander-example code[class*='language-'] { background: transparent; }
+
+.lander-example pre::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0.55rem;
+  left: 1rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af; /* 5.7:1 on the slab — clears AA where #888 doesn't */
+}
+
+.lander-copy-btn {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  color: #d1d5db;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.lander-copy-btn svg { width: 15px; height: 15px; display: block; }
+.lander-example pre:hover .lander-copy-btn,
+.lander-copy-btn:focus-visible { opacity: 1; }
+.lander-copy-btn:hover { background: rgba(255, 255, 255, 0.18); color: #ffffff; }
+.lander-copy-btn.copied { color: #4ade80; border-color: #4ade80; opacity: 1; }
+
 .lander-trust {
   display: grid;
   gap: 1.25rem;

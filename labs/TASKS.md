@@ -1040,4 +1040,19 @@ Conventions
   favicon; PASS — deep primary raised the white-on-fill ratio 6.5:1) —
   parser handles comments/nested braces after a one-regex grab misfired.
   scripts/verify-palette-live.mjs asserts the preview renders the tokens.
+  Docs content styling completed (user report: "links aren't styled") —
+  .docs-content gains the missing typographic set: accent links with soft
+  underline, inline-code chips scoped by direct-child selectors, p/ul/ol
+  rhythm, h4-h6, hr, img, blockquote. Code-block highlighting ported from
+  dhaupin/prestruct's docs frame verbatim (Prism 1.29 + autoloader via
+  jsDelivr, dark #1e1e1e slab both themes, data-language badge, clipboard
+  copy button): docs get initDocsCodeBlocks scoped to .docs-content;
+  product lander gets a use-scoped loader in Lander.tsx (browser-only, so
+  prerender stays plain and Node never loads Prism) plus ONE real code
+  sample (a yaml filled-in prompt with {{placeholders}}) in "How it
+  works" — deliberately NOT global to the app, so ThreadView's <pre>
+  (user prompt text) never gets CDN scripts or syntax colors. Both proven
+  in-browser: fixtures verify-docs-code-style.mjs + live
+  verify-lander-code.mjs (24 token spans, badge ts/yaml heuristics, copy
+  button, app-shell scope leak asserted negative).
 
