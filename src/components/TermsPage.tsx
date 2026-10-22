@@ -3,6 +3,8 @@
 // In the AppLayout graph, so it renders in Node during prerender: static
 // content only, no browser APIs at render time.
 
+import Footer from './Footer'
+
 export default function TermsPage() {
   return (
     <div className="legal-page">
@@ -102,13 +104,7 @@ export default function TermsPage() {
         </p>
       </article>
 
-      <footer className="lander-footer">
-        <span>© {new Date().getFullYear()} Gistory</span>
-        <span className="lander-footer-divider">·</span>
-        <a href="/terms">Terms</a>
-        <span className="lander-footer-divider">·</span>
-        <a href="/privacy">Privacy</a>
-      </footer>
+      <Footer />
     </div>
   )
 }

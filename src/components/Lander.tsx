@@ -11,6 +11,7 @@
 
 import { Copy, Cloud, Tags, GitFork, Command, ShieldCheck, FileClock, Lock, Star, Check, ArrowRight, ChevronDown } from 'lucide-react'
 import { FAQ_ITEMS } from '../../ssr.config.js'
+import Footer from './Footer'
 
 const FEATURES = [
   {
@@ -176,22 +177,7 @@ export default function Lander() {
         </div>
       </section>
 
-      <footer className="lander-footer">
-        <span>© {new Date().getFullYear()} Gistory</span>
-        <span className="lander-footer-divider">·</span>
-        <a href="/terms">Terms</a>
-        <span className="lander-footer-divider">·</span>
-        <a href="/privacy">Privacy</a>
-        <span className="lander-footer-divider">·</span>
-        <a href="https://github.com/dhaupin/gistory" target="_blank" rel="noopener noreferrer">Source</a>
-        <span className="lander-footer-divider">·</span>
-        {/* A public dofollow credit (no nofollow, new tab) — it is meant to be
-            followed as an endorsement link. */}
-        <span>
-          Made by{' '}
-          <a href="https://creadev.org" target="_blank" rel="noopener">Creadev.org</a>
-        </span>
-      </footer>
+      <Footer />
     </div>
   )
 }

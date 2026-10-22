@@ -987,3 +987,19 @@ Conventions
   (real 0-strange-overflow — real plus shell shell), 19 cascade-merge
   selectors, models/ lore voice. Gates: lint + language gate + CHECK-DOCS 8
   pages PASS, typecheck 3-pass green, sync:smoke 363/363.
+
+- **2026-10-22 — UI polish from user screenshots + footer unification.**
+  From mobile screenshots: `.btn` inline-flex (the lucide arrow in the
+  lander's two "Open the app →" CTAs rode on the text baseline instead of
+  the centerline); lander footer gained the dofollow "Made by Creadev.org"
+  credit (target=_blank, rel=noopener, no nofollow — deliberate endorsement
+  link). Then unified the footer: `src/components/Footer.tsx` is now THE
+  single shared footer and Lander/TermsPage/PrivacyPage/Layout all render
+  `<Footer />` — the three duplicated inline footers (and the partial ones
+  on the legal pages that even self-linked) are gone, the dead `.footer`
+  CSS block is deleted, and the app footer's redundant hash links
+  (Projects/Settings/Home — covered by header + burger) dropped with it.
+  PrivacyPage's "weekly maintenance job" caught saying weekly («daily») —
+  same staleness the scripts pass fixed. New scripts:
+  verify-lander-tweaks.mjs + verify-footer-parity.mjs (browser checks;
+  ui:audit cannot fit the 180s cap — parity PASS on all four surfaces).

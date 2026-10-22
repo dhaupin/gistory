@@ -3,6 +3,8 @@
 // In the AppLayout graph, so it renders in Node during prerender: static
 // content only, no browser APIs at render time.
 
+import Footer from './Footer'
+
 export default function PrivacyPage() {
   return (
     <div className="legal-page">
@@ -96,7 +98,7 @@ export default function PrivacyPage() {
         <h2>Your rights and choices</h2>
         <ul>
           <li><strong>Access and export:</strong> use Settings → Snapshot → Export All Data at any time to download a complete JSON copy.</li>
-          <li><strong>Delete:</strong> clear site data in your browser, and stop syncing. On the relay, snapshots age out through normal retention (newest five per chain); device registrations for chains that stop checking in are pruned by the weekly maintenance job.</li>
+          <li><strong>Delete:</strong> clear site data in your browser, and stop syncing. On the relay, snapshots age out through normal retention (newest five per chain); device registrations for chains that stop checking in are pruned by the daily maintenance job.</li>
           <li><strong>Rectify:</strong> edit any prompt on any device; the correction syncs everywhere.</li>
         </ul>
 
@@ -122,13 +124,7 @@ export default function PrivacyPage() {
         <p>Questions about privacy can be raised as an issue on the project's source repository.</p>
       </article>
 
-      <footer className="lander-footer">
-        <span>© {new Date().getFullYear()} Gistory</span>
-        <span className="lander-footer-divider">·</span>
-        <a href="/terms">Terms</a>
-        <span className="lander-footer-divider">·</span>
-        <a href="/privacy">Privacy</a>
-      </footer>
+      <Footer />
     </div>
   )
 }

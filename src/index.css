@@ -840,51 +840,11 @@ textarea::placeholder {
   color: var(--text-dim);
 }
 
-.footer {
-  margin: 0 auto;
-  max-width: 800px;
-  width: 100%;
-  padding: 1rem;
-  box-sizing: border-box;
-  border-top: 1px solid var(--border);
-  text-align: center;
-}
-
 /* Page Wrapper - for consistent centering */
 .page-wrapper {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 1rem;
-}
-
-.footer-content {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--text-dim);
-}
-
-.footer-brand {
-  font-weight: 600;
-}
-
-.footer-divider {
-  opacity: 0.5;
-}
-
-.footer-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 0.25rem;
-  color: var(--text-dim);
-  text-decoration: none;
-}
-
-.footer-link:hover {
-  color: var(--text);
-  text-decoration: underline;
 }
 
 .layout {
