@@ -18,6 +18,7 @@ import {
   listDevices,
   preflight,
   readJson,
+  clientIp,
   registerDevice,
   serverSeq,
   setChainPushHash,
@@ -74,7 +75,7 @@ export const onRequestPost = withBreaker(async (db, context) => {
     await setChainPushHash(db, chainId, await hashWriteSecret(secret))
   }
 
-  await registerDevice(db, chainId, deviceId, deviceName)
+  await registerDevice(db, chainId, deviceId, deviceName, clientIp(context.request))
   breakerRecord('success')
 
   // Report the chain's ACTUAL write-auth state, after any secret this call

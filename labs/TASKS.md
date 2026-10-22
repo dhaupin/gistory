@@ -13,6 +13,46 @@ Conventions
 
 ## Now
 
+- **UX pass (2026-10-22): device tags, last IP, multi-select, chain-wide
+  warnings, saved variables, gear icon.**
+  - **Gear icon** in the burger header — the hand-drawn sun glyph was a
+    settings button in disguise; now lucide `Settings`.
+  - **Chain-wide destructive warnings**: `ConfirmDialog` reads a tiny
+    `ChainProvider` context (`src/ui/chain-context.tsx`), so every destructive
+    delete of synced data adds the note "this applies to all devices in your
+    sync chain" — only while in a chain. `Turn off sync` and `Clear draft` are
+    device-local and opt out; the variables delete dialog opts in with its
+    own copy.
+  - **Device tag chips**: `deviceTag(id)` (djb2 → 6 base36 chars, pure, in
+    `agent.ts`) renders next to every device name in Settings → Devices, so
+    two "Android" rows are tellable apart. Hover shows the full id.
+  - **Last IP per device** (migration `0005_device_ip.sql` + flattened into
+    `schema.sql`): `CF-Connecting-IP` captured at handshake and push,
+    sanitized to IP-shaped chars, stored on `devices.last_ip`. A headerless
+    call must not erase a recorded address, and a non-IP-shaped header is
+    ignored (`clientIp` in `_shared/sync.ts`). `listDevices`/`/sync/status`
+    now return `lastIp`; the Devices cell shows "Last address". Smoke pins
+    stamp / no-erase / junk-header behavior.
+  - **Saved variables** for `{{name}}` prompts (`src/lib/variables.ts`):
+    global pool + per-thread pools, keyed `scope:lowername` with the display
+    name inside the entry; deletion is a tombstone INSIDE the entry (absent
+    keys carry no freshness), merged per key by LWW + deviceId tie-break when
+    an exact tie. Rides `SyncData.variables` (optional, old payloads merge);
+    stored `gistory_vars` (added to IDB's key list); included in full and
+    per-thread / per-project exports and `importData`. Fill-in form prefills
+    from thread pool then global. Manager modal
+    (`VariablesManager.tsx`) opens from the burger footer and every thread's
+    action menu; opened from a thread it pre-targets that pool's scope.
+  - **Message multi-select** in ThreadView: a list-checks toggle (also in the
+    thread action menu) swaps each row's drag grip for a checkbox and shows a
+    sticky bulk bar — Select all / Pin / Unpin / Delete / Done. Bulk delete =
+    one tombstone call (`deleteMessages`); bulk pin sets `updatedAt` +
+    `pinnedAt` per message (`setMessagesPinned`), preserving merge invariants.
+  - Tests: smoke 349/349 (variables merge ×7, last-IP ×4), typecheck 0 (3
+    passes), lint 0 errors, migrate:check fresh-build 6 migrations,
+    `build` + `probe:dist` PASS, `test:ui` 41/41, `ui:audit` 0 findings on
+    thread/settings/burger/home/projects/trash slices.
+
 - **Step-6 pass (2026-10-22): badge + observability + storage hygiene.**
   - **Opt-in “N new messages” notice** (PRD §2.1's future opt-in, shipped):
     after a closed-tab wake the SW counts genuinely-new message ids on the

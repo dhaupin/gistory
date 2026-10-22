@@ -53,6 +53,9 @@ export const SYNC_KEYS = [
   'gistory_deleted',
   'gistory_view',
   'gistory_settings',
+  // Saved {{variables}} (global + per-thread pools). Synced content, so the
+  // service worker merging a chain on wake must be able to read it.
+  'gistory_vars',
   'gistory_device_id',
   'gistory_device_name',
   'gistory_sync_key',

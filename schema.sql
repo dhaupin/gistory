@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS devices (
   id        TEXT NOT NULL,
   name      TEXT NOT NULL,
   last_seen INTEGER NOT NULL,
+  last_ip   TEXT,
   PRIMARY KEY (chain_id, id)
 );
 

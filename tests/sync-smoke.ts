@@ -499,6 +499,67 @@ const settingsBothEmpty = mergePayload(
 )
 check('a fresh chain carries empty settings without error', settingsBothEmpty.settings?.timeZone === undefined)
 
+section('2e. Synced variables — per-key LWW pools')
+
+// Same per-key merge rules as view-state: an entry is replaced whole by its
+// newer updatedAt, so an edit to one variable can never clobber another one
+// edited concurrently on a different device.
+const varsThroughPayload = mergePayload(
+  { ...base() },
+  { variables: { 'global:label': { name: 'label', value: 'v2', updatedAt: 900 } }, senderDeviceId: 'devA' },
+  'devZ',
+)
+check(
+  'saved variables ride through the sync payload',
+  varsThroughPayload.variables?.['global:label']?.value === 'v2',
+)
+
+const varNewerWins = mergePayload(
+  { ...base(), variables: { 'global:label': { name: 'label', value: 'old', updatedAt: 100 } } },
+  { variables: { 'global:label': { name: 'label', value: 'new', updatedAt: 200 } } },
+  'devA',
+)
+check('a newer variable edit wins', varNewerWins.variables?.['global:label']?.value === 'new')
+
+const varLocalKept = mergePayload(
+  { ...base(), variables: { 'global:label': { name: 'label', value: 'new', updatedAt: 300 } } },
+  { variables: { 'global:label': { name: 'label', value: 'old', updatedAt: 200 } } },
+  'devA',
+)
+check('a local variable edit is not dragged backwards', varLocalKept.variables?.['global:label']?.value === 'new')
+
+const varTie = mergePayload(
+  { ...base(), variables: { 'global:label': { name: 'label', value: 'mine', updatedAt: 200 } } },
+  { variables: { 'global:label': { name: 'label', value: 'theirs', updatedAt: 200 } }, senderDeviceId: 'devB' },
+  'devA',
+)
+check('an exact variable tie breaks on the larger deviceId', varTie.variables?.['global:label']?.value === 'theirs')
+
+// Deletion is a tombstone INSIDE the entry (an absent key carries no
+// freshness to merge on). A deleted entry newer than the local save hides it;
+// a save newer than the deletion resurrects it.
+const varDeleted = mergePayload(
+  { ...base(), variables: { 'global:label': { name: 'label', value: 'v', updatedAt: 100 } } },
+  { variables: { 'global:label': { name: 'label', value: '', updatedAt: 500, deletedAt: 500 } } },
+  'devA',
+)
+check('a newer deletion hides the local copy', varDeleted.variables?.['global:label']?.deletedAt === 500)
+
+const varResurrected = mergePayload(
+  { ...base(), variables: { 'global:label': { name: 'label', value: 'saved', updatedAt: 800 } } },
+  { variables: { 'global:label': { name: 'label', value: '', updatedAt: 500, deletedAt: 500 } } },
+  'devA',
+)
+check('a save newer than a deletion resurrects the variable', varResurrected.variables?.['global:label']?.deletedAt == null)
+
+// Old payloads predate variables entirely — they must not wipe local ones.
+const varsAbsentRemote = mergePayload(
+  { ...base(), variables: { 'global:label': { name: 'label', value: 'v', updatedAt: 100 } } },
+  { threads: [thread('t9', 900)] },
+  'devA',
+)
+check('a payload without variables keeps the local map', varsAbsentRemote.variables?.['global:label']?.value === 'v')
+
 check(
   'moveItem relocates without mutating the source',
   moveItem(['a', 'b', 'c'], 0, 2).join(',') === 'b,c,a' && moveItem(['a', 'b'], 2, 9).join(',') === 'a,b',
@@ -825,6 +886,51 @@ const statusRes = await statusGet({
 const statusBody: any = await statusRes.json()
 check('status reports the chain head', statusBody.serverSeq === 2, String(statusBody.serverSeq))
 check('status reports both devices', statusBody.devices.length === 2)
+
+// --- 3c. Recording where calls come from (devices.last_ip) ------------------
+
+// A handshake carrying a real address stamps the device row with it; the UI
+// shows it in Settings → Devices so an unexpected guest is apparent. The
+// helper reads CF-Connecting-IP only (X-Forwarded-For is client-forged), and
+// a request without the header — tests, wrangler dev — must NOT erase a
+// recorded address.
+const ipHandshake = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    headers: { 'CF-Connecting-IP': '203.0.113.7' },
+    body: JSON.stringify({ chainId: CHAIN_A, deviceId: agentB.getDeviceId(), deviceName: 'Device B' }),
+  }),
+  env,
+})
+check('a handshake carrying an address answers ok', ipHandshake.status === 200, String(ipHandshake.status))
+
+const withIp = await statusGet({
+  request: new Request(`https://local.test/sync/status?chain=${CHAIN_A}&deviceId=${agentA.getDeviceId()}`),
+  env,
+})
+const withIpBody: any = await withIp.json()
+const rowB = withIpBody.devices.find((d: any) => d.id === agentB.getDeviceId())
+check('the last address is recorded on the device row', rowB?.lastIp === '203.0.113.7', JSON.stringify(rowB))
+
+// A header that is not an IP-shaped string is ignored, so junk never lands
+// in the column — and a junked caller cannot overwrite the honest value.
+const junkHandshake = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    headers: { 'CF-Connecting-IP': 'not an ip; drop table' },
+    body: JSON.stringify({ chainId: CHAIN_A, deviceId: agentB.getDeviceId(), deviceName: 'Device B' }),
+  }),
+  env,
+})
+check('a malformed address header is not fatal', junkHandshake.status === 200, String(junkHandshake.status))
+
+const noIp = await statusGet({
+  request: new Request(`https://local.test/sync/status?chain=${CHAIN_A}&deviceId=${agentA.getDeviceId()}`),
+  env,
+})
+const noIpBody: any = await noIp.json()
+const rowB2 = noIpBody.devices.find((d: any) => d.id === agentB.getDeviceId())
+check('a headerless handshake does not erase the recorded address', rowB2?.lastIp === '203.0.113.7', JSON.stringify(rowB2))
 
 // A wrong passphrase must not silently destroy the watermark.
 useDevice('C')

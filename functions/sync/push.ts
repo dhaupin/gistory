@@ -22,6 +22,7 @@ import {
   isValidDeviceId,
   isValidWriteSecret,
   json,
+  clientIp,
   preflight,
   readJson,
   touchDevice,
@@ -118,7 +119,7 @@ export const onRequestPost = withBreaker(async (db, context) => {
     return errorResponse('Could not allocate a sequence number', 500)
   }
 
-  await touchDevice(db, chainId, deviceId)
+  await touchDevice(db, chainId, deviceId, clientIp(context.request))
 
   // Background-sync fan-out (labs/prd-sync.md step 4): wake this chain's OTHER
   // subscribed devices so their service workers can pull without any open

@@ -1,6 +1,6 @@
 // BurgerMenu - sidebar with threads/projects
 import { useState } from 'react'
-import { X, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight, Home } from 'lucide-react'
+import { X, Edit, Trash2, Pin, PinOff, ChevronDown, ChevronRight, Home, Settings, Braces } from 'lucide-react'
 import type { Thread, Project } from '../lib/models'
 import { sortThreads, sortProjects, sortStateFromValue, THREAD_SORT_OPTIONS, type SortState } from '../ui/sort'
 import { useViewState } from '../ui/view-state'
@@ -29,6 +29,8 @@ interface BurgerMenuProps {
   onTogglePin?: (id: string) => void
   onTogglePinProject?: (id: string) => void
   onTrash?: () => void
+  /** Open the saved-variables manager (global + every thread pool). */
+  onVariables?: () => void
   /** Back to the app's home board (the dashboard) without leaving the app. */
   onHome?: () => void
 }
@@ -55,6 +57,7 @@ export default function BurgerMenu({
   onTogglePin,
   onTogglePinProject,
   onTrash,
+  onVariables,
   onHome
 }: BurgerMenuProps) {
   const [newThreadName, setNewThreadName] = useState('')
@@ -240,10 +243,9 @@ export default function BurgerMenu({
           <div className="header-actions">
             {onSettings && (
               <button className="btn-icon" onClick={onSettings} title="Settings" aria-label="Open settings">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                </svg>
+                {/* A gear reads as "settings" at a glance; the hand-drawn
+                    sun-like glyph this replaces did not. */}
+                <Settings size={16} />
               </button>
             )}
             <button className="btn-icon" onClick={onClose} aria-label="Close menu"><X size={16} /></button>
@@ -405,6 +407,13 @@ export default function BurgerMenu({
               <div className="sidebar-footer-link">
                 <button className="btn btn-ghost btn-small" onClick={onTrash}>
                   <Trash2 size={14} /> Recently deleted
+                </button>
+              </div>
+            )}
+            {onVariables && (
+              <div className="sidebar-footer-link">
+                <button className="btn btn-ghost btn-small" onClick={onVariables}>
+                  <Braces size={14} /> Variables
                 </button>
               </div>
             )}

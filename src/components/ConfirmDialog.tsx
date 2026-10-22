@@ -1,6 +1,7 @@
 // ConfirmDialog - modal confirmation dialog
 import { useEffect } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { useInChain } from '../ui/chain-context'
 
 export interface ConfirmDialogProps {
   open: boolean
@@ -9,6 +10,14 @@ export interface ConfirmDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
+  /**
+   * Explicit override for the chain-wide note. By default a destructive
+   * dialog shows it whenever the device is in a sync chain — deleting a
+   * synced item removes it on every device, so the dialog says so. Pass
+   * `false` for destructive actions whose reach is only this device (the
+   * dialog cannot know, because it was not told which action this is).
+   */
+  chainWide?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
@@ -20,9 +29,12 @@ export default function ConfirmDialog({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   destructive = false,
+  chainWide,
   onConfirm,
   onCancel
 }: ConfirmDialogProps) {
+  const inChain = useInChain()
+  const showChainNote = destructive && (chainWide ?? inChain)
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel()
@@ -49,6 +61,11 @@ export default function ConfirmDialog({
         </div>
         <h3 className="modal-title" id="confirm-dialog-title">{title}</h3>
         <p className="modal-message">{message}</p>
+        {showChainNote && (
+          <p className="modal-chain-note">
+            <AlertTriangle size={13} /> This applies to all devices in your sync chain.
+          </p>
+        )}
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onCancel}>
             {cancelLabel}

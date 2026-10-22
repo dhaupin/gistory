@@ -5,13 +5,15 @@
 import { stGetString, stKeyList, stSetString } from '../sync/idb'
 import type { Message, Project, Thread, MessagesByThread } from './models'
 import type { DeletedRegistry, SyncSettings } from '../sync/merge'
-import { mergeSettings } from '../sync/merge'
+import { mergeSettings, mergeVariables } from '../sync/merge'
 import { loadView, mergeView, viewKeyItem, type ViewState } from '../sync/view-state'
+import { normalizeVariables, type Variables } from './variables'
 
 const THREADS_KEY = 'gistory_threads'
 const MESSAGES_KEY = 'gistory_messages'
 const PROJECTS_KEY = 'gistory_projects'
 const SETTINGS_KEY = 'gistory_settings'
+const VARIABLES_KEY = 'gistory_vars'
 const DRAFT_KEY_PREFIX = 'gistory_draft_'
 
 export function loadData(): {
@@ -144,6 +146,18 @@ export function saveSettings(settings: SyncSettings) {
   return writeJson(SETTINGS_KEY, settings)
 }
 
+export function loadVariables(): Variables {
+  try {
+    return normalizeVariables(JSON.parse(stGetString(VARIABLES_KEY) || '{}'))
+  } catch {
+    return {}
+  }
+}
+
+export function saveVariables(variables: Variables) {
+  return writeJson(VARIABLES_KEY, variables)
+}
+
 // Export types
 export interface ExportData {
   version: number
@@ -155,6 +169,8 @@ export interface ExportData {
   view?: ViewState
   /** Synced preferences (time zone). Optional on import; merged by LWW. */
   settings?: SyncSettings
+  /** Saved {{variables}}. Optional on import; merged per key by LWW. */
+  variables?: Variables
 }
 
 // Export all data
@@ -167,7 +183,8 @@ export function exportAll(): ExportData {
     messages,
     projects,
     view: loadView(),
-    settings: loadSettings()
+    settings: loadSettings(),
+    variables: loadVariables()
   }
 }
 
@@ -206,8 +223,24 @@ export function exportThread(threadId: string): ExportData | null {
     threads: [thread],
     messages: { [threadId]: threadMessages },
     projects: [],
-    view: viewFor(loadView(), [threadId, ...threadMessages.map(m => m.id)])
+    view: viewFor(loadView(), [threadId, ...threadMessages.map(m => m.id)]),
+    // Global pool + this thread's own pool: re-importing a thread backup
+    // restores its variables without dragging in unrelated thread pools.
+    variables: exportVariablesFor([threadId])
   }
+}
+
+/** Alive global entries plus the alive pools of the given thread scopes. */
+function exportVariablesFor(threadIds: string[]): Variables {
+  const all = loadVariables()
+  const keep = new Set(threadIds)
+  const out: Variables = {}
+  for (const [key, entry] of Object.entries(all)) {
+    if (entry.deletedAt != null) continue
+    const scope = key.slice(0, key.indexOf(':'))
+    if (scope === 'global' || keep.has(scope)) out[key] = entry
+  }
+  return out
 }
 
 // Export single project with its threads
@@ -232,7 +265,8 @@ export function exportProject(projectId: string): ExportData | null {
       project.id,
       ...projectThreads.map(t => t.id),
       ...Object.values(projectMessages).flat().map(m => m.id),
-    ])
+    ]),
+    variables: exportVariablesFor(projectThreads.map(t => t.id))
   }
 }
 
@@ -241,7 +275,7 @@ export function exportProject(projectId: string): ExportData | null {
 export function importData(
   data: ExportData,
   deleted?: DeletedRegistry,
-): { threads: Thread[], messages: MessagesByThread, projects: Project[], view: ViewState, settings: SyncSettings } {
+): { threads: Thread[], messages: MessagesByThread, projects: Project[], view: ViewState, settings: SyncSettings, variables: Variables } {
   const existing = loadData()
   const importedThreads = data.threads || []
   const importedMessages = data.messages || {}
@@ -290,6 +324,9 @@ export function importData(
     view: mergeView(loadView(), data.view),
     // Preferences merge by LWW too, so importing an older backup never
     // drags the time zone backwards past a newer local change.
-    settings: mergeSettings(loadSettings(), data.settings)
+    settings: mergeSettings(loadSettings(), data.settings),
+    // Variables merge per key by LWW (deletion tombstones included), so an
+    // old backup never drags a variable back over a newer change here.
+    variables: mergeVariables(loadVariables(), data.variables)
   }
 }

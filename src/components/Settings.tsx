@@ -14,6 +14,7 @@ import {
   unsubscribeBackground,
 } from '../sync/bg-sync'
 import { stGetString, stSetString } from '../sync/idb'
+import { deviceTag } from '../sync/agent'
 import { exportAll, exportThread, exportProject, getLastExport, setLastExport, type ExportData } from '../lib/store'
 import { convertImport } from '../lib/import-adapters'
 import type { PromptMetadata } from '../lib/models'
@@ -53,6 +54,8 @@ interface DeviceInfo {
   id: string
   name: string
   lastSeen: number
+  /** Last address the relay saw this device call from ('' when never recorded). */
+  lastIp?: string
 }
 
 // Sections
@@ -382,6 +385,8 @@ function SyncSettings(props: SettingsProps) {
               message="This device will stop syncing and forget the chain. Your prompts stay on this device, and other devices keep syncing. You can re-enable with the same passphrase and pairing code."
               confirmLabel="Turn off sync"
               destructive
+              // Device-local action: leaving the chain touches nothing on it.
+              chainWide={false}
               onConfirm={() => { setConfirmDisable(false); props.onDisableSync() }}
               onCancel={() => setConfirmDisable(false)}
             />
@@ -616,10 +621,19 @@ function DevicesSettings(props: SettingsProps) {
                 <span className="device-name">
                   {isCurrent && <span className="you-badge">You</span>}
                   {device.name || 'Unnamed device'}
+                  {/* Stable short tag from the (unreadable) device id, so
+                      two entries whose user-given names match are tellable
+                      apart — compare it to the tag on the other device. */}
+                  <code className="device-tag" title={device.id}>{deviceTag(device.id)}</code>
                 </span>
                 <span className="device-last-seen">
                   Last seen: {new Date(device.lastSeen).toLocaleString()}
                 </span>
+                {device.lastIp && (
+                  <span className="device-last-ip">
+                    Last address: {device.lastIp}
+                  </span>
+                )}
               </div>
               
               {isCurrent && <Badge variant="success">this device</Badge>}

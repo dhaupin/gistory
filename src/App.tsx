@@ -1,7 +1,8 @@
 // Gistory App - Main Entry Point
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData, loadSettings, saveSettings, sweepDrafts } from './lib/store'
+import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData,  loadSettings, saveSettings, loadVariables, saveVariables, sweepDrafts } from './lib/store'
+import { varKey, type Variables } from './lib/variables'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
 import {
@@ -31,6 +32,7 @@ import { applyFullOrder,
   type ViewState,
 } from './sync/view-state'
 import { ViewStateProvider, type ViewStateApi } from './ui/view-state'
+import { ChainProvider } from './ui/chain-context'
 import Layout from './components/Layout'
 import BurgerMenu from './components/BurgerMenu'
 import ThreadView from './components/ThreadView'
@@ -41,6 +43,7 @@ import SettingsPage from './components/Settings'
 import EmptyState from './components/EmptyState'
 import Onboarding from './components/Onboarding'
 import CommandPalette from './components/CommandPalette'
+import VariablesManager from './components/VariablesManager'
 import TrashPage from './components/TrashPage'
 import { parseSort, toSortParam, type SortState } from './ui/sort'
 
@@ -132,10 +135,16 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
   // Synced preferences (currently the stamp time zone). A singleton that rides
   // the payload and merges LWW, so changing it on one device updates all eight.
   const [settings, setSettings] = useState<SyncSettings>(loadSettings)
+  // Saved {{variables}} (global + per-thread pools). Rides the sync payload
+  // and merges per key by LWW, so a variable edit on one device can never
+  // clobber a different variable edited concurrently on another.
+  const [variables, setVariables] = useState<Variables>(loadVariables)
   const [deviceName, setDeviceName] = useState(() => stGetString('gistory_device_name') || '')
   // Cmd+K palette + the one-time first-run tour. Both are pure UI overlays;
   // the tour flag lives in localStorage so it shows exactly once per browser.
   const [showPalette, setShowPalette] = useState(false)
+  /** Variables manager (burger menu + thread page entry). */
+  const [showVariables, setShowVariables] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(
     () => typeof localStorage !== 'undefined' && !localStorage.getItem('gistory_onboarded'),
   )
@@ -164,6 +173,9 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
   const settingsRef = React.useRef<SyncSettings>(settings)
   useEffect(() => { settingsRef.current = settings }, [settings])
   useEffect(() => { saveSettings(settings) }, [settings])
+  const variablesRef = React.useRef<Variables>(variables)
+  useEffect(() => { variablesRef.current = variables }, [variables])
+  useEffect(() => { saveVariables(variables) }, [variables])
 
   // --- Sync helpers ---------------------------------------------------------
 
@@ -174,6 +186,7 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     deleted: deletedRef.current,
     view: viewRef.current,
     settings: settingsRef.current,
+    variables: variablesRef.current,
   }), [])
 
   const applyMerged = useCallback((data: SyncData) => {
@@ -198,10 +211,14 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     // Settings merge LWW like items: another device's newer preference applies
     // here verbatim, our newer one is already in data.settings after the merge.
     settingsRef.current = data.settings ?? settingsRef.current
+    // Variables merge per key inside the merge function, so what arrives is
+    // the post-merge map, never a wholesale replacement of our newer saves.
+    variablesRef.current = data.variables ?? variablesRef.current
     setThreads(data.threads)
     setMessages(data.messages)
     setProjects(data.projects)
     setDeleted(data.deleted)
+    setVariables(variablesRef.current)
     setView(pruned)
     setSettings(settingsRef.current)
   }, [])
@@ -552,11 +569,13 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     projectsRef.current = merged.projects
     viewRef.current = merged.view
     settingsRef.current = merged.settings
+    variablesRef.current = merged.variables
     setThreads(merged.threads)
     setMessages(merged.messages)
     setProjects(merged.projects)
     setView(merged.view)
     setSettings(merged.settings)
+    setVariables(merged.variables)
   }, [])
 
   /** Set the syncable stamp time zone. Bumping updatedAt is what makes the
@@ -564,6 +583,36 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
    *  clock wins on every device, same as any item. */
   const setTimeZone = useCallback((tz: string) => {
     setSettings(prev => ({ ...prev, timeZone: tz || undefined, updatedAt: Date.now() }))
+  }, [])
+
+  // --- Saved {{variables}} ---------------------------------------------------
+
+  /** Save one variable into its pool (global or a thread id). Resurrects a
+   *  deleted entry — a newer save beats the older tombstone, same as items. */
+  const saveVariable = useCallback((scope: string, name: string, value: string) => {
+    const key = varKey(scope, name)
+    const entry = { name: name.trim(), value, updatedAt: Date.now() }
+    setVariables(prev => {
+      const next: Variables = { ...prev, [key]: entry }
+      variablesRef.current = next
+      return next
+    })
+  }, [])
+
+  /** Delete a variable by key: tombstone inside the entry so the deletion
+   *  syncs (an absent key carries no freshness information to merge on) and a
+   *  newer edit on another device still resurrects it. */
+  const deleteVariable = useCallback((key: string) => {
+    setVariables(prev => {
+      const existing = prev[key]
+      if (!existing || existing.deletedAt != null) return prev
+      const next: Variables = {
+        ...prev,
+        [key]: { ...existing, deletedAt: Date.now(), updatedAt: Date.now() },
+      }
+      variablesRef.current = next
+      return next
+    })
   }, [])
 
   // --- Arrangement (drag order + collapse) ----------------------------------
@@ -939,6 +988,46 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     }))
   }, [currentThreadId, tombstone, forgetView])
 
+  /** Bulk delete: one tombstone call for all ids, then one filter across the
+   *  whole messages map (the ids may belong to the open thread only, but the
+   *  sweep is cheap and id-safe by construction). */
+  const deleteMessages = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    tombstone('messages', ids)
+    forgetView(ids)
+    const gone = new Set(ids)
+    setMessages(prev => {
+      const next: MessagesByThread = {}
+      for (const [threadId, msgs] of Object.entries(prev)) {
+        const kept = msgs.filter(m => !gone.has(m.id))
+        next[threadId] = kept
+      }
+      return next
+    })
+  }, [tombstone, forgetView])
+
+  /** Bulk pin/unpin. Same per-item invariants as the single toggle: the pin
+   *  state is part of the message, so bumping updatedAt is what makes the
+   *  newest pin state win the merge on every device. */
+  const setMessagesPinned = useCallback((ids: string[], pinned: boolean) => {
+    if (ids.length === 0) return
+    const now = Date.now()
+    const want = new Set(ids)
+    setMessages(prev => {
+      const next: MessagesByThread = {}
+      for (const [threadId, msgs] of Object.entries(prev)) {
+        next[threadId] = msgs.map(m => {
+          if (!want.has(m.id) || m.pinned === pinned) return m
+          const upd: Message = { ...m, pinned, updatedAt: now }
+          if (pinned) upd.pinnedAt = now
+          else delete upd.pinnedAt
+          return upd
+        })
+      }
+      return next
+    })
+  }, [])
+
   const createProject = useCallback((name: string) => {
     const project: Project = { id: generateId('p'), name, createdAt: Date.now() }
     setProjects(prev => [...prev, project])
@@ -1081,6 +1170,10 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
           onSetStatus={setThreadStatus}
           onSetRating={setThreadRating}
           timeZone={settings.timeZone}
+          variables={variables}
+          onManageVariables={() => setShowVariables(true)}
+          onDeleteMessages={deleteMessages}
+          onSetMessagesPinned={setMessagesPinned}
         />
       )
     }
@@ -1124,6 +1217,7 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
   )
 
   return (
+    <ChainProvider inChain={syncEnabled}>
     <ViewStateProvider value={viewApi}>
       <div className="app">
       {showBurger && <BurgerMenu 
@@ -1138,6 +1232,7 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
         createProject={createProject} 
         onSettings={() => { navigate('/settings'); setShowBurger(false) }}
         onTrash={() => { navigate('/trash'); setShowBurger(false) }}
+        onVariables={() => { setShowVariables(true); setShowBurger(false) }}
         onHome={() => { navigate('/'); setShowBurger(false) }}
         onRenameThread={renameThread}
         onDeleteThread={deleteThread}
@@ -1189,8 +1284,21 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
           onOpenTrash={() => navigate('/trash')}
         />
       )}
+      {showVariables && (
+        <VariablesManager
+          open
+          onClose={() => setShowVariables(false)}
+          variables={variables}
+          threads={threads}
+          // Opened from a thread page pre-targets that thread's pool.
+          defaultScope={currentThreadId || undefined}
+          onSave={saveVariable}
+          onDelete={deleteVariable}
+        />
+      )}
       </div>
     </ViewStateProvider>
+    </ChainProvider>
   )
 }
 

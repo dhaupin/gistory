@@ -58,6 +58,19 @@ export function isValidDeviceId(id: unknown): id is string {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{4,128}$/.test(id)
 }
 
+/**
+ * The caller's IP, as recorded by the edge (`CF-Connecting-IP`). The relay
+ * stores the LAST one seen per device so the Devices tab can flag an
+ * unfamiliar address. Sanitized to the characters IPs use — never parsed as
+ * v4/v6 structure, because the honest use here is display, not tracing.
+ * `X-Forwarded-For` is deliberately ignored: it is client-forged. An absent
+ * header (tests, `wrangler dev`) yields '' and nothing is stored.
+ */
+export function clientIp(request: Request): string {
+  const raw = request.headers.get('CF-Connecting-IP') || ''
+  return /^[0-9a-fA-F:.]{3,45}$/.test(raw.trim()) ? raw.trim().slice(0, 45) : ''
+}
+
 // --- Write capability --------------------------------------------------------
 //
 // A chain is only writable by a device holding the random write secret that was
@@ -216,19 +229,26 @@ export async function registerDevice(
   chainId: string,
   deviceId: string,
   deviceName: string,
+  ip = '',
 ): Promise<void> {
   // Keyed by (chain_id, id), not bare id: one row per (chain, device) pair.
   // A device joining a second chain gets a second row — re-keying by bare id
   // would MOVE the row out of the first chain and drop it from that chain's
-  // device list. Re-registering the same pair just refreshes name/last_seen.
+  // device list. Re-registering the same pair just refreshes name/last_seen
+  // and (when the edge recorded one) the address it is calling from.
   await db
     .prepare(
-      `INSERT INTO devices (chain_id, id, name, last_seen) VALUES (?, ?, ?, ?)
+      `INSERT INTO devices (chain_id, id, name, last_seen, last_ip)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(chain_id, id) DO UPDATE SET
          name = excluded.name,
-         last_seen = excluded.last_seen`,
+         last_seen = excluded.last_seen,
+         -- Only touch the address when this call saw one; a registration
+         -- without a header (tests) must not erase a real device's history.
+         last_ip = CASE WHEN excluded.last_ip != ''
+                        THEN excluded.last_ip ELSE devices.last_ip END`,
     )
-    .bind(chainId, deviceId, deviceName, Date.now())
+    .bind(chainId, deviceId, deviceName, Date.now(), ip)
     .run()
 }
 
@@ -236,10 +256,15 @@ export async function touchDevice(
   db: D1Database,
   chainId: string,
   deviceId: string,
+  ip = '',
 ): Promise<void> {
   await db
-    .prepare('UPDATE devices SET last_seen = ? WHERE id = ? AND chain_id = ?')
-    .bind(Date.now(), deviceId, chainId)
+    .prepare(
+      `UPDATE devices SET last_seen = ?,
+       last_ip = CASE WHEN ? != '' THEN ? ELSE last_ip END
+       WHERE id = ? AND chain_id = ?`,
+    )
+    .bind(Date.now(), ip, ip, deviceId, chainId)
     .run()
 }
 
@@ -255,18 +280,21 @@ export interface DeviceRow {
   id: string
   name: string
   last_seen: number
+  last_ip: string | null
 }
 
 export interface DeviceInfo {
   id: string
   name: string
   lastSeen: number
+  /** Last address the relay saw this device call from ('' when never recorded). */
+  lastIp?: string
 }
 
 export async function listDevices(db: D1Database, chainId: string): Promise<DeviceInfo[]> {
   const { results } = await db
     .prepare(
-      'SELECT id, name, last_seen FROM devices WHERE chain_id = ? ORDER BY last_seen DESC LIMIT 50',
+      'SELECT id, name, last_seen, last_ip FROM devices WHERE chain_id = ? ORDER BY last_seen DESC LIMIT 50',
     )
     .bind(chainId)
     .all<DeviceRow>()
@@ -274,6 +302,7 @@ export async function listDevices(db: D1Database, chainId: string): Promise<Devi
     id: row.id,
     name: row.name,
     lastSeen: Number(row.last_seen) || 0,
+    lastIp: row.last_ip || undefined,
   }))
 }
 

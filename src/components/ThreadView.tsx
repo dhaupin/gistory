@@ -1,8 +1,9 @@
 // ThreadView - displays messages in a thread
 
 import { useState, useEffect, useRef } from 'react'
-import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork, Star, Archive, ArchiveRestore, Check, PencilLine, Eraser } from 'lucide-react'
+import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork, Star, Archive, ArchiveRestore, Check, PencilLine, Eraser, Braces, ListChecks } from 'lucide-react'
 import type { Message, Thread, Project, ThreadStatus } from '../lib/models'
+import { lookupVariable, type Variables } from '../lib/variables'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 import { sortMessages, sortStateFromValue, MESSAGE_SORT_OPTIONS, type SortState } from '../ui/sort'
 import { createdEditedStamp, stampTitle } from '../ui/relative-time'
@@ -39,6 +40,14 @@ interface ThreadViewProps {
   timeZone?: string
   /** A copy of the thread's content just happened (usage counter + 1). */
   onUseThread?: (id: string) => void
+  /** Saved {{variables}} (global + all thread pools) for fill-in prefill. */
+  variables?: Variables
+  /** Open the variables manager (App-level modal). */
+  onManageVariables?: () => void
+  /** Bulk delete a set of messages in one tombstone shot. */
+  onDeleteMessages?: (ids: string[]) => void
+  /** Bulk pin/unpin a set of messages. */
+  onSetMessagesPinned?: (ids: string[], pinned: boolean) => void
 }
 
 /**
@@ -124,7 +133,11 @@ export default function ThreadView({
   onSetRating,
   onFork,
   onUseThread,
-  timeZone
+  timeZone,
+  variables,
+  onManageVariables,
+  onDeleteMessages,
+  onSetMessagesPinned
 }: ThreadViewProps) {
   const [input, setInput] = useState('')
   const [editingMsg, setEditingMsg] = useState<Message | null>(null)
@@ -138,7 +151,27 @@ export default function ThreadView({
   // Template fill-in: which placeholders to collect, and what to replace them with.
   const [fillVars, setFillVars] = useState<{ names: string[]; content: string } | null>(null)
   const [fillValues, setFillValues] = useState<Record<string, string>>({})
+  // Multi-select (bulk delete / pin). Selected ids only matter while the mode
+  // is on; leaving the mode clears them.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<string[]>([])
+  const [bulkConfirm, setBulkConfirm] = useState(false)
   const { view, isCollapsed, toggleCollapse, reorder } = useViewState()
+
+  const toggleSelected = (id: string) => {
+    setSelected(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
+  }
+
+  const leaveSelectMode = () => {
+    setSelectMode(false)
+    setSelected([])
+  }
+
+  const confirmBulkDelete = () => {
+    onDeleteMessages?.(selected.filter(id => !!messages.find(m => m.id === id)))
+    leaveSelectMode()
+    setBulkConfirm(false)
+  }
 
   // Sort messages (manual drag order first, then pinned, then the active sort).
   const sortedMessages = sortMessages(
@@ -183,7 +216,14 @@ export default function ThreadView({
       return
     }
     // The prompt is a template: collect values first, then copy the result.
-    setFillValues({})
+    // Saved variables prefill the form — the thread's own pool wins over the
+    // global one — so filling is an edit-in-place, not a retype.
+    const prefill: Record<string, string> = {}
+    for (const name of names) {
+      const saved = variables ? lookupVariable(variables, thread.id, name) : null
+      if (saved?.value) prefill[name.toLowerCase()] = saved.value
+    }
+    setFillValues(prefill)
     setFillVars({ names, content })
   }
 
@@ -274,6 +314,20 @@ export default function ThreadView({
     if (onFork) {
       items.push({ label: 'Fork', icon: <GitFork size={14} />, onClick: () => onFork(thread.id) })
     }
+    if (onDeleteMessages) {
+      items.push({
+        label: 'Select messages',
+        icon: <ListChecks size={14} />,
+        onClick: () => { setSelectMode(true); setSelected([]) },
+      })
+    }
+    if (onManageVariables) {
+      items.push({
+        label: 'Manage {{variables}}',
+        icon: <Braces size={14} />,
+        onClick: onManageVariables,
+      })
+    }
     if (onSetStatus) {
       const status = thread.metadata?.status
       if (status === 'archived') {
@@ -344,6 +398,17 @@ export default function ThreadView({
               >
                 {createdEditedStamp(thread.createdAt, thread.updatedAt, timeZone)}
               </span>
+              {onDeleteMessages && (
+                <button
+                  className={`btn btn-ghost btn-small bulk-toggle${selectMode ? ' on' : ''}`}
+                  onClick={() => (selectMode ? leaveSelectMode() : setSelectMode(true))}
+                  aria-pressed={selectMode}
+                  aria-label="Select messages"
+                  title="Select messages"
+                >
+                  <ListChecks size={14} />
+                </button>
+              )}
               {onSortChange && (
                 <select 
                   value={`${sort?.field || 'createdAt'}_${sort?.dir || 'desc'}`}
@@ -479,6 +544,53 @@ export default function ThreadView({
         )}
       </div>
 
+      {/* Bulk action bar (multi-select mode): picks up only this thread's
+          visible messages, so the actions match what the user picked. */}
+      {selectMode && (
+        <div className="bulk-bar" role="toolbar" aria-label="Bulk message actions">
+          <span className="bulk-count">{selected.length} selected</span>
+          {!searchQuery.trim() && (
+            <button
+              className="btn btn-secondary btn-small"
+              onClick={() => setSelected(sortedMessages.map(m => m.id))}
+              disabled={!sortedMessages.length}
+            >
+              Select all
+            </button>
+          )}
+          {onSetMessagesPinned && (
+            <>
+              <button
+                className="btn btn-secondary btn-small"
+                onClick={() => { onSetMessagesPinned(selected, true); leaveSelectMode() }}
+                disabled={!selected.length}
+              >
+                Pin
+              </button>
+              <button
+                className="btn btn-secondary btn-small"
+                onClick={() => { onSetMessagesPinned(selected, false); leaveSelectMode() }}
+                disabled={!selected.length}
+              >
+                Unpin
+              </button>
+            </>
+          )}
+          {onDeleteMessages && (
+            <button
+              className="btn btn-danger btn-small"
+              onClick={() => { if (selected.length) setBulkConfirm(true) }}
+              disabled={!selected.length}
+            >
+              Delete
+            </button>
+          )}
+          <button className="btn btn-secondary btn-small" onClick={leaveSelectMode}>
+            Done
+          </button>
+        </div>
+      )}
+
       <SortableProvider
         ids={filtered.map(m => m.id)}
         allIds={sortedMessages.map(m => m.id)}
@@ -524,7 +636,17 @@ export default function ThreadView({
               ) : (
                 <div className="message-content">
                   <div className="message-head">
-                    <SortableHandle label={labelOf(msg.content)} />
+                    {selectMode ? (
+                      <input
+                        type="checkbox"
+                        className="msg-select"
+                        checked={selected.includes(msg.id)}
+                        onChange={() => toggleSelected(msg.id)}
+                        aria-label={`Select message starting “${labelOf(msg.content).slice(0, 40)}…”`}
+                      />
+                    ) : (
+                      <SortableHandle label={labelOf(msg.content)} />
+                    )}
                     <button
                       className="collapse-toggle"
                       onClick={() => toggleCollapse(`message:${msg.id}`)}
@@ -589,6 +711,18 @@ export default function ThreadView({
         })}
         </SortableProvider>
 
+      {bulkConfirm && (
+        <ConfirmDialog
+          open
+          title={`Delete ${selected.length} message${selected.length === 1 ? '' : 's'}?`}
+          message={`This will permanently delete the ${selected.length} selected message${selected.length === 1 ? '' : 's'}.`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={confirmBulkDelete}
+          onCancel={() => setBulkConfirm(false)}
+        />
+      )}
+
       {deleteConfirm && (
         <ConfirmDialog
           open
@@ -600,6 +734,9 @@ export default function ThreadView({
               : 'This will permanently delete this thread and all its messages.'}
           confirmLabel={deleteConfirm.type === 'draft' ? 'Clear draft' : 'Delete'}
           destructive
+          // Drafts never sync, so wiping the composer is device-local even
+          // though the dialog defaults to the chain-wide note.
+          chainWide={deleteConfirm.type !== 'draft'}
           onConfirm={confirmDelete}
           onCancel={() => setDeleteConfirm(null)}
         />

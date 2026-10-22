@@ -12,6 +12,9 @@ A secure, privacy-first prompt keeper for AI prompting workflows. Built with Rea
 - **Safe deletes** — deletions sync via tombstones so they are never resurrected
 - **Pin, reorder & collapse** — threads, messages, and projects can each be pinned, dragged into your own order, and folded away
 - **Arrangement syncs** — your custom order and collapsed state travel with your data, so every device shows the same layout
+- **Multi-select messages** — tick a run of messages and delete or pin them in one shot; destructive deletes say when they apply to the whole sync chain
+- **Saved variables** — `{{name}}` placeholders become a fill-in form when you copy, pre-filled from saved values (a global pool plus per-thread pools, synced like everything else)
+- **Devices you can tell apart** — each device shows a stable short tag plus the last address the relay saw it call from
 
 ## Quick Start
 

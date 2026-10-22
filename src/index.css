@@ -1143,6 +1143,20 @@ textarea::placeholder {
   color: var(--text-dim);
 }
 
+.modal-chain-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: -0.75rem 0 1.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-left-color: var(--warning, #dc2626);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+}
+
 .modal-actions {
   display: flex;
   gap: 0.75rem;
@@ -1500,6 +1514,60 @@ textarea::placeholder {
 .device-last-seen {
   font-size: 0.75rem;
   color: var(--text-dim);
+}
+
+/* Stable short id-tag chip shown next to a device name (Settings → Devices):
+   an opaque hash of the device id, so two devices named alike are tellable
+   apart at a glance. */
+.device-tag {
+  margin-left: 0.45rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2, transparent);
+  color: var(--text-dim);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+}
+
+.device-last-ip {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* Device-local select chips in a message row (multi-select mode): swapped in
+   for the drag grip, so the row layout does not jump when the mode turns on. */
+.msg-select {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  accent-color: currentColor;
+}
+
+/* Bulk action bar shown above the message list in multi-select mode. */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.25rem 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+  position: sticky;
+  top: 0.5rem;
+  z-index: 20;
+}
+
+.bulk-count {
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  margin-right: auto;
+}
+
+.bulk-toggle.on {
+  color: var(--primary, #2563eb);
 }
 
 /* Empty state text */
@@ -3056,4 +3124,87 @@ textarea::placeholder {
 @keyframes boot-pulse {
   0%, 100% { opacity: 0.25; transform: scale(0.8); }
   50% { opacity: 1; transform: scale(1); }
+}
+
+/* === Variables manager ({{name}} values for prompts) ====================== */
+
+.variables-modal {
+  max-width: 560px;
+  width: min(92vw, 560px);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.variables-explainer p {
+  margin: 0 0 1rem;
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+}
+
+.variables-list {
+  margin-bottom: 1rem;
+}
+
+.variables-group {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface);
+}
+
+.variables-group-name {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.variables-group-name .dim {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: 0.6875rem;
+}
+
+.variable-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0;
+}
+
+.variable-row + .variable-row {
+  border-top: 1px dashed var(--border);
+}
+
+.variable-key {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--primary, #2563eb);
+}
+
+.variable-value {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.variable-row-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex: none;
+}
+
+.variables-add {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }

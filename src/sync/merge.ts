@@ -14,6 +14,7 @@
 // The functions here are pure so they can be unit tested without a browser.
 
 import type { Message, MessagesByThread, Project, Thread } from '../lib/models'
+import { normalizeVariables, type Variables } from '../lib/variables'
 import { emptyView, mergeView, type ViewState } from './view-state'
 
 export interface DeletedRegistry {
@@ -42,6 +43,8 @@ export interface SyncData {
   view: ViewState
   /** Synced preferences. Optional so payloads predating settings still merge. */
   settings?: SyncSettings
+  /** Saved `{{variable}}` values. Optional so payloads predating them merge. */
+  variables?: Variables
 }
 
 export interface SyncPayload {
@@ -51,6 +54,7 @@ export interface SyncPayload {
   deleted?: Partial<DeletedRegistry>
   view?: Partial<ViewState>
   settings?: SyncSettings
+  variables?: Variables
   senderDeviceId?: string
   sentAt?: number
 }
@@ -176,6 +180,38 @@ function mergeMessages(
 }
 
 /**
+ * Merge the saved-variables map, per key by LWW exactly like view-state:
+ * an entry is replaced whole by its newer `updatedAt`, equal timestamps break
+ * on the larger sender deviceId. Deletion is carried INSIDE the entry as
+ * `deletedAt` (with `updatedAt` bumped to the deletion time), so a newer
+ * edit resurrection works without any separate registry.
+ */
+export function mergeVariables(
+  local?: Variables | null,
+  incoming?: Variables | null,
+  sender = '',
+  myDeviceId = '',
+): Variables {
+  const l = normalizeVariables(local)
+  const i = incoming ? normalizeVariables(incoming) : undefined
+  if (!i) return l
+  const merged: Variables = { ...l }
+  for (const [key, incomingEntry] of Object.entries(i)) {
+    const localEntry = merged[key]
+    if (!localEntry) {
+      merged[key] = incomingEntry
+      continue
+    }
+    if (incomingEntry.updatedAt > localEntry.updatedAt) {
+      merged[key] = incomingEntry
+    } else if (incomingEntry.updatedAt === localEntry.updatedAt && sender > myDeviceId) {
+      merged[key] = incomingEntry
+    }
+  }
+  return merged
+}
+
+/**
  * Merge the singleton settings object. Same LWW + deviceId tie-break as items,
  * compared on `updatedAt`. A tie with only one side carrying a value prefers
  * that side, so a device that has set a preference wins over one that never
@@ -234,6 +270,7 @@ export function mergePayload(
     deleted,
     view: mergeView(local.view ?? emptyView(), remote.view, sender, myDeviceId),
     settings: mergeSettings(local.settings, remote.settings, sender, myDeviceId),
+    variables: mergeVariables(local.variables, remote.variables, sender, myDeviceId),
     threads,
     projects: mergeList(
       local.projects,

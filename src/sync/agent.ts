@@ -219,6 +219,8 @@ export interface RemoteDevice {
   id: string
   name: string
   lastSeen: number
+  /** Last address the relay saw this device call from ('' when never recorded). */
+  lastIp?: string
 }
 
 export interface ChainStatus {
@@ -226,6 +228,18 @@ export interface ChainStatus {
   serverSeq: number
   version: number
   devices: RemoteDevice[]
+}
+
+/**
+ * A short stable tag for a device id (the Settings Devices cell). Ids are
+ * random and unreadable; this derives six opaque characters from the id, so
+ * two devices that both say "Android" are tellable apart at a glance.
+ * Pure — no crypto — because it is presentation, not security.
+ */
+export function deviceTag(id: string): string {
+  let h = 5381
+  for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) >>> 0
+  return h.toString(36).padStart(6, '0').slice(0, 6)
 }
 
 export interface PullResult {
