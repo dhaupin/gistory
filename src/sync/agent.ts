@@ -292,7 +292,13 @@ export class SyncAgent {
     if (!storedId) stSetString(DEVICE_ID_KEY, deviceId)
     this.deviceId = deviceId
 
-    const storedName = localStorage.getItem(DEVICE_NAME_KEY)
+    // The device name lives in the SAME persistence layer as the id (idb),
+    // and it MUST be read that way: agent.init() also runs inside the service
+    // worker (the wake path constructs its own agent), where raw `localStorage`
+    // does not exist — a bare read here was a silent ReferenceError that killed
+    // every wake on real devices while every test (which injects a fake
+    // localStorage) stayed green.
+    const storedName = stGetString(DEVICE_NAME_KEY)
     if (storedName) this.config.deviceName = storedName
 
     // Salt = chainId, so every device in the chain derives the same key.

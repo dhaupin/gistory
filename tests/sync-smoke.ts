@@ -2062,6 +2062,22 @@ check(
   !/ensureAgent\(key, chain\)/.test(appSource),
 )
 
+// The service-worker wake imports agent.ts directly and runs in a context
+// where `localStorage` DOES NOT EXIST. agent.init() once read the device name
+// with a bare `localStorage.` — a ReferenceError on every real wake, swallowed
+// by the wake contract's best-effort error handling, so subscribed devices
+// silently pulled nothing while every test (which injects a fake localStorage)
+// stayed green. Same textual-guard reasoning as the App.tsx checks above.
+const syncSource = readFileSync(new URL('../src/sync/agent.ts', import.meta.url), 'utf8')
+check(
+  'agent.ts never reads localStorage directly (it runs in the wake path, where localStorage does not exist)',
+  !/\blocalStorage\./.test(syncSource),
+)
+check(
+  'the device name is read through the shared persistence layer',
+  /const storedName = stGetString\(DEVICE_NAME_KEY\)/.test(syncSource),
+)
+
 section('9. Maintenance wiring — the limit table sweeps itself')
 
 // The sweep decision: every PRUNE_SAMPLE-th admitted request sweeps, then the
