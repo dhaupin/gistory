@@ -220,6 +220,14 @@ export interface PullResult {
   blobs: unknown[]
   serverSeq: number
   failures: number
+  /**
+   * Per-sender counts of blobs that failed to decrypt (sender deviceId), so a
+   * UI can say WHOSE changes are unreadable rather than just how many. A blob
+   * with no usable deviceId is counted under 'unknown'.
+   */
+  decryptFailuresByDevice: Record<string, number>
+  /** Per-sender counts of blobs that decrypted cleanly. */
+  decryptOkByDevice: Record<string, number>
 }
 
 export interface SyncConfig {
@@ -344,10 +352,12 @@ export class SyncAgent {
     let serverSeq = this.lastSeq
     let failures = 0
     let retryFrom = Infinity
+    const decryptFailuresByDevice: Record<string, number> = {}
+    const decryptOkByDevice: Record<string, number> = {}
 
     for (let i = 0; i < 20; i++) {
       const res = await this.request<{
-        blobs: { seq: number; data: string }[]
+        blobs: { seq: number; deviceId: string; data: string }[]
         serverSeq: number
       }>(
         `/sync/pull?chain=${encodeURIComponent(this.config.chainId)}` +
@@ -363,10 +373,16 @@ export class SyncAgent {
       }
 
       for (const blob of blobs) {
+        // Sender attribution survives even a failed decrypt: the response row
+        // carries the authoring device id, and naming it in the UI is the
+        // difference between "49 changes failed" and "reload THAT device".
+        const sender = blob.deviceId || 'unknown'
         try {
           out.push(await decryptPayload(blob.data, this.key!))
+          decryptOkByDevice[sender] = (decryptOkByDevice[sender] ?? 0) + 1
         } catch {
           failures++
+          decryptFailuresByDevice[sender] = (decryptFailuresByDevice[sender] ?? 0) + 1
           retryFrom = Math.min(retryFrom, blob.seq)
         }
         since = Math.max(since, blob.seq)
@@ -383,7 +399,7 @@ export class SyncAgent {
 
     this.lastSeq = Math.max(this.lastSeq, since)
     this.persistSeq()
-    return { blobs: out, serverSeq, failures }
+    return { blobs: out, serverSeq, failures, decryptFailuresByDevice, decryptOkByDevice }
   }
 
   // Chain health: head sequence + known devices.

@@ -14,6 +14,7 @@ import {
   type RemoteDevice,
 } from './sync/agent'
 import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, type SyncData, type SyncPayload, type SyncSettings } from './sync/merge'
+import { describeDecryptFailures } from './sync/errors'
 import { errorMessage } from './sync/errors'
 import { SyncError } from './sync/agent'
 import { SyncQos } from './sync/qos'
@@ -161,6 +162,8 @@ export default function App() {
   useEffect(() => { saveDeleted(deleted) }, [deleted])
   useEffect(() => { viewRef.current = view }, [view])
   useEffect(() => { saveView(view) }, [view])
+  const devicesRef = React.useRef<RemoteDevice[]>(devices)
+  useEffect(() => { devicesRef.current = devices }, [devices])
   const settingsRef = React.useRef<SyncSettings>(settings)
   useEffect(() => { settingsRef.current = settings }, [settings])
   useEffect(() => { saveSettings(settings) }, [settings])
@@ -272,7 +275,7 @@ export default function App() {
     setSyncStatus('syncing')
     try {
       const myDeviceId = agent.getDeviceId()
-      const { blobs, failures } = await agent.pull()
+      const { blobs, failures, decryptFailuresByDevice, decryptOkByDevice } = await agent.pull()
 
       if (blobs.length > 0) {
         let data = snapshot()
@@ -296,17 +299,27 @@ export default function App() {
       }
 
       const status = await agent.status()
-      if (status) setDevices(status.devices || [])
+      // Prefer the list this very call returned; fall back to the last one we
+      // saw (via a ref, so syncNow's identity and the polling interval that
+      // depends on it stay stable). The name mapping is what turns a bare
+      // failure count into "reload THAT device".
+      const deviceList = status ? status.devices || [] : devicesRef.current
+      if (status) setDevices(deviceList)
 
       setLastSync(Date.now())
-      // An undecryptable blob is most often a wrong passphrase, but it is also what a
-// poisoned chain looks like: anyone who knows the chainId (it travels in the
-// pairing QR) can append a blob encrypted with a different key, and the client
-// deliberately parks its watermark below it. Say both, so the user is not sent
-// round in circles retyping a passphrase that is already correct.
-setSyncError(
+      // An undecryptable blob no longer reads as a vague "wrong passphrase or
+      // tampering": the pull attributes failures per sender, so the message can
+      // name WHICH device writes an unreadable key — or say that THIS device is
+      // the one out of key with the chain — and give the fix.
+      setSyncError(
         failures > 0
-          ? `${failures} change(s) could not be decrypted — wrong passphrase, or this chain was tampered with. Sync stays paused until they can be read.`
+          ? describeDecryptFailures({
+              failBy: decryptFailuresByDevice,
+              okBy: decryptOkByDevice,
+              myDeviceId,
+              devices: deviceList,
+              failures,
+            })
           : null,
       )
       setSyncStatus(failures > 0 ? 'error' : 'idle')

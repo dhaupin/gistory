@@ -22,7 +22,7 @@ import {
   decryptPayload,
 } from '../src/sync/agent'
 import { emptyDeleted, mergePayload, type SyncData, type SyncPayload } from '../src/sync/merge'
-import { errorMessage } from '../src/sync/errors'
+import { describeDecryptFailures, errorMessage } from '../src/sync/errors'
 import { SyncError, newWriteSecret, retryAfterFrom } from '../src/sync/agent'
 import { SyncQos, backoffDelay, isTerminalPushFailure } from '../src/sync/qos'
 import {
@@ -822,6 +822,16 @@ await agentC.handshake()
 const pullC = await agentC.pull()
 check('a device with the wrong passphrase reports decrypt failures', pullC.failures > 0, `${pullC.failures}`)
 check('a failed decrypt does not advance the watermark', agentC.getLastSeq() === 0, String(agentC.getLastSeq()))
+// Sender attribution is what makes the error actionable: C read exactly one
+// blob from A and one from B, and neither decrypted — both sit under their
+// own device id in the failure map, not as a bare "2 changes".
+check(
+  'the wrong-key failures are attributed to their senders',
+  pullC.decryptFailuresByDevice[agentA.getDeviceId()] === 1 &&
+    pullC.decryptFailuresByDevice[agentB.getDeviceId()] === 1,
+  JSON.stringify(pullC.decryptFailuresByDevice),
+)
+check('a wrong key decrypts nothing', Object.keys(pullC.decryptOkByDevice).length === 0)
 
 // Re-handshaking (which happens on every page load) must be idempotent.
 const reHandshake = await handshakePost({
@@ -984,6 +994,11 @@ await agentW.push({
 
 const wPull = await agentW.pull()
 check('the undecryptable blob is reported as a failure', wPull.failures === 1, String(wPull.failures))
+check(
+  'the poison blob is attributed to its sender id',
+  wPull.decryptFailuresByDevice['attacker-device'] === 1,
+  JSON.stringify(wPull.decryptFailuresByDevice),
+)
 check(
   'the watermark stays below the undecryptable blob so it can be retried',
   agentW.getLastSeq() < 1,
@@ -1213,6 +1228,131 @@ check(
     'Cannot reach the sync server — are you offline?',
 )
 check('a non-Error value still yields a string', typeof errorMessage('boom') === 'string')
+
+// --- 6e. Decrypt-failure attribution: the branches the UI depends on --------
+
+section('6e. Undecryptable blobs are attributed to a device, not a count')
+
+const DEVICES = [
+  { id: 'dev-a', name: 'Device A' },
+  { id: 'dev-b', name: 'Device B' },
+]
+
+check(
+  'a single named peer failing reads as THAT device needing the fix',
+  /Device A/.test(
+    describeDecryptFailures({
+      failBy: { 'dev-a': 49 },
+      okBy: { 'dev-b': 12 },
+      myDeviceId: 'me',
+      devices: DEVICES,
+      failures: 49,
+    }),
+  ) && /Hard-reload THAT device/.test(
+    describeDecryptFailures({
+      failBy: { 'dev-a': 49 },
+      okBy: { 'dev-b': 12 },
+      myDeviceId: 'me',
+      devices: DEVICES,
+      failures: 49,
+    }),
+  ),
+  describeDecryptFailures({
+    failBy: { 'dev-a': 49 },
+    okBy: { 'dev-b': 12 },
+    myDeviceId: 'me',
+    devices: DEVICES,
+    failures: 49,
+  }),
+)
+
+check(
+  'no peer ever decrypting reads as THIS device being out of key',
+  /this device is out of key/.test(
+    describeDecryptFailures({
+      failBy: { 'dev-a': 49, 'dev-b': 2 },
+      okBy: {},
+      myDeviceId: 'me',
+      devices: DEVICES,
+      failures: 51,
+    }),
+  ),
+  describeDecryptFailures({
+    failBy: { 'dev-a': 49, 'dev-b': 2 },
+    okBy: {},
+    myDeviceId: 'me',
+    devices: DEVICES,
+    failures: 51,
+  }),
+)
+
+check(
+  'a writer unknown to the chain reads as tampering, not key drift',
+  /tampered/.test(
+    describeDecryptFailures({
+      failBy: { 'junkwriter1': 3 },
+      okBy: { 'dev-a': 5 },
+      myDeviceId: 'me',
+      devices: DEVICES,
+      failures: 3,
+    }),
+  ) && (describeDecryptFailures({
+    failBy: { 'junkwriter1': 3 },
+    okBy: { 'dev-a': 5 },
+    myDeviceId: 'me',
+    devices: DEVICES,
+    failures: 3,
+  }).includes('id junkwrit')),
+  describeDecryptFailures({
+    failBy: { 'junkwriter1': 3 },
+    okBy: { 'dev-a': 5 },
+    myDeviceId: 'me',
+    devices: DEVICES,
+    failures: 3,
+  }),
+)
+
+check(
+  'several failing peers are listed with their counts',
+  describeDecryptFailures({
+    failBy: { 'dev-a': 2, 'dev-b': 3 },
+    okBy: { 'dev-a': 1 }, // a peer can read MOST blobs and still poison a few
+    myDeviceId: 'me',
+    devices: DEVICES,
+    failures: 5,
+  }).includes('2 from') &&
+    describeDecryptFailures({
+      failBy: { 'dev-a': 2, 'dev-b': 3 },
+      okBy: { 'dev-a': 1 },
+      myDeviceId: 'me',
+      devices: DEVICES,
+      failures: 5,
+    }).includes('3 from'),
+  describeDecryptFailures({
+    failBy: { 'dev-a': 2, 'dev-b': 3 },
+    okBy: { 'dev-a': 1 },
+    myDeviceId: 'me',
+    devices: DEVICES,
+    failures: 5,
+  }),
+)
+
+const myId = 'dev-a'
+// Own-id entries are excluded from the peer branches: the pull route filters
+// own blobs, so one appearing at all would mean identity forgery, but either
+// way it must not be presented as "another device".
+const ownIdMessage = describeDecryptFailures({
+  failBy: { [myId]: 1, 'dev-b': 4 },
+  okBy: { 'dev-b': 1, [myId]: 2 },
+  myDeviceId: myId,
+  devices: DEVICES,
+  failures: 5,
+})
+check(
+  'failures attributed to own id are excluded, not masked as a peer',
+  ownIdMessage.includes('4 change(s) from') && !ownIdMessage.includes('Device A'),
+  ownIdMessage,
+)
 
 // --- 8. Guards: throttle, circuit breaker, WAF ------------------------------
 
