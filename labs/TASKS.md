@@ -13,6 +13,16 @@ Conventions
 
 ## Now
 
+- **VAPID env live + subscribe route probe (2026-10-22).** User set the three
+  VAPID_* vars in Pages; relay now answers `{"enabled":true}` with the
+  generated public key — background sync is switched on server-side after
+  the deploy. New `bun run sync:subscribe` (`scripts/live-subscribe.mjs`, 13
+  checks live): GET wiring state, malformed-key 400, unknown-chain 409,
+  valid-store 200, upsert-by-endpoint move, DELETE idempotence + ownership +
+  shape guard — all green against prod. Probe creates only `live-test-`
+  debris and never pushes (nothing is woken). REMAINING: per-phone receipt
+  (Settings → Sync → Background sync → On on each Android; a message written
+  on one phone must appear on the other with no tab open).
 - **Background sync rollout COMPLETE (2026-10-22, steps 1–5; step 5 pushed
   this pass):** maintenance sweep for `push_subscriptions` (db-maintain rule
   5, `--subs-days` default 30, fixture-covered incl. hostile-knob clamps) +
