@@ -424,6 +424,16 @@ textarea::placeholder {
 
 /* Buttons */
 .btn {
+  /* Flex keeps an inline icon (lucide <ArrowRight> and friends) on the same
+     center line as the label — as inline content it sat on the text baseline
+     and rode high inside pill CTAs like the lander's "Open the app →". Gap
+     replaces the natural space between icon and text; whitespace-only text
+     nodes make no anonymous flex item, so centered single labels are ruled
+     by justify-content. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.875rem;

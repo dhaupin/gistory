@@ -184,6 +184,13 @@ export default function Lander() {
         <a href="/privacy">Privacy</a>
         <span className="lander-footer-divider">·</span>
         <a href="https://github.com/dhaupin/gistory" target="_blank" rel="noopener noreferrer">Source</a>
+        <span className="lander-footer-divider">·</span>
+        {/* A public dofollow credit (no nofollow, new tab) — it is meant to be
+            followed as an endorsement link. */}
+        <span>
+          Made by{' '}
+          <a href="https://creadev.org" target="_blank" rel="noopener">Creadev.org</a>
+        </span>
       </footer>
     </div>
   )
