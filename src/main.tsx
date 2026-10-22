@@ -23,6 +23,29 @@ import AppLayout from './AppLayout'
 const rootEl = document.getElementById('root')!
 const hashRouted = window.location.hash.startsWith('#')
 
+// Rollout step 2 of labs/prd-sync.md: register the service worker so a device
+// can be woken for background sync later. Deliberate in every detail:
+//   • unconditional, but guarded on `'serviceWorker' in navigator` and a
+//     secure context, so unsupported browsers and e.g. plain-http dev hosts
+//     simply never register;
+//   • NO fetch interception exists yet (public/sw.js is passive by design),
+//     so registering early changes nothing about how the app loads;
+//   • registration failure is a degradation, not a visible error — the
+//     in-page sync loop is the correctness net either way;
+//   • it runs before any React render so by the time the app is interactive
+//     the registration reliably exists. The boot gate inside App does the
+//     IndexedDB hydration; the two async paths know nothing of each other,
+//     which is fine — the worker does not read IndexedDB until step 4.
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  try {
+    void navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.info('Gistory: service worker not registered', String(err))
+    })
+  } catch (err) {
+    console.info('Gistory: service worker not registered', String(err))
+  }
+}
+
 if (!hashRouted && rootEl.dataset.serverRendered) {
   hydrateRoot(
     rootEl,
