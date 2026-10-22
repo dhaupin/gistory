@@ -13,6 +13,39 @@ Conventions
 
 ## Now
 
+- **QC pass (2026-10-22): bugs found and fixed in the UX batch above.**
+  - **Variable saves never pushed**: the debounced-push scheduler’s effect
+    omitted `variables` from its deps, so a saved/deleted variable only
+    synced when some unrelated change pushed. Fixed; pinned textually in
+    smoke §8g (same reasoning as the original optional-chain pin — nothing
+    else observes a React deps array).
+  - **The SW wake dropped variables**: `loadSnapshot`/`saveSnapshot` in
+    `sw.ts` didn’t carry the field, so a wake merged variables and then
+    discarded them from both IndexedDB and the pushed convergence snapshot
+    (until the owning device happened to push again). Loader reads
+    `gistory_vars`; saver writes only when the merge produced the field (an
+    unconditional `{}` would erase a real pool on a pre-variables payload).
+    Both pinned textually.
+  - **Variables manager add form deadlock**: the submit lock was seeded for
+    the menu’s transient create-forms; this form stays open by design, so
+    the lock made every add after the first silently do nothing. Removed —
+    a double click is an upsert with the same key, which is its own no-op.
+  - **Bulk “Select all” under a search filter** now selects exactly the
+    visible ids (`filtered`), so bulk delete/pin can never touch rows the
+    user could not see.
+  - **Dead thread variable pools swept**: deleting a thread (locally in
+    `deleteThread`, remotely via `applyMerged`) tombstones every per-thread
+    pool by `tombstoneDeadScopes` — the variables counterpart of view-state
+    pruning — instead of leaving an unmanageable “Deleted thread” pool in
+    every later payload. Tombstones stay strictly newer than any edit in
+    the pool, so it cannot resurrect; behavioral ×5 + junk-key guard in
+    smoke §2f.
+  - **`normalizeVariables` rejects keys without a scope prefix** (a
+    hand-edited backup’s junk key would group under an empty label and
+    never be exportable). Shipped after verifying: typecheck 0, smoke 358/358,
+    lint 0 errors, build + probe PASS, `test:ui` 41/41, ui:audit 0 findings
+    (thread + settings slices re-run).
+
 - **UX pass (2026-10-22): device tags, last IP, multi-select, chain-wide
   warnings, saved variables, gear icon.**
   - **Gear icon** in the burger header — the hand-drawn sun glyph was a

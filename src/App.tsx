@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData,  loadSettings, saveSettings, loadVariables, saveVariables, sweepDrafts } from './lib/store'
-import { varKey, type Variables } from './lib/variables'
+import { varKey, tombstoneDeadScopes, type Variables } from './lib/variables'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
 import {
@@ -213,7 +213,15 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     settingsRef.current = data.settings ?? settingsRef.current
     // Variables merge per key inside the merge function, so what arrives is
     // the post-merge map, never a wholesale replacement of our newer saves.
-    variablesRef.current = data.variables ?? variablesRef.current
+    // A thread deleted on ANOTHER device leaves its variable pool behind
+    // here, the same story as dead view-state entries: tombstone any pool
+    // whose scope thread is no longer alive.
+    const aliveScopes = new Set(data.threads.map(t => t.id))
+    // Run on the MERGED map (data.variables), with our map as fallback when a
+    // payload predates variables entirely.
+    data.variables = variablesRef.current = tombstoneDeadScopes(
+      data.variables ?? variablesRef.current, aliveScopes,
+    )
     setThreads(data.threads)
     setMessages(data.messages)
     setProjects(data.projects)
@@ -518,7 +526,7 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
   useEffect(() => {
     if (!syncEnabled || !syncReady) return
     ensureQos().schedule()
-  }, [threads, messages, projects, deleted, view, settings, syncEnabled, syncReady, ensureQos])
+  }, [threads, messages, projects, deleted, view, settings, variables, syncEnabled, syncReady, ensureQos])
 
   // Stop the scheduler when sync is disabled so no timer outlives the setting.
   useEffect(() => {
@@ -951,6 +959,12 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     // The thread's saved composer draft is device-local scratch with no other
     // owner — drop it with the thread instead of letting it persist forever.
     sweepDrafts(threadsRef.current.filter(t => t.id !== id))
+    // Same story for its saved {{variables}} pool: tombstone the entries so
+    // the deletion syncs instead of leaving a "Deleted thread" pool forever.
+    const aliveAfter = new Set(threadsRef.current.filter(t => t.id !== id).map(t => t.id))
+    const nextVars = tombstoneDeadScopes(variablesRef.current, aliveAfter)
+    variablesRef.current = nextVars
+    setVariables(nextVars)
     setThreads(prev => prev.filter(t => t.id !== id))
     setMessages(prev => {
       const next = { ...prev }

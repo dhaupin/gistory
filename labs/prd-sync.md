@@ -314,3 +314,162 @@ device governs itself, same as sync enable today.
    state for this app is small (hundreds of KBs); `navigator.storage`
    persistence request is added at step 1 to keep Chrome from evicting
    the one store sync depends on.
+
+## 9. Roadmap plan (design pass, NOT built): kicking a device from a chain by vote
+
+Status: planned · design pass by the owner 2026-10-22 · gated on a second
+design review before implementation. Nothing below exists in the relay yet.
+
+### 9.1 The problem
+
+A chain is only as trustworthy as every device holding its write secret.
+Today the only way to revoke a device's write access is to rotate the
+secret by hand (re-pair everything) — fine for a lost phone, but there is
+no in-product flow. The owner wants: **Settings → Devices → Kick a device,
+decided by a majority of the chain's other members.**
+
+### 9.2 Why votes alone cannot evict
+
+The user-sketched mechanism is "≥50%+ of members vote → device is kicked."
+Two hard facts breach a naive version:
+
+1. **The kicked device still holds the write secret.** Voting is a social
+   act; the secret is a capability. Unless access is re-established on a
+   new capability, the kicked device can keep `POST /sync/push` with the
+   id and secret it already has.
+2. **Device ids are client-chosen** (opaque 4–128 chars). A kicked client
+   can re-present as a fresh id with the same secret, and the relay cannot
+   distinguish that from a legitimate new member. Any denylist keyed on
+   the kicked device's *id* is therefore advice, not enforcement.
+
+Consequence: genuine eviction requires **rotating the chain's write
+secret** at the vote threshold — and the rotation must deny the kicked
+device the *new* secret, not just the old one.
+
+### 9.3 The trap in the obvious rotation (and the fix)
+
+The first idea — "the secretary device rotates the secret and publishes
+the new one inside the encrypted sync payload" — has a hole: the chain
+payload is encrypted under the passphrase key, which the kicked device
+also holds (reads only need the passphrase). The kicked device would pull
+the rotation blob and learn the new secret. **401s would be delayed, not
+durable.**
+
+The clean answer is a per-member key registry, which the payload CAN
+carry safely because it is *public* material:
+
+- Every member device already (or at upgrade) generates its own **static
+  ECDH P-256 keypair**; the private key lives in its own IndexedDB, the
+  *public* key rides the sync payload (`SyncData.deviceKeys[id]` — merge
+  per key, newest wins — alongside view/settings/variables).
+- At the vote threshold, one deterministic member — the alive,
+  non-kicked member with the lexicographically smallest deviceId; call it
+  the **secretary** — generates the new write secret and wraps it **per
+  remaining member's public key** (HKDF→AES-GCM with the static ECDH
+  shared secret). The wrapped copies ride the payload as
+  `SyncData.rotation = { epoch, wrapped: { deviceId: ct } }` (merged like
+  everything else).
+- Each remaining member unwraps its own copy with its private key and
+  takes the new secret. The kicked device finds no copy addressed to it
+  and can never unwrap one.
+
+Reads remain forever possible (passphrase-derived), which is the
+documented property of the chain already: reads are ciphertext anyway,
+write is what the secret buys. The kick's enforcement surface is writes.
+
+### 9.4 Data model & relay surface
+
+Migration `0006_kick_votes.sql`, plus one column:
+
+```sql
+CREATE TABLE kick_votes (
+  chain_id       TEXT NOT NULL,
+  target_device  TEXT NOT NULL,
+  voter_device   TEXT NOT NULL,
+  created_at     INTEGER NOT NULL,
+  PRIMARY KEY (chain_id, target_device, voter_device)
+);
+CREATE INDEX idx_kick_votes_chain ON kick_votes (chain_id);
+```
+
+- `devices.kicked_at INTEGER` — NULL until the threshold lands; push and
+  handshake refuse a row with it set (403, constant-duration whatever the
+  reason), and `status` keeps listing the row but flags `kicked: true`
+  so members' Devices tabs show the state instead of silently dropping
+  the device.
+- `POST /sync/kick { chainId, deviceId, targetDeviceId, writeSecret }` —
+  write-secret gated (same constant-time compare as push), throttled on
+  a new `kick` scope (e.g. 20/min per device), and WAF-checked. Upserts
+  the vote, then computes the tally and — crossing the threshold — sets
+  `devices.kicked_at` and returns `{ status: 'kicked' }`.
+- `GET /sync/kick?chain=X&deviceId=Y&target=Z` — the tally for the
+  Devices chips (`n supported · need N`).
+- Threshold: **more than half the devices registered on the chain,
+  excluding the target and abstaining**. 10 members → 6 yes votes.
+  Votes are retractable (`DELETE /sync/kick …`) up to the threshold, so
+  an accidental vote is recoverable; after the point of no return, the
+  kicked device is out and the vote row stays for the record.
+- Self-kicks allowed (a device can kick itself —   it *knows* it is leaving);
+  a kicked device's own votes are ignored (a device cannot be counted
+  toward the majority that evicts it).
+
+### 9.5 Client protocol stages (Settings → Devices)
+
+1. **Registry build (upgrade step, ships before anything else):** every
+   member quietly publishes its ECDH public key in its next payload.
+   Kick UX stays disabled until *all* alive devices carry keys — the
+   Devices tab says "all devices must sync once before kicking is
+   available" rather than offering half a feature.
+2. **Cast a vote:** Devices row action → confirm → POST. The row shows a
+   live tally for every other member ("3 of 6 needed"). The confirmation
+   is chain-wide warning copy like every destructive act.
+3. **Threshold lands:** the kick POST answers `kicked`; from then on the
+   relay refuses that device (403 on push/handshake even WITH a valid
+   secret). Members' Devices tabs note the eviction; the kicked device,
+   on its own next sync, reads "your access was revoked by a majority
+   vote" rather than an opaque auth error, which is both kinder and
+   self-explanatory.
+4. **Rotation:** the deterministic secretary (§9.3) watches the kicked
+   list and rotates within one sync cycle: new secret, wrapped per
+   remaining member's key, `epoch += 1`, payload. Members unwrap on
+   merge, persist the new secret in the usual storage slot, and push.
+   Two races are handled by the **epoch**: every rotation carries the
+   previous epoch it supersedes, and a member accepts only epoch > its
+   own; two secretaries racing rotate twice and the larger epoch wins
+   everywhere. A secretary that crashes mid-rotation is replaced by the
+   next-smallest id on the next cycle (rotation work produces no effect
+   until the payload lands, so it is crash-safe by construction).
+5. **Re-join:** a kicked device needs a fresh pairing token minted by a
+   member (which carries the current secret) — the same flow as any new
+   device, and exactly the property that keeps the rotation the single
+   enforcement point.
+6. **Passphrase check:** unaffected — the passphrase and its derived key
+   never change; the vote rotates the write capability only. Ten devices
+   re-typing nothing; this is the property that makes voting kickable at
+   all.
+
+### 9.6 Failure modes & open questions for the build pass
+
+1. **Offline members can vote for a stale majority.** The threshold
+   counts *registered* devices, not live ones — a 10-row device list
+   where 7 are long-dead phones would let 4 callers decide kicks
+   forever. Mitigations to weigh: age the count by `last_seen`, or take
+   the quorum out of the relay entirely. Needs an owner decision.
+2. **A kicked-but-never-synced device** (registered, never pulled, no
+   member key yet) holds a pairing-time secret: rotation fixes that too
+   (its wrapped copy is simply not in the rotation), but §9.5.1's
+   "all alive devices must have keys" gate must count registered-but-
+   never-synced devices as NOT ready.
+3. **iOS devices:** works on the same catch-up pacing; a kicked
+   phone with background sync off learns of the kick at its next open —
+   acceptable, its writes are dying either way (rotation already landed).
+4. **The relay is the throttle, not the judge**: it counts rows; it still
+   never sees plaintext and never sees key material. The secretary wraps
+   what the relay cannot unwrap, and the relay still stores only
+   SHA-256 of secrets (of every epoch).
+5. **Vote privacy on the relay:** votes are visible ciphertexts-adjacent
+   bookkeeping (who voted against whom). Same trust boundary as the
+   device list itself; no extra protection designed in v1.
+6. **Complexity estimate:** migrations + one route + device-key registry
+   + secretary rotation + UI. This is the single biggest change to the
+   relay since write auth. Not free — hence the gate.

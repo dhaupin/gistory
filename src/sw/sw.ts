@@ -21,6 +21,7 @@
 import { ensureStorageReady, stGetString, stSetString } from '../sync/idb'
 import { SyncAgent } from '../sync/agent'
 import { emptyDeleted, mergePayload, normalizeDeleted, type SyncData } from '../sync/merge'
+import { normalizeVariables } from '../lib/variables'
 import { loadView, saveView } from '../sync/view-state'
 
 const KEY_THREADS = 'gistory_threads'
@@ -28,6 +29,7 @@ const KEY_MESSAGES = 'gistory_messages'
 const KEY_PROJECTS = 'gistory_projects'
 const KEY_DELETED = 'gistory_deleted'
 const KEY_SETTINGS = 'gistory_settings'
+const KEY_VARS = 'gistory_vars'
 const KEY_SYNC_KEY = 'gistory_sync_key'
 const KEY_CHAIN = 'gistory_chain_id'
 const KEY_DEVICE_NAME = 'gistory_device_name'
@@ -57,6 +59,11 @@ function loadSnapshot(): SyncData {
     deleted: normalizeDeleted(parse(KEY_DELETED, emptyDeleted())),
     view: loadView(),
     settings: parse(KEY_SETTINGS, {} as SyncData['settings']),
+    // Saved {{variables}} ride the same shared stores. Omitting them here once
+    // meant a wake merged them and then silently dropped both the save AND
+    // the pushed convergence snapshot's copy — every full-state push lost them
+    // until the owning device pushed again.
+    variables: normalizeVariables(parse(KEY_VARS, {})),
   }
 }
 
@@ -68,6 +75,9 @@ function saveSnapshot(data: SyncData): void {
   put(KEY_DELETED, data.deleted)
   saveView(data.view)
   put(KEY_SETTINGS, data.settings)
+  // Only write when the merge actually produced a variables field: writing {}
+  // unconditionally would erase a real pool on a payload that predates them.
+  if (data.variables) put(KEY_VARS, data.variables)
 }
 
 /** Nudge any open tab so it re-renders the merged state without waiting for

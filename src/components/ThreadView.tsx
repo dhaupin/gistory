@@ -549,15 +549,13 @@ export default function ThreadView({
       {selectMode && (
         <div className="bulk-bar" role="toolbar" aria-label="Bulk message actions">
           <span className="bulk-count">{selected.length} selected</span>
-          {!searchQuery.trim() && (
-            <button
-              className="btn btn-secondary btn-small"
-              onClick={() => setSelected(sortedMessages.map(m => m.id))}
-              disabled={!sortedMessages.length}
-            >
-              Select all
-            </button>
-          )}
+          <button
+            className="btn btn-secondary btn-small"
+            onClick={() => setSelected(filtered.map(m => m.id))}
+            disabled={!filtered.length}
+          >
+            Select all
+          </button>
           {onSetMessagesPinned && (
             <>
               <button

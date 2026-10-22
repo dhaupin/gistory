@@ -22,6 +22,7 @@ import {
   decryptPayload,
 } from '../src/sync/agent'
 import { emptyDeleted, mergePayload, type SyncData, type SyncPayload } from '../src/sync/merge'
+import { normalizeVariables, tombstoneDeadScopes } from '../src/lib/variables'
 import { describeDecryptFailures, errorMessage } from '../src/sync/errors'
 import { SyncError, newWriteSecret, retryAfterFrom } from '../src/sync/agent'
 import { SyncQos, backoffDelay, isTerminalPushFailure } from '../src/sync/qos'
@@ -559,6 +560,37 @@ const varsAbsentRemote = mergePayload(
   'devA',
 )
 check('a payload without variables keeps the local map', varsAbsentRemote.variables?.['global:label']?.value === 'v')
+
+// --- 2f. Variable store hygiene: dead pools + junk keys ---------------------
+
+section('2f. Variable store hygiene — dead pools and junk keys')
+
+// A thread deleted locally or remotely leaves its {{variables}} pool behind
+// forever otherwise: the manager would show a "Deleted thread" pool and that
+// pool would ride every later sync payload. Dead scopes tombstone (not bare-
+// delete), so the removal syncs per the same rule as every other change.
+const deadSweep = tombstoneDeadScopes(
+  {
+    'global:name': { name: 'name', value: 'g', updatedAt: 100 },
+    't-dead:client': { name: 'client', value: 'x', updatedAt: 100 },
+    't-alive:lang': { name: 'lang', value: 'y', updatedAt: 100 },
+  },
+  new Set(['t-alive']),
+)
+check('a dead thread variable pool is tombstoned', deadSweep['t-dead:client']?.deletedAt != null)
+check('a dead pool tombstone runs strictly after any edit in it', (deadSweep['t-dead:client']?.deletedAt ?? 0) >= 101)
+check('alive pools survive the sweep untouched', deadSweep['t-alive:lang']?.deletedAt == null)
+check('the global pool never sweeps', deadSweep['global:name']?.deletedAt == null)
+check('a second sweep of the same map stays quiet', tombstoneDeadScopes(deadSweep, new Set(['t-alive']))['t-dead:client']?.deletedAt != null)
+
+// A hand-edited backup could carry a key with no scope prefix. Every reader
+// slices the scope off the first colon, so such a key groups under an empty
+// label and is never exportable — normalize drops it at the door.
+const junkKey = normalizeVariables({
+  'global:label': { name: 'label', value: 'v', updatedAt: 1 },
+  'noscope': { name: 'n', value: 'v', updatedAt: 2 },
+})
+check('a key without a scope prefix is rejected', junkKey['noscope'] === undefined && junkKey['global:label'] != null)
 
 check(
   'moveItem relocates without mutating the source',
@@ -2170,6 +2202,33 @@ check(
 check(
   'no restore path can drop the write secret',
   !/ensureAgent\(key, chain\)/.test(appSource),
+)
+
+// Saved {{variables}} ride the sync payload, so they must be in the
+// debounced-push scheduler's dependency list. A version that omitted them
+// compiled and rendered fine — the variable simply only synced the next time
+// some unrelated change pushed. Same textual-guard reasoning as §8g's
+// original invariant: App.tsx has no unit test, the browser suites run with
+// no /sync backend, and nothing else observes a React deps array.
+check(
+  'saved variables wake the debounced push scheduler',
+  /\[threads, messages, projects, deleted, view, settings, variables, syncEnabled, syncReady, ensureQos\]/.test(appSource),
+)
+
+// The wake-path snapshot loader/saver must carry variables too, or the SW
+// merges them and then drops the field from both IDB and the pushed
+// convergence snapshot. (Writing {} unconditionally on save would instead
+// erase a real pool on a pre-variables payload — the guard is load+save with
+// a conditional save.) sw.ts is bundled into dist/sw.js; its source is the
+// only thing anyone should edit, so the pin reads the source.
+const swSourceVars = readFileSync(new URL('../src/sw/sw.ts', import.meta.url), 'utf8')
+check(
+  'the wake snapshot loader reads the variables store',
+  /variables: normalizeVariables\(parse\(KEY_VARS, \{\}\)\)/.test(swSourceVars),
+)
+check(
+  'the wake snapshot saver writes variables only when the merge produced them',
+  /if \(data\.variables\) put\(KEY_VARS/.test(swSourceVars),
 )
 
 // The service-worker wake imports agent.ts directly and runs in a context

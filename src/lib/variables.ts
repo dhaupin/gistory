@@ -48,6 +48,10 @@ export function normalizeVariables(input?: Partial<Variables> | null): Variables
   if (!input || typeof input !== 'object') return out
   for (const [key, raw] of Object.entries(input)) {
     if (!raw || typeof raw !== 'object') continue
+    // The key IS `scope:lowername` — every reader slices on the first colon.
+    // A junk key from a hand-edited backup has no scope, so it would group
+    // under an empty label and never be exportable; shoot it here.
+    if (key.indexOf(':') < 0) continue
     const name = typeof (raw as VarEntry).name === 'string' ? (raw as VarEntry).name : ''
     const value = typeof (raw as VarEntry).value === 'string' ? (raw as VarEntry).value : ''
     const updatedAt = (raw as VarEntry).updatedAt
@@ -94,6 +98,31 @@ export function lookupVariable(
   const global = vars[varKey(GLOBAL_SCOPE, name)]
   if (global && global.deletedAt == null && global.value) return global
   return null
+}
+
+/**
+ * Tombstone every per-thread pool whose scope thread is no longer alive — the
+ * variables counterpart of view-state pruning and draft sweeping. A thread
+ * deleted locally or remotely should not leave an unmanageable "Deleted
+ * thread" pool in the manager (and in every later sync payload) forever.
+ *
+ * Tombstones, never bare deletion, so the removal syncs per the same LWW rule
+ * as everything else: an absent key carries no freshness information, but an
+ * entry carrying `deletedAt` beats any older copy on another device. Global
+ * variables and pools of still-alive threads pass through untouched.
+ */
+export function tombstoneDeadScopes(vars: Variables, aliveThreadIds: Set<string>): Variables {
+  const out: Variables = { ...vars }
+  for (const [key, entry] of Object.entries(out)) {
+    const at = key.indexOf(':')
+    if (at < 0) continue
+    const scope = key.slice(0, at)
+    if (scope === GLOBAL_SCOPE || aliveThreadIds.has(scope)) continue
+    // +1 keeps the tombstone strictly newer than any edit that ever landed
+    // (in-progress saves from the same ms lose), so a dead pool cannot resurrect.
+    out[key] = { ...entry, deletedAt: entry.updatedAt + 1, updatedAt: Date.now() }
+  }
+  return out
 }
 
 /** Split a map into alive global entries and per-thread groups. */

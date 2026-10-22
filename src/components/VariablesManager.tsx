@@ -13,7 +13,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Edit, Plus, Trash2, X, Check } from 'lucide-react'
 import ConfirmDialog from './ConfirmDialog'
-import { useSubmitLock } from '../ui/hooks'
 import { GLOBAL_SCOPE, groupVariables, liveVariables, type Variables } from '../lib/variables'
 import type { Thread } from '../lib/models'
 
@@ -43,7 +42,6 @@ export default function VariablesManager({
   const [editing, setEditing] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const tryCreate = useSubmitLock(false)
 
   // Every open starts fresh, and a re-open from a different thread retunes
   // the default pool.
@@ -67,8 +65,12 @@ export default function VariablesManager({
 
   if (!open) return null
 
+  // No submit lock here, unlike the transient create-forms in the menu: this
+  // form stays open by design, and a double click just saves twice (an upsert
+  // keyed by scope+name — the second save replaces the first). A submit lock
+  // seeded once would have deadlocked the form after its first add.
   const handleAdd = () => {
-    if (!newName.trim() || !tryCreate()) return
+    if (!newName.trim()) return
     onSave(scope, newName, newValue)
     setNewName(''); setNewValue('')
   }
