@@ -56,9 +56,13 @@ Device A pushes blob seq 354 ──▶ relay stores blob (unchanged today)
 ### 2.1 What is deliberately NOT here
 
 - No `manifest.json`, no install prompt, no application icons.
-- No notification UI by default. A future opt-in "show a badge on new
-  messages" rides on the same plumbing (the ping can then carry a count),
-  but the baseline is a fully silent, invisible wake.
+- No notification UI by default. The opt-in "show a badge on new
+  messages" (shipped step 6) rides on the same plumbing — with one
+  deviation from that parenthetical: **the ping still carries only
+  `{chainId, n}`**; the message count is computed in the worker from the
+  post-merge snapshot diff (the relay is blind to chain data, so "how many
+  messages was that" could never be derived there). Everything else stands:
+  baseline fully silent, nothing except the bearer shows on the wire.
 - No third-party push service account. VAPID keys are generated locally
   (`web-push`-style ECDSA P-256 via Web Crypto, one `bun` script), stored
   as Cloudflare secrets. FCM/autopush are free, keyless delivery endpoints.

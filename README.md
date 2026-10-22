@@ -180,7 +180,7 @@ chain but not write to it.
 Where the browser supports it (Android Chrome/Brave; iOS needs an installed
 PWA, so it stays on catch-up), Settings → Sync gains a **Background sync**
 toggle. With the relay's `VAPID_*` environment configured, turning it on
-gisters the browser's own push subscription with the relay (`POST
+registers the browser's own push subscription with the relay (`POST
 /sync/subscribe`), and from then on every push on the chain wakes all
 *other* subscribed devices — even with no tab open — with a **silent** ping:
 
@@ -203,6 +203,20 @@ so a well device self-heals from its own subscription.
 Correctness never depends on the ping: it is pacing, not truth. Watermarks
 make sync converge regardless; devices that never subscribe (or anyone on
 iOS) keep the exact same behaviour as before.
+
+**Optional “N new messages” notice.** Silent stays the default: after a
+Closed-tab wake delivers messages, the worker can show one notification —
+“Gistory · 3 new messages” — only if the device opted in inside the
+Settings row (nothing moves on the wire; the count is computed in the
+worker from the snapshot diff, so the relay still never learns anything
+about content). Tapping it focuses or opens the app. An open tab never
+triggers one — the wake is redirected there instead.
+
+**Observability.** Wake outcomes appear in `npx wrangler pages deployment
+tail`: every `pruned` / `failed` / budget-`skip` outcome always logs (with
+the push service hostname only — endpoints carry a subscription token);
+a round summary logs when a `DEBUG_WAKE=1` variable is added to the Pages
+project.
 
 ## Architecture
 

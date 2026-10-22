@@ -164,6 +164,10 @@ function makeStorage() {
     setItem: (k: string, v: string) => void map.set(k, String(v)),
     removeItem: (k: string) => void map.delete(k),
     clear: () => map.clear(),
+    // Real localStorage is enumerable (length + key(i)) — idb.ts's key
+    // enumeration walks exactly that surface, so the fake must offer it.
+    get length() { return map.size },
+    key: (i: number) => [...map.keys()][i] ?? null,
   }
 }
 
@@ -2452,6 +2456,17 @@ check('only an APP page carries the redirect (a lander client would drop the wak
   /\.hash\.startsWith\('#\/'\)/.test(swSource))
 check('two pings cannot race two wake rounds (in-flight gate)',
   /if \(waking\) return/.test(swSource) && /waking = true/.test(swSource))
+// The badge (rollout step 6): its whole point is on a path no harness can
+// exercise either — count + notification live inside the SW, so the things
+// that make it honest are pinned textually like the wake branches above.
+check('the badge counts genuinely-new messages inside the SW (the relay stays blind)',
+  /newMessageCount\(/.test(swSource) && /showNotification/.test(swSource))
+check('the badge is strictly opt-in via the shared pref key',
+  /KEY_NOTIFY === '1'/.test(swSource) || /KEY_NOTIFY\) === '1'/.test(swSource))
+check('the badge doubles as a deep link (notification click focuses/opens the app)',
+  /notificationclick/.test(swSource))
+check('the badge never fires on the redirect path (the call comes after the branch)',
+  swSource.indexOf('notifyOpenPages(0)') < swSource.indexOf('void showBadge('))
 
 // --- wire form of one wake ----------------------------------------------------
 
@@ -2574,7 +2589,13 @@ await d1.prepare(
 ).bind(CHAIN_A, 'wake-dev-2', 'https://fcm.googleapis.com/fcm/send/doomed-2', fanPub, fanAuth, Date.now(), Date.now()).run()
 
 const wakes0 = fcmCalls.length
+// The tail-observability capture wraps the round that PRUNES: sender
+// wake-dev-1 wakes doomed-2, whose 410 outcome must show up on the tail.
+const wakeLogLines: string[] = []
+const realLog = console.log
+console.log = (...args: unknown[]) => { wakeLogLines.push(args.map(String).join(' ')) }
 await sendFanOut(fanDb, CHAIN_A, 'wake-dev-1', 1, FAN_ENV)
+console.log = realLog
 check('a push wakes exactly the OTHER subscribed device', fcmCalls.length - wakes0 === 1, String(fcmCalls.length - wakes0))
 const sent = fcmCalls[fcmCalls.length - 1]
 check('the wake POST carries TTL + aes128gcm + a vapid auth',
@@ -2583,10 +2604,17 @@ check('the wake targeted the healthy subscription, not the sender',
   !!sent && sent.url.endsWith('doomed-2') && !sent.url.includes('awake-1'))
 
 // 410 from the push service prunes the row the moment it is seen.
-fcmStatusFor = (url: URL): number => (url.pathname.endsWith('doomed-2') ? 410 : 201)
+console.log = (...args: unknown[]) => { wakeLogLines.push(args.map(String).join(' ')) }
 await sendFanOut(fanDb, CHAIN_A, 'wake-dev-3', 1, FAN_ENV)
+console.log = realLog
 const doomedAfter = (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint LIKE ?').bind('%doomed-2').first()) as { n: number } | null
 check('a dead endpoint is pruned from the table on 410', !!doomedAfter && doomedAfter.n === 0)
+check('a pruned wake outcome is visible on the tail',
+  wakeLogLines.some((line) => line.includes('[wake] pruned') && line.includes('fcm.googleapis.com')),
+  wakeLogLines.join(' | ') || 'no log captured')
+check('a wake log line names the host, never the subscription token',
+  !wakeLogLines.join('\n').includes('/fcm/send'),
+  wakeLogLines.join(' | '))
 const awakeAfter = (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint LIKE ?').bind('%awake-1').first()) as { n: number } | null
 check('a healthy endpoint survives the same wake round', !!awakeAfter && awakeAfter.n === 1)
 fcmStatusFor = () => 201
@@ -2616,6 +2644,29 @@ await sendFanOut(fanDb, CHAIN_A, 'wake-dev-1', 1, { GISTRY_DB: d1 })
 check('an env without VAPID keys sends no wakes at all', fcmCalls.length - beforeOff === 0)
 
 globalThis.fetch = realFetch
+
+// --- 12. Client store hygiene — orphaned drafts are swept --------------------
+
+section('12. Client store hygiene — orphaned drafts are swept')
+
+import { sweepDrafts } from '../src/lib/store'
+
+// sweepDrafts(threads) enumerates draft rows (localStorage-resident, never
+// synced) and deletes the ones whose thread no longer exists. Threads are
+// reduced to their id for this call, so a minimal fixture is honest here.
+const draftKeyOf = (id: string): string => `gistory_draft_${id}`
+localStorage.setItem(draftKeyOf('draft-dead-thread'), 'placeholder text')
+localStorage.setItem(draftKeyOf('draft-alive-thread'), 'keep me')
+
+const aliveThreads = [{ id: 'draft-alive-thread' }] as unknown as Parameters<typeof sweepDrafts>[0]
+sweepDrafts(aliveThreads)
+
+check('a deleted thread leaves its draft row behind no longer',
+  localStorage.getItem(draftKeyOf('draft-dead-thread')) === null)
+check('a live thread keeps its draft row',
+  localStorage.getItem(draftKeyOf('draft-alive-thread')) === 'keep me')
+check('the sweep is idempotent (a second run stays quiet and green)',
+  (sweepDrafts(aliveThreads), localStorage.getItem(draftKeyOf('draft-dead-thread'))) === null)
 
 // --- summary -----------------------------------------------------------------
 

@@ -557,6 +557,18 @@ catches up, so correctness is paced, never lost.
 - **Config that can never work is OFF, not half-on.** `vapidFromEnv` refuses
 a subject outside RFC 8292 §5.1 (`mailto:`/`https:`) — push services 401 every
 wake it appears in, reading as "subscribed but never woken".
+- **The badge (optional, step 6) computes its count in the SW, never the
+wake.** The relay is blind to chain data, so "N new messages" is a snapshot
+diff in `newMessageCount` and shows only via an opt-in shared pref
+(`gistory_notify_wake`, read by both page and worker), gated on the
+closed-tab path (an open page is redirected and needs no popup).
+`notificationclick` focuses or opens the app. `tag: 'gistory'` keeps
+successive wakes replacing, not stacking.
+- **Wake outcomes are tail-visible.** `pruned`/`failed`/budget-skip always
+log (`[wake] …`, hostname-only — the endpoint path carries a subscription
+token); a full round summary logs when `DEBUG_WAKE=1` is on the Pages
+project. Client-side `gistory_draft_*` rows of deleted threads are swept on
+boot, on local delete, and after every merge-with-changes (`sweepDrafts`).
 
 - **The ping is pacing, not truth.** Watermarks + catch-up-on-open are the
 correctness net; every other path already works without it. The fan budget

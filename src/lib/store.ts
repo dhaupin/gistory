@@ -2,7 +2,7 @@
 // shadow — see src/sync/idb.ts for why the loaders have the same shape as
 // before but a different store underneath.
 
-import { stGetString, stSetString } from '../sync/idb'
+import { stGetString, stKeyList, stSetString } from '../sync/idb'
 import type { Message, Project, Thread, MessagesByThread } from './models'
 import type { DeletedRegistry, SyncSettings } from '../sync/merge'
 import { mergeSettings } from '../sync/merge'
@@ -106,6 +106,27 @@ export function saveDraft(threadId: string, content: string) {
 
 export function clearDraft(threadId: string) {
   localStorage.removeItem(DRAFT_KEY_PREFIX + threadId)
+}
+
+/**
+ * Draft rows are device-local scratch (never synced), so nothing else ever
+ * cleans them: deleting a thread would leave its `gistory_draft_<id>` row in
+ * storage forever. Sweep the store of drafts whose thread is not in the
+ * given (post-merge, post-delete) list. Idempotent; never throws — a failed
+ * delete leaves a few bytes of dead text, not data corruption.
+ */
+export function sweepDrafts(threads: Thread[]) {
+  const alive = new Set(threads.map((t) => t.id))
+  for (const key of stKeyList(DRAFT_KEY_PREFIX)) {
+    if (!alive.has(key.slice(DRAFT_KEY_PREFIX.length))) {
+      try {
+        localStorage.removeItem(key)
+        stSetString(key, null)
+      } catch {
+        /* stale text is harmless; swept again next boot */
+      }
+    }
+  }
 }
 
 export function loadSettings(): SyncSettings {

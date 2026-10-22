@@ -61,6 +61,10 @@ export const SYNC_KEYS = [
   // Background-sync wake target (rollout step 3): the endpoint this device
   // subscribed with, so it can unsubscribe when sync is disabled.
   'gistory_push_endpoint',
+  // Opt-in badge (step 6): the SW reads this one itself on a wake — it is
+  // device-local UI state that uses the shared layer only because that is
+  // where the worker can see it.
+  'gistory_notify_wake',
 ] as const
 
 /** True for a key the module owns. Used by the migration and by tests. */
@@ -226,6 +230,27 @@ function ownedStorageKeys(): string[] {
     }
   }
   return keys
+}
+
+/**
+ * Keys the caller can enumerate for cleanup (draft rows, etc.), by prefix,
+ * from BOTH stores the module can see: during browser mode the mem map holds
+ * the hydrated truth, but keys written ONLY to localStorage (draft rows are
+ * deliberately resident) are never in it — and in fallback mode localStorage
+ * is the only store. The copy may include duplicates across the two sources
+ * (a browser-shadowed key exists in both); callers delete via stSetString,
+ * which heals both sides, so a duplicate is at worst a redundant no-op.
+ */
+export function stKeyList(prefix: string): string[] {
+  const found = new Set<string>()
+  for (const key of mem.keys()) if (key.startsWith(prefix)) found.add(key)
+  if (typeof localStorage !== 'undefined') {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(prefix)) found.add(key)
+    }
+  }
+  return [...found]
 }
 
 // --- The synchronous API the app's loaders use -------------------------------

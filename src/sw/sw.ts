@@ -32,6 +32,11 @@ const KEY_SYNC_KEY = 'gistory_sync_key'
 const KEY_CHAIN = 'gistory_chain_id'
 const KEY_DEVICE_NAME = 'gistory_device_name'
 const KEY_WRITE_SECRET = 'gistory_write_secret'
+// Step 6 opt-in: show a badge (a notification — this browser context has no
+// installed app to badge) when a closed-tab wake merges genuinely new
+// messages. Device-local UI state that rides the shared layer because the
+// worker is the only reader on this path.
+const KEY_NOTIFY = 'gistory_notify_wake'
 const CHANNEL_NAME = 'gistory-sync'
 
 /** The same snapshot read the page's App.snapshot() performs, from IDB. */
@@ -93,6 +98,51 @@ const swGlobal = self as unknown as {
       type?: string
       includeUncontrolled?: boolean
     }) => Promise<{ url: string }[]>
+    openWindow: (url: string) => Promise<void>
+  }
+  registration: {
+    showNotification: (title: string, opts?: {
+      body?: string
+      tag?: string
+    }) => Promise<void>
+  }
+}
+
+/**
+ * Messages in the merged snapshot the device had NEVER held before — the
+ * honest meaning of the badge, and computable ONLY here: the relay is blind
+ * to chain data, so "how many messages" can never ride the wake payload.
+ * Edits/pins/collapses are not new messages; dropped orphans don't count.
+ */
+function newMessageCount(before: SyncData, after: SyncData): number {
+  const known = new Set<string>()
+  for (const [threadId, list] of Object.entries(before.messages)) {
+    for (const m of list) known.add(`${threadId}/${m.id}`)
+  }
+  let n = 0
+  for (const [threadId, list] of Object.entries(after.messages)) {
+    for (const m of list) if (!known.has(`${threadId}/${m.id}`)) n++
+  }
+  return n
+}
+
+/**
+ * The visible half of a wake — strictly opt-in. Chrome's `userVisibleOnly`
+ * flag demanded notification permission at subscribe time, so the permission
+ * already exists here; still, show it only when the toggle is on AND the
+ * permission survives (it can be revoked from OS settings), and never throw:
+ * a broken badge is pacing, not data.
+ */
+async function showBadge(count: number): Promise<void> {
+  try {
+    const notif = (self as unknown as { Notification?: { permission: string } }).Notification
+    if (!notif || notif.permission !== 'granted') return
+    await swGlobal.registration.showNotification('Gistory', {
+      body: count === 1 ? '1 new message' : `${count} new messages`,
+      tag: 'gistory', // successives wakes replace the badge, not stack it
+    })
+  } catch {
+    /* best effort by contract */
   }
 }
 
@@ -163,11 +213,16 @@ async function runWake(chainId: string): Promise<void> {
   const { blobs, failures } = await agent.pull()
 
   if (blobs.length > 0) {
-    let data = loadSnapshot()
+    const before = loadSnapshot()
+    let data = before
     for (const blob of blobs) {
       data = mergePayload(data, blob as Parameters<typeof mergePayload>[1], agent.getDeviceId())
     }
     saveSnapshot(data)
+    // The badge counts what THIS wake actually delivered, from the snapshot
+    // diff, exactly here where the data is decryptable.
+    const newCount = newMessageCount(before, data)
+    if (newCount > 0 && stGetString(KEY_NOTIFY) === '1') void showBadge(newCount)
   }
 
   // An undecryptable blob parked the watermark this pull (poisoned chain or
@@ -185,6 +240,43 @@ async function runWake(chainId: string): Promise<void> {
 }
 
 export {}; // esbuild entry: bundle side-effect only, no exports
+
+// --- The badge is also a deep link: click focuses (or opens) the app --------
+
+const swClick = self as unknown as {
+  addEventListener: (
+    type: 'notificationclick',
+    listener: (event: {
+      notification: { close: () => void }
+      waitUntil: (promise: Promise<unknown>) => void
+    }) => void,
+  ) => void
+}
+
+swClick.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    (async () => {
+      try {
+        const clients = await swGlobal.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        const app = clients.find((c) => {
+          try {
+            return new URL(c.url).hash.startsWith('#/')
+          } catch {
+            return false
+          }
+        })
+        if (app) {
+          await (app as unknown as { focus?: () => Promise<unknown> }).focus?.()
+          return
+        }
+        await swGlobal.clients.openWindow('#/')
+      } catch {
+        /* nothing more to do */
+      }
+    })().catch(() => undefined),
+  )
+})
 
 // --- Events -------------------------------------------------------------------
 // Typed loosely: this file is bundled by esbuild (not vite's lib), and the

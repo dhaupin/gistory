@@ -13,6 +13,29 @@ Conventions
 
 ## Now
 
+- **Step-6 pass (2026-10-22): badge + observability + storage hygiene.**
+  - **Opt-in “N new messages” notice** (PRD §2.1's future opt-in, shipped):
+    after a closed-tab wake the SW counts genuinely-new message ids on the
+    snapshot diff and shows one notification (`tag: 'gistory'` keeps them
+    replacing, not stacking) only when the device opted in — a checkbox
+    inside Settings' Background sync row (only when wake is on AND
+    `Notification.permission === 'granted'`), stored in the shared layer as
+    `gistory_notify_wake` so the worker reads it. `notificationclick`
+    focuses/opens the app. The count NEVER rides the wake (relay stays
+    blind); computed in `newMessageCount` — edits/pins don't count.
+  - **Wake observability**: `pruned`/`failed`/budget-`skip` always console.log
+    with the push service HOSTNAME only (endpoint paths carry subscription
+    tokens); full round summary behind `DEBUG_WAKE=1` env on the Pages
+    project. Visible via `npx wrangler pages deployment tail`.
+  - **Draft sweep**: `sweepDrafts(threads)` deletes `gistory_draft_*` rows of
+    threads that no longer exist — wired on boot, on local thread delete, and
+    after every sync merge. New minor API `stKeyList(prefix)` in idb.ts
+    (enumerates mem + localStorage; drafts are localStorage-resident by
+    design). Fake storage in smoke now offers length/key(i) to match real
+    enumeration semantics — it previously matched zero keys.
+  - Tests: smoke 338/338 (console-capture asserts the pruned line appears and
+    leaks no token; badge pins textual; sweep behavioral ×3), typecheck 0, UI
+    suites all green, build + probe:dist PASS.
 - **Receipt CONFIRMED (2026-10-22) — background sync works end to end on
   real devices.** Cause of the initial silence: `agent.init()` read the
   device name via bare `localStorage` — a ReferenceError inside the SW

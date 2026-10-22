@@ -13,6 +13,7 @@ import {
   getStoredEndpoint,
   unsubscribeBackground,
 } from '../sync/bg-sync'
+import { stGetString, stSetString } from '../sync/idb'
 import { exportAll, exportThread, exportProject, getLastExport, setLastExport, type ExportData } from '../lib/store'
 import { convertImport } from '../lib/import-adapters'
 import type { PromptMetadata } from '../lib/models'
@@ -412,6 +413,10 @@ function BackgroundSyncRow(props: { chainId: string; deviceId: string }) {
   const [endpoint, setEndpoint] = useState<string | null>(() => getStoredEndpoint())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The badge preference is plain device-local state the worker reads on a
+  // wake; its checkbox only RENDERS when a permission exists (below), but the
+  // state hook must run unconditionally — hooks come before early returns.
+  const [badge, setBadge] = useState(() => stGetString('gistory_notify_wake') === '1')
 
   useEffect(() => {
     let cancelled = false
@@ -426,6 +431,11 @@ function BackgroundSyncRow(props: { chainId: string; deviceId: string }) {
   if (!supported) return null
 
   const on = endpoint != null
+  // The badge is a notification in a context with no installed app to badge,
+  // so it exists only where a granted permission can show one. The permission
+  // was requested when the wake target was created; a later revocation from
+  // the OS just makes the checkbox quietly pointless, so this row vanishes.
+  const badgeAvailable = typeof Notification !== 'undefined' && Notification.permission === 'granted'
 
   const handleToggle = async () => {
     setBusy(true)
@@ -451,18 +461,21 @@ function BackgroundSyncRow(props: { chainId: string; deviceId: string }) {
         <h3>Background sync</h3>
         <p className="setting-desc">
           Receive other devices' changes within seconds, even when no tab is open.
-          Uses web push; you will not see notifications.
+          Uses web push. Silent by default — opt in to a “N new messages” notice
+          below once it is on.
         </p>
       </div>
-      <button
-        className={`toggle ${on ? 'on' : ''}`}
-        onClick={() => void handleToggle()}
-        disabled={busy || configured === false}
-        aria-pressed={on}
-        title={configured === false ? 'Background sync is not configured on this server yet' : undefined}
-      >
-        {busy ? <Loader2 size={14} className="spin" /> : <span className="toggle-knob" />}
-      </button>
+      <div className="bg-sync-controls">
+        <button
+          className={`toggle ${on ? 'on' : ''}`}
+          onClick={() => void handleToggle()}
+          disabled={busy || configured === false}
+          aria-pressed={on}
+          title={configured === false ? 'Background sync is not configured on this server yet' : undefined}
+        >
+          {busy ? <Loader2 size={14} className="spin" /> : <span className="toggle-knob" />}
+        </button>
+      </div>
       {configured === false && (
         <p className="help-text">
           <span>This Gistory server does not have background sync configured yet.</span>
@@ -470,6 +483,19 @@ function BackgroundSyncRow(props: { chainId: string; deviceId: string }) {
       )}
       {error && (
         <p className="sync-error"><AlertTriangle size={14} /> {error}</p>
+      )}
+      {on && badgeAvailable && (
+        <label className="bg-sync-badge">
+          <input
+            type="checkbox"
+            checked={badge}
+            onChange={(e) => {
+              setBadge(e.target.checked)
+              stSetString('gistory_notify_wake', e.target.checked ? '1' : null)
+            }}
+          />
+          <span>Show a “N new messages” notice when a background wake arrives and no tab is open</span>
+        </label>
       )}
     </div>
   )

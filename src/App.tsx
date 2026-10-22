@@ -1,7 +1,7 @@
 // Gistory App - Main Entry Point
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData, loadSettings, saveSettings } from './lib/store'
+import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData, loadSettings, saveSettings, sweepDrafts } from './lib/store'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
 import {
@@ -186,6 +186,10 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
       ...Object.values(data.messages).flat().map(m => m.id),
     ])
     const pruned = pruneView(data.view, alive)
+    // Same growth pattern for drafts: a thread deleted remotely leaves its
+    // device-local composer draft behind, because sweeps on THIS device only
+    // fire on a local delete. Sweep against the merged (post-tombstone) list.
+    sweepDrafts(data.threads)
     threadsRef.current = data.threads
     messagesRef.current = data.messages
     projectsRef.current = data.projects
@@ -434,6 +438,15 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     }
     return pairingTokenFromChain(chain, secret)
   }
+
+  // One-time storage hygiene on boot: a thread deleted while this tab was
+  // closed past our last merge — or on a device we ran months ago — leaves its
+  // `gistory_draft_<id>` scratch row behind, and nothing else can reach it
+  // (drafts never sync). The post-merge sweep in applyMerged keeps it bounded
+  // between reloads; this one bounds the rest.
+  useEffect(() => {
+    sweepDrafts(threadsRef.current)
+  }, [])
 
   // Restore the agent on load when sync was previously enabled.
   useEffect(() => {
@@ -886,6 +899,9 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     tombstone('threads', [id])
     tombstone('messages', messageIds)
     forgetView([id, ...messageIds])
+    // The thread's saved composer draft is device-local scratch with no other
+    // owner — drop it with the thread instead of letting it persist forever.
+    sweepDrafts(threadsRef.current.filter(t => t.id !== id))
     setThreads(prev => prev.filter(t => t.id !== id))
     setMessages(prev => {
       const next = { ...prev }

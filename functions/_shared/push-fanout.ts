@@ -292,7 +292,13 @@ export async function sendFanOut(
     if (!config) return
 
     const budget = await consumeLimit(db, 'fanout-chain', chainId, POLICIES.fanout)
-    if (!budget.ok) return
+    if (!budget.ok) {
+      // Tail observability (`npx wrangler pages deployment tail`): a skip is
+      // the one adversarial case a silent design could never reveal — wakes
+      // "working" while nothing is actually delivered until catch-up.
+      console.log(`[wake] skip: chain over its fan budget (chain=${chainId})`)
+      return
+    }
 
     const { results } = await db
       .prepare(
@@ -336,6 +342,33 @@ export async function sendFanOut(
       } catch {
         /* a missed stamp only shortens the row's life; nothing breaks */
       }
+    }
+
+    // Tail observability: the unusual wake outcomes always log, so an
+    // "emails never arrive" report has somewhere real to look. The usual all-
+    // `sent` round is quiet unless DEBUG_WAKE=1 is set on the Pages project
+    // (add it as a plain variable). Endpoints are logged as HOSTNAME ONLY —
+    // the path carries the per-browser subscription token, and a log line is
+    // a much better home for a leak than a stake.
+    const maskEndpoint = (url: string): string => {
+      try {
+        return new URL(url).hostname
+      } catch {
+        return 'invalid-endpoint'
+      }
+    }
+    for (const row of pruned) {
+      console.log(`[wake] pruned (push service says gone): ${maskEndpoint(row.endpoint)} chain=${chainId}`)
+    }
+    const failedRows = results.filter((_, i) => outcomes[i] === 'failed')
+    for (const row of failedRows) {
+      console.log(`[wake] failed (non-2xx / abort / network): ${maskEndpoint(row.endpoint)} chain=${chainId}`)
+    }
+    if ((env as { DEBUG_WAKE?: unknown })?.DEBUG_WAKE === '1') {
+      const sent = outcomes.filter((o) => o === 'sent').length
+      console.log(
+        `[wake] round: sent=${sent} pruned=${pruned.length} failed=${failedRows.length} chain=${chainId} sender=${senderDeviceId}`,
+      )
     }
   } catch {
     // Fan-out failing can never break the push that triggered it.

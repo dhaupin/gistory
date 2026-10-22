@@ -1806,6 +1806,31 @@ textarea::placeholder {
   margin-top: 0.4rem;
 }
 
+/* The opt-in badge (a notification — there is no installed app to badge)
+   sits under the wake toggle, only rendered once background sync is on and
+   the notification permission survives. Full-width so it reads as part of
+   the toggle row rather than a stray form control. */
+.bg-sync-badge {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 0.55rem;
+  align-items: flex-start;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-dim, var(--text));
+}
+.bg-sync-badge input[type='checkbox'] {
+  margin-top: 2px;
+  width: 15px;
+  height: 15px;
+  min-height: 15px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.bg-sync-controls {
+  flex: 0 0 auto;
+}
+
 .toggle.on {
   background: var(--primary);
 }
