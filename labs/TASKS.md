@@ -616,6 +616,15 @@ Conventions
     legitimately optional (teardown, best-effort claim, display).
   - Tests: typecheck 0 (three passes), sync:smoke 247/247, UI 160/160,
     audit 112 passes / 0 findings, npm audit 0, build 0.
+- 2026-10-22 — sync outage diagnosis on the 8-device chain: live probes proved the
+  relay healthy and one device reading the chain with a foreign key; error text
+  now attributes undecryptable blobs per sender (§6e smoke). Same day: rollout
+  step 1 of labs/prd-sync.md — sync state moved to IndexedDB (`src/sync/idb.ts`)
+  with a localStorage shadow + one-copy migration and a boot gate
+  (`App` → `AppRoot`); agent identity/watermarks ride the same layer. Tests:
+  typecheck 0, sync:smoke 289/289, UI 11 suites incl. new `storage-migration`
+  (11/11 in headless Chromium). localStorage keys deliberately NOT cleared yet
+  (rollback shadow; cleared when push wiring lands).
 - 2026-10 — generalized pin + collapse for threads, messages, and projects.
 - 2026-10 — pinning + collapsing for **threads**.
 - 2026-10 — usability pass (shared sort options, BurgerMenu sort control,

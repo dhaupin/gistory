@@ -1,5 +1,8 @@
-// localStorage + state management
+// Sync-state management: IndexedDB (authoritative) with a localStorage
+// shadow — see src/sync/idb.ts for why the loaders have the same shape as
+// before but a different store underneath.
 
+import { stGetString, stSetString } from '../sync/idb'
 import type { Message, Project, Thread, MessagesByThread } from './models'
 import type { DeletedRegistry, SyncSettings } from '../sync/merge'
 import { mergeSettings } from '../sync/merge'
@@ -18,9 +21,9 @@ export function loadData(): {
 } {
   try {
     return {
-      threads: JSON.parse(localStorage.getItem(THREADS_KEY) || '[]'),
-      messages: JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}'),
-      projects: JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]')
+      threads: JSON.parse(stGetString(THREADS_KEY) || '[]'),
+      messages: JSON.parse(stGetString(MESSAGES_KEY) || '{}'),
+      projects: JSON.parse(stGetString(PROJECTS_KEY) || '[]')
     }
   } catch {
     return { threads: [], messages: {}, projects: [] }
@@ -36,7 +39,7 @@ export function loadData(): {
  */
 function writeJson(key: string, value: unknown): boolean {
   try {
-    localStorage.setItem(key, JSON.stringify(value))
+    stSetString(key, JSON.stringify(value))
     return true
   } catch {
     return false
@@ -106,11 +109,10 @@ export function clearDraft(threadId: string) {
 }
 
 export function loadSettings(): SyncSettings {
-  // Prerender guard (prestruct runs AppLayout in Node). The smoke test's fake
-  // storage defines localStorage WITHOUT window, so key off localStorage.
-  if (typeof localStorage === 'undefined') return {}
+  // Prerender guard (prestruct runs AppLayout in Node): stGetString returns
+  // null without any storage at all, so the parse below degrades to {}.
   try {
-    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')
+    const raw = JSON.parse(stGetString(SETTINGS_KEY) || '{}')
     return raw && typeof raw === 'object' ? raw : {}
   } catch {
     return {}

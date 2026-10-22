@@ -12,6 +12,18 @@
 // ciphertext.
 
 // --- Storage keys -----------------------------------------------------------
+//
+// Rollout step 1 of labs/prd-sync.md: identity and watermarks moved from
+// localStorage to the IndexedDB-backed layer, because a future service worker
+// (which cannot read localStorage) must be able to hydrate these before it
+// touches the relay. For now reads stay gated behind ensureStorageReady(),
+// which the page boot runs before the agent is ever constructed, and which
+// agent.init() runs itself so tests and callers without the gate still work.
+// In environments without IndexedDB (bun/smoke) the layer degrades to the
+// same localStorage behavior this file always had — the fake storage the
+// smoke test injects is what the agent still gets behind there.
+
+import { ensureStorageReady, stGetString, stSetString } from './idb'
 
 const DEVICE_ID_KEY = 'gistory_device_id'
 const DEVICE_NAME_KEY = 'gistory_device_name'
@@ -272,9 +284,12 @@ export class SyncAgent {
 
   // Initialize/restore identity and derive the chain key.
   async init(): Promise<void> {
-    const storedId = localStorage.getItem(DEVICE_ID_KEY)
+    // Hydrate the persistence layer (idempotent; in tests this is the same
+    // pass that seeds the mem map from the injected fake localStorage).
+    await ensureStorageReady()
+    const storedId = stGetString(DEVICE_ID_KEY)
     const deviceId = storedId || generateUUID()
-    if (!storedId) localStorage.setItem(DEVICE_ID_KEY, deviceId)
+    if (!storedId) stSetString(DEVICE_ID_KEY, deviceId)
     this.deviceId = deviceId
 
     const storedName = localStorage.getItem(DEVICE_NAME_KEY)
@@ -283,7 +298,7 @@ export class SyncAgent {
     // Salt = chainId, so every device in the chain derives the same key.
     this.key = await deriveKey(this.config.passphrase, this.config.chainId)
 
-    const since = Number(localStorage.getItem(seqKey(this.config.chainId)) || 0)
+    const since = Number(stGetString(seqKey(this.config.chainId)) || 0)
     this.lastSeq = Number.isFinite(since) ? since : 0
   }
 
@@ -317,7 +332,7 @@ export class SyncAgent {
   }
 
   private persistDeviceName() {
-    localStorage.setItem(DEVICE_NAME_KEY, this.config.deviceName)
+    stSetString(DEVICE_NAME_KEY, this.config.deviceName)
   }
 
   // Encrypt the full snapshot and store it. Returns the server-assigned seq.
@@ -434,7 +449,7 @@ export class SyncAgent {
   // --- internals ------------------------------------------------------------
 
   private persistSeq() {
-    localStorage.setItem(seqKey(this.config.chainId), String(this.lastSeq))
+    stSetString(seqKey(this.config.chainId), String(this.lastSeq))
   }
 
   private assertReady() {

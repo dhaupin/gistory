@@ -17,6 +17,7 @@ import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, typ
 import { describeDecryptFailures } from './sync/errors'
 import { errorMessage } from './sync/errors'
 import { SyncError } from './sync/agent'
+import { ensureStorageReady, stGetString, stSetString } from './sync/idb'
 import { SyncQos } from './sync/qos'
 import type { PromptMetadata, ThreadStatus } from './lib/models'
 import { applyFullOrder,
@@ -59,20 +60,18 @@ const DELETED_KEY = 'gistory_deleted'
  */
 
 function loadDeleted(): DeletedRegistry {
-  // Prerender guard (prestruct runs AppLayout in Node). Keyed off localStorage
-  // (not window) because the smoke test's fake storage has no window either.
-  if (typeof localStorage === 'undefined') return emptyDeleted()
+  // Prerender guard (prestruct runs AppLayout in Node): with no storage
+  // stGetString yields null and the parse degrades to an empty registry.
   try {
-    return normalizeDeleted(JSON.parse(localStorage.getItem(DELETED_KEY) || 'null'))
+    return normalizeDeleted(JSON.parse(stGetString(DELETED_KEY) || 'null'))
   } catch {
     return emptyDeleted()
   }
 }
 
 function saveDeleted(registry: DeletedRegistry) {
-  if (typeof localStorage === 'undefined') return
   try {
-    localStorage.setItem(DELETED_KEY, JSON.stringify(registry))
+    stSetString(DELETED_KEY, JSON.stringify(registry))
   } catch {
     /* storage full / unavailable — sync still works in-memory */
   }
@@ -86,8 +85,7 @@ function saveDeleted(registry: DeletedRegistry) {
  * this module in Node, and a router bound to window.location there makes every
  * route prerender as '/' silently.
  */
-export default function App() {
-  // NOTE: This component is ALSO mounted by AppLayout under react-router's
+function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under react-router's
   // BrowserRouter (see src/AppLayout.tsx). The prestruct prerender renders
   // AppLayout with StaticRouter in Node; nothing in AppLayout's import graph
   // may import BrowserRouter. Keep that split intact.
@@ -112,15 +110,13 @@ export default function App() {
   const [showBurger, setShowBurger] = useState(false)
   
   // Sync state
-  const [syncEnabled, setSyncEnabled] = useState(() => 
-    typeof localStorage !== 'undefined' && localStorage.getItem('gistory_sync_key') != null
-  )
-  const [syncKey, setSyncKey] = useState<string | null>(() => 
-    typeof localStorage !== 'undefined' ? localStorage.getItem('gistory_sync_key') : null
-  )
-  const [chainId, setChainId] = useState<string | null>(() =>
-    typeof localStorage !== 'undefined' ? localStorage.getItem('gistory_chain_id') : null
-  )
+  // Sync identity rides the IndexedDB layer now (see src/sync/idb.ts): every
+  // key below is one a future service worker must be able to read on its own.
+  // In test/prerender environments the layer falls back to localStorage, so
+  // these reads behave exactly as before the swap.
+  const [syncEnabled, setSyncEnabled] = useState(() => stGetString('gistory_sync_key') != null)
+  const [syncKey, setSyncKey] = useState<string | null>(() => stGetString('gistory_sync_key'))
+  const [chainId, setChainId] = useState<string | null>(() => stGetString('gistory_chain_id'))
   const [devices, setDevices] = useState<RemoteDevice[]>([])
   const [lastSync, setLastSync] = useState<number | null>(null)
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle')
@@ -133,9 +129,7 @@ export default function App() {
   // Synced preferences (currently the stamp time zone). A singleton that rides
   // the payload and merges LWW, so changing it on one device updates all eight.
   const [settings, setSettings] = useState<SyncSettings>(loadSettings)
-  const [deviceName, setDeviceName] = useState(() => 
-    typeof localStorage !== 'undefined' ? localStorage.getItem('gistory_device_name') || '' : ''
-  )
+  const [deviceName, setDeviceName] = useState(() => stGetString('gistory_device_name') || '')
   // Cmd+K palette + the one-time first-run tour. Both are pure UI overlays;
   // the tour flag lives in localStorage so it shows exactly once per browser.
   const [showPalette, setShowPalette] = useState(false)
@@ -355,12 +349,12 @@ export default function App() {
 
   const handleEnableSync = async (passphrase: string) => {
     const chain = newChainId()
-    localStorage.setItem('gistory_sync_key', passphrase)
-    localStorage.setItem('gistory_chain_id', chain)
+    stSetString('gistory_sync_key', passphrase)
+    stSetString('gistory_chain_id', chain)
     // This device creates the chain, so it also mints the write secret that lets
     // it (and every device it later pairs) write to it.
     const writeSecret = newWriteSecret()
-    localStorage.setItem('gistory_write_secret', writeSecret)
+    stSetString('gistory_write_secret', writeSecret)
     setSyncKey(passphrase)
     setChainId(chain)
 
@@ -376,9 +370,9 @@ export default function App() {
     if (!parsed) throw new Error('That pairing code is not valid')
     const chain = parsed.chainId
 
-    localStorage.setItem('gistory_sync_key', passphrase)
-    localStorage.setItem('gistory_chain_id', chain)
-    if (parsed.writeSecret) localStorage.setItem('gistory_write_secret', parsed.writeSecret)
+    stSetString('gistory_sync_key', passphrase)
+    stSetString('gistory_chain_id', chain)
+    if (parsed.writeSecret) stSetString('gistory_write_secret', parsed.writeSecret)
     setSyncKey(passphrase)
     setChainId(chain)
 
@@ -393,9 +387,9 @@ export default function App() {
 
   const handleDisableSync = async () => {
     syncAgentRef.current = null
-    localStorage.removeItem('gistory_sync_key')
-    localStorage.removeItem('gistory_chain_id')
-    localStorage.removeItem('gistory_write_secret')
+    stSetString('gistory_sync_key', null)
+    stSetString('gistory_chain_id', null)
+    stSetString('gistory_write_secret', null)
     setSyncKey(null)
     setChainId(null)
     setSyncEnabled(false)
@@ -424,11 +418,11 @@ export default function App() {
   }, [pushSnapshot])
 
   const handleGenerateToken = async (): Promise<string> => {
-    const chain = chainId || localStorage.getItem('gistory_chain_id')
+    const chain = chainId || stGetString('gistory_chain_id')
     if (!chain) throw new Error('Enable sync first to pair a device')
     // The token carries the write secret so the new device can write, not just
     // read. Without it the paired device could only ever pull.
-    const secret = localStorage.getItem('gistory_write_secret')
+    const secret = stGetString('gistory_write_secret')
     if (!secret) {
       // A device paired before write auth holds no secret: a token minted here
       // could only ever read, and the claim path that used to upgrade such a
@@ -440,8 +434,8 @@ export default function App() {
 
   // Restore the agent on load when sync was previously enabled.
   useEffect(() => {
-    const key = localStorage.getItem('gistory_sync_key')
-    const chain = localStorage.getItem('gistory_chain_id')
+    const key = stGetString('gistory_sync_key')
+    const chain = stGetString('gistory_chain_id')
     if (!key || !chain) return
     // A device paired with a pre-write-auth code has no secret stored: it can
     // still pull, and every push is refused until it pairs again with a
@@ -449,7 +443,7 @@ export default function App() {
     // in config, the agent never reads storage itself, and a restore that
     // drops it would pass handshake but get 401 on every push (reads work,
     // writes falsely demand re-pairing).
-    const writeSecret = localStorage.getItem('gistory_write_secret') ?? undefined
+    const writeSecret = stGetString('gistory_write_secret') ?? undefined
 
     let cancelled = false
     ;(async () => {
@@ -510,8 +504,6 @@ export default function App() {
       window.removeEventListener('online', onWake)
     }
   }, [syncEnabled, syncReady, syncNow])
-
-  // --- Tombstones -----------------------------------------------------------
 
   // Merge an imported export file into live state. The persistence effects
   // below write it out, so no page reload is needed to see the result.
@@ -1159,4 +1151,37 @@ export default function App() {
       </div>
     </ViewStateProvider>
   )
+}
+
+/**
+ * Boot gate: hydrate the persistence layer BEFORE the app renders.
+ *
+ * Every `useState(() => …)` initializer inside `AppRoot` reads storage
+ * synchronously, so IndexedDB hydration (which is async by nature) must have
+ * finished first. Until then the app renders a quiet splash instead of an
+ * empty-looking board — the alternative would race the first render against
+ * IndexedDB and show an empty library for a frame on real devices.
+ *
+ * `ensureStorageReady` is memoized and idempotent, so StrictMode's double
+ * invoke, plus the restore-path agent call inside AppRoot, all share one
+ * hydration. In environments without IndexedDB (the smoke test, the
+ * prerender) it resolves immediately after seeding from localStorage.
+ */
+export default function App() {
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    void ensureStorageReady().then(() => {
+      if (!cancelled) setReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (!ready) {
+    return <div className="boot-hold" aria-busy="true" />
+  }
+
+  return <AppRoot />
 }

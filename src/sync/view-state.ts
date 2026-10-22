@@ -17,6 +17,8 @@
 // timestamps break on the larger sender deviceId, exactly like content, so both
 // devices independently reach the same answer.
 
+import { stGetString, stSetString } from './idb'
+
 export interface ItemView {
   /** Manual drag order. Lower sorts first. Absent = "use the natural sort". */
   rank?: number
@@ -55,10 +57,10 @@ export function normalizeView(input?: Partial<ViewState> | null): ViewState {
 
 export function loadView(): ViewState {
   // Prerender guard (prestruct runs AppLayout in Node). The smoke test's fake
-  // storage defines localStorage WITHOUT window, so key off localStorage.
-  if (typeof localStorage === 'undefined') return {}
+  // Prerender guard: without any storage, stGetString yields null and the
+  // parse below degrades to an empty view.
   try {
-    return normalizeView(JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'))
+    return normalizeView(JSON.parse(stGetString(VIEW_KEY) || 'null'))
   } catch {
     return {}
   }
@@ -66,7 +68,7 @@ export function loadView(): ViewState {
 
 export function saveView(state: ViewState) {
   try {
-    localStorage.setItem(VIEW_KEY, JSON.stringify(state))
+    stSetString(VIEW_KEY, JSON.stringify(state))
   } catch {
     /* storage unavailable — arrangement still works in memory */
   }
