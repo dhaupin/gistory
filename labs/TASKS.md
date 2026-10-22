@@ -5,7 +5,7 @@ crash) can see where we are.
 
 Conventions
 - `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
-- One line per item; put detail in `labs/MEM.md`, not here.
+- One line per item; keep detail in the item itself, not here.
 - Newest work at the top of **Now**. Move finished items down to **Done**.
 - Keep **Done** short — collapse old entries into a date line once they ship.
 

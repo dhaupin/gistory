@@ -615,7 +615,8 @@ generate real pairs.
 | `src/ui/view-state.tsx` | `ViewStateProvider` / `useViewState` — the synced arrangement API |
 | `src/ui/sortable.tsx` | `SortableProvider` / `SortableRow` / `SortableHandle` — pointer + keyboard drag |
 | `labs/TASKS.md` | Rolling work log — update before/after each pass |
-| `labs/MEM.md` | Disposable crash-guard / recovery bank |
+| `labs/prd-gistory.md` | Canonical product definition — features, data model, surfaces, non-goals, contributor rules |
+| `labs/prd-sync.md` | Background Sync (Web Push) product spec — problem, shape, ship state, deviations |
 | `functions/sync/push.ts` | Accept encrypted blobs → D1, assign seq |
 | `functions/sync/pull.ts` | Return filtered blobs ← D1 |
 | `functions/sync/status.ts` | Chain health checkpoint (throttled — it leaks the device list) |
