@@ -46,7 +46,9 @@ import { parseSort, toSortParam, type SortState } from './ui/sort'
 
 // Production runs same-origin (Cloudflare Pages Functions at /sync).
 // Local dev can point at `wrangler pages dev` via VITE_SYNC_URL.
-const SYNC_BASE = (import.meta.env.VITE_SYNC_URL as string | undefined) || ''
+// Exported from src/sync/identity.ts since rollout step 3 — the background-sync
+// plumbing needs the same base, and duplicating the env read invites drift.
+import { SYNC_BASE } from './sync/identity'
 
 const DELETED_KEY = 'gistory_deleted'
 

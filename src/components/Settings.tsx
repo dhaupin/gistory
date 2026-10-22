@@ -5,6 +5,14 @@ import { Settings as SettingsIcon, Link, Smartphone, RefreshCw, Check, X, Copy, 
 import { QRCodeSVG } from 'qrcode.react'
 import { Badge, Button } from '../ui'
 import ConfirmDialog from './ConfirmDialog'
+import {
+  backgroundSyncSupported,
+  enableAndSubscribe,
+  fetchSyncConfig,
+  getStoredDeviceId,
+  getStoredEndpoint,
+  unsubscribeBackground,
+} from '../sync/bg-sync'
 import { exportAll, exportThread, exportProject, getLastExport, setLastExport, type ExportData } from '../lib/store'
 import { convertImport } from '../lib/import-adapters'
 import type { PromptMetadata } from '../lib/models'
@@ -358,6 +366,14 @@ function SyncSettings(props: SettingsProps) {
             </Button>
           </div>
 
+          {/* Background sync (rollout step 3): wake-target plumbing. The row
+              is self-contained and does not render on devices without push
+              capability; it resolves the device id itself (storage), so a
+              mid-handshake device still shows its state honestly. */}
+          {props.chainId && (
+            <BackgroundSyncRow chainId={props.chainId} deviceId={props.myDeviceId || ''} />
+          )}
+
           {confirmDisable && (
             <ConfirmDialog
               open
@@ -383,9 +399,85 @@ function SyncSettings(props: SettingsProps) {
   )
 }
 
+/**
+ * One row of the Background sync toggle (rollout step 3). Renders only where
+ * the capability exists; asks the relay once whether push wiring is on. States
+ * live in this self-contained component so SyncSettings stays readable.
+ */
+function BackgroundSyncRow(props: { chainId: string; deviceId: string }) {
+  const deviceId = props.deviceId || getStoredDeviceId()
+  const [supported] = useState(() => backgroundSyncSupported())
+  // null = still asking the relay whether push wiring exists at all.
+  const [configured, setConfigured] = useState<boolean | null>(null)
+  const [endpoint, setEndpoint] = useState<string | null>(() => getStoredEndpoint())
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchSyncConfig().then((config) => {
+      if (!cancelled) setConfigured(config ? config.enabled : false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (!supported) return null
+
+  const on = endpoint != null
+
+  const handleToggle = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      if (on) {
+        await unsubscribeBackground(deviceId)
+        setEndpoint(null)
+      } else {
+        await enableAndSubscribe(props.chainId, deviceId)
+        setEndpoint(getStoredEndpoint())
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="bg-sync-row">
+      <div className="bg-sync-text">
+        <h3>Background sync</h3>
+        <p className="setting-desc">
+          Receive other devices' changes within seconds, even when no tab is open.
+          Uses web push; you will not see notifications.
+        </p>
+      </div>
+      <button
+        className={`toggle ${on ? 'on' : ''}`}
+        onClick={() => void handleToggle()}
+        disabled={busy || configured === false}
+        aria-pressed={on}
+        title={configured === false ? 'Background sync is not configured on this server yet' : undefined}
+      >
+        {busy ? <Loader2 size={14} className="spin" /> : <span className="toggle-knob" />}
+      </button>
+      {configured === false && (
+        <p className="help-text">
+          <span>This Gistory server does not have background sync configured yet.</span>
+        </p>
+      )}
+      {error && (
+        <p className="sync-error"><AlertTriangle size={14} /> {error}</p>
+      )}
+    </div>
+  )
+}
+
 function PairingModal(props: { token: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
-  
+
   const handleCopy = () => {
     navigator.clipboard.writeText(props.token)
     setCopied(true)

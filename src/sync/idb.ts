@@ -58,6 +58,9 @@ export const SYNC_KEYS = [
   'gistory_sync_key',
   'gistory_chain_id',
   'gistory_write_secret',
+  // Background-sync wake target (rollout step 3): the endpoint this device
+  // subscribed with, so it can unsubscribe when sync is disabled.
+  'gistory_push_endpoint',
 ] as const
 
 /** True for a key the module owns. Used by the migration and by tests. */

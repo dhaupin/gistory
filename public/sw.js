@@ -31,7 +31,7 @@ self.addEventListener('activate', (event) => {
             names.filter((n) => n.startsWith('gistory-') && n !== STATUS).map((n) => caches.delete(n)),
           )
         }
-      } catch (_err) {
+      } catch {
         /* cleanup is best-effort */
       }
       await self.clients.claim()

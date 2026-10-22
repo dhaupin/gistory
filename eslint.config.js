@@ -105,6 +105,14 @@ export default tseslint.config(
     },
   },
   {
+    // public/sw.js runs as a service worker: globals from that context
+    // (self, caches, clients) are `no-undef` in a Node/browser config.
+    files: ['public/sw.js'],
+    languageOptions: {
+      globals: { ...globals.serviceworker },
+    },
+  },
+  {
     files: ['**/*.cjs'],
     languageOptions: {
       globals: { ...globals.node },

@@ -71,6 +71,11 @@ import { onRequestPost as handshakePost } from '../functions/sync/handshake'
 import { onRequestPost as pushPost } from '../functions/sync/push'
 import { onRequestGet as pullGet } from '../functions/sync/pull'
 import { onRequestGet as statusGet } from '../functions/sync/status'
+import {
+  onRequestDelete as subscribeDelete,
+  onRequestGet as subscribeGet,
+  onRequestPost as subscribePost,
+} from '../functions/sync/subscribe'
 
 // --- tiny test harness -------------------------------------------------------
 
@@ -135,6 +140,9 @@ const routes: Record<string, (ctx: any) => Promise<Response>> = {
   'POST /sync/push': pushPost,
   'GET /sync/pull': pullGet,
   'GET /sync/status': statusGet,
+  'GET /sync/subscribe': subscribeGet,
+  'POST /sync/subscribe': subscribePost,
+  'DELETE /sync/subscribe': subscribeDelete,
 }
 
 ;(globalThis as any).fetch = async (input: any, init?: any) => {
@@ -2256,6 +2264,137 @@ check('a plain error is never terminal', !isTerminalPushFailure(new Error('offli
   await clock.advance(5000)
   check('the throttled retry carries the change through', attempts === 2 && qos.getState().pending === false, String(attempts))
 }
+
+// --- 10. Background sync: wake-target storage (rollout step 3) ---------------
+
+section('10. Wake-target storage — subscribe/unsubscribe round trip')
+
+// The chain and devices from §2 are still registered. A wake target keys by
+// ENDPOINT (the push service's handle), not (chain, device) — a browser that
+// re-subscribes to a different chain moves the row instead of duplicating it.
+const KEY_P = 'b'.repeat(87) // base64url-shaped P-256 key material
+const KEY_A = 'a'.repeat(43)
+const ENDPODE = 'https://fcm.googleapis.com/fcm/send/end-aaaaaaaa-1'
+const ENDPODE2 = 'https://updates.push.services.mozilla.com/pushdb/end-bbbbb-2'
+
+const config = await (await fetch('https://local.test/sync/subscribe')).json()
+check('GET reports push wiring is off in step 3', config.enabled === false && config.publicKey === null)
+
+const subRes = await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_A, deviceId: 'subscriber-01',
+    endpoint: ENDPODE, keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+check('a valid subscription is stored', subRes.status === 200, String(subRes.status))
+const storedRow = (await d1.prepare('SELECT chain_id, device_id, p256dh FROM push_subscriptions WHERE endpoint = ?').bind(ENDPODE).first()) as { chain_id: string; device_id: string; p256dh: string } | null
+check('the row carries chain, device and key material', !!(storedRow && storedRow.device_id === 'subscriber-01' && storedRow.p256dh === KEY_P))
+
+await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_A, deviceId: 'subscriber-01',
+    endpoint: ENDPODE, keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+const afterResub = (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint = ? OR device_id = ?').bind(ENDPODE, 'subscriber-01').first()) as { n: number } | null
+check('re-subscribing the same endpoint does not duplicate rows', Number(afterResub?.n) === 1, String(afterResub?.n))
+
+// chain B exists in this harness only as a key-model fixture — subscribing
+// requires a REAL chain, so create it the same way the real client would.
+await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: CHAIN_B, deviceId: 'chain-b-creator', writeSecret: 'a'.repeat(43) }),
+  }),
+  env,
+})
+
+await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_B, deviceId: 'subscriber-01',
+    endpoint: ENDPODE, keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+const movedRow = (await d1.prepare('SELECT chain_id FROM push_subscriptions WHERE endpoint = ?').bind(ENDPODE).first()) as { chain_id: string } | null
+check('re-subscribing to a NEW chain moves the row (endpoint-keyed)', !!(movedRow && movedRow.chain_id === CHAIN_B))
+
+const moveBack = await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_A, deviceId: 'subscriber-01',
+    endpoint: ENDPODE, keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+check('the moved row can move back', moveBack.status === 200)
+
+const badChain = await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: 'ghost-chain-9999', deviceId: 'subscriber-01',
+    endpoint: ENDPODE, keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+check('a subscription for an unknown chain is refused with 409', badChain.status === 409, String(badChain.status))
+
+const badEndpoint = await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_A, deviceId: 'subscriber-01',
+    endpoint: 'http://not-secure.example/push', keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+check('a plaintext endpoint is refused', badEndpoint.status === 400, String(badEndpoint.status))
+
+const badKey = await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_A, deviceId: 'subscriber-01',
+    endpoint: ENDPODE2, keys: { p256dh: 'nope', auth: KEY_A },
+  }),
+})
+check('an unusable p256dh is refused', badKey.status === 400, String(badKey.status))
+
+const wrongOwner = await fetch('https://local.test/sync/subscribe', {
+  method: 'DELETE',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ endpoint: ENDPODE, deviceId: 'not-the-owner' }),
+})
+const stillThere = (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint = ?').bind(ENDPODE).first()) as { n: number } | null
+check('DELETE by a different device does not drop the row', wrongOwner.status === 200 && Number(stillThere?.n) === 1)
+
+const ownerDelete = await fetch('https://local.test/sync/subscribe', {
+  method: 'DELETE',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ endpoint: ENDPODE, deviceId: 'subscriber-01' }),
+})
+const gone = (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint = ?').bind(ENDPODE).first()) as { n: number } | null
+check('DELETE by the owning device removes the row', ownerDelete.status === 200 && Number(gone?.n) === 0, String(gone?.n))
+
+// The step-3 invariant that matters most: with no subscription stored, a push
+// is bit-for-bit today's behavior. Fan-out arrives in step 4 and must not
+// change the storage contract a single byte.
+const plainPush = await pushPost({
+  request: new Request('https://local.test/sync/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chainId: CHAIN_A, deviceId: agentA.getDeviceId(),
+      data: 'y'.repeat(50), writeSecret: SECRET_A,
+    }),
+  }),
+  env,
+})
+check('a push against an unsubscribed chain behaves exactly as before', plainPush.status === 200, String(plainPush.status))
 
 // --- summary -----------------------------------------------------------------
 

@@ -1776,6 +1776,36 @@ textarea::placeholder {
   transition: background 0.2s;
 }
 
+/* Background sync row (Settings → Sync, rollout step 3) */
+.bg-sync-row {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.bg-sync-text {
+  flex: 1 1 auto;
+}
+.bg-sync-text h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.95rem;
+}
+.bg-sync-row .toggle {
+  margin-top: 2px;
+}
+.bg-sync-row .toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.bg-sync-row .sync-error {
+  margin-top: 0.4rem;
+}
+.bg-sync-row .help-text {
+  margin-top: 0.4rem;
+}
+
 .toggle.on {
   background: var(--primary);
 }
