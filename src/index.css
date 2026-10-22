@@ -193,10 +193,6 @@ body {
   font-size: 1rem;
 }
 
-.quick-create {
-  display: flex;
-  gap: 0.5rem;
-}
 
 .quick-create .btn {
   flex: 1;
@@ -214,11 +210,6 @@ body {
   gap: 0.25rem;
 }
 
-.project-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
 
 .project-label-dim {
   opacity: 0.7;
@@ -266,11 +257,6 @@ body {
   background: var(--bg);
 }
 
-.thread-link-row {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
 
 .thread-link-row .thread-link {
   flex: 1;
@@ -460,15 +446,6 @@ textarea::placeholder {
   background: var(--primary-hover);
 }
 
-.btn-secondary {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-}
-
-.btn-secondary:hover {
-  background: var(--bg);
-}
 
 .btn-danger {
   background: transparent;
@@ -1199,10 +1176,6 @@ textarea::placeholder {
   font-size: 0.75rem;
 }
 
-.btn-lg {
-  padding: 0.75rem 1.5rem;
-  font-size: 1.125rem;
-}
 
 .threads-header {
   display: flex;
@@ -2660,9 +2633,11 @@ textarea::placeholder {
 }
 
 /* Stacked inline form (the sidebar's second create form) — replaces the last
-   inline style={} in the component tree. */
+   inline style={} in the component tree. flex-basis 100% makes it wrap onto
+   its own row of the .quick-create flex container, so it inherits the same
+   inset as the row above instead of needing margins of its own. */
 .form-inline-stacked {
-  margin-top: 0.5rem;
+  flex-basis: 100%;
 }
 
 /* --- Relative timestamps ---------------------------------------------------- */
@@ -2763,6 +2738,19 @@ textarea::placeholder {
   flex-wrap: wrap;
 }
 
+/* Equal box heights: the secondary drew its real 1px border while the
+   primary had none, so the pair sat 2px apart vertically. A transparent
+   border on both equalizes the boxes — scoped to the lander actions only,
+   the in-app .btn metrics stay untouched. */
+
+.lander-actions .btn {
+  border: 1px solid transparent;
+}
+
+.lander-actions .btn-secondary {
+  border-color: var(--border);
+}
+
 .lander-checks {
   list-style: none;
   display: flex;
@@ -2783,6 +2771,27 @@ textarea::placeholder {
 
 .lander-checks svg {
   color: var(--primary);
+}
+
+/* Phone: the side-by-side pair of unequal-width buttons plus a checks list
+   wrapping to a lone centered line reads as misaligned. Stack both —
+   buttons become an even, equal-width pair; each check gets its own line. */
+
+@media (max-width: 560px) {
+  .lander-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .lander-actions .btn {
+    width: min(100%, 340px);
+  }
+
+  .lander-checks {
+    flex-direction: column;
+    align-items: center;
+    row-gap: 0.5rem;
+  }
 }
 
 .lander-section {
@@ -2913,6 +2922,64 @@ textarea::placeholder {
   margin: 0;
   color: var(--text-dim);
   font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+/* FAQ accordion — native <details>/<summary>. The answers stay in the
+   prerendered HTML whether or not a row is open, which is exactly why the
+   FAQPage JSON-LD and the visible content can never disagree. The summary is
+   a full-width control: no native triangle, a rotating chevron instead, and
+   a pointer target comfortably above the 32px floor the audit enforces. */
+.lander-faq-list {
+  max-width: 780px;
+  margin-inline: auto;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.lander-faq-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.lander-faq-item summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.98rem;
+  min-height: 44px;
+  user-select: none;
+}
+
+.lander-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.lander-faq-item summary svg {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  transition: transform 0.15s ease;
+}
+
+.lander-faq-item[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.lander-faq-item summary:hover {
+  color: var(--primary);
+}
+
+.lander-faq-item p {
+  margin: 0;
+  padding: 0 1.1rem 1rem;
+  color: var(--text-dim);
+  font-size: 0.93rem;
   line-height: 1.6;
 }
 

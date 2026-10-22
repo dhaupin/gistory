@@ -84,8 +84,10 @@ for (const p of ['/', '/terms', '/privacy', '/definitely-not-a-page', '/robots.t
     title: (body.match(/<title>([^<]*)<\/title>/) || [])[1],
     noindex: /noindex/.test(body),
     moduleScript: /<script type="module"/.test(body),
-    // Themed 404: class-based markup + a CTA back to the lander home.
-    cta: /class="notfound-cta"/.test(body) && /href="\/"/.test(body),
+    // Themed 404: the npm engine renders its own styled CTA back to the home
+    // page (label from ssr.config notFound.primaryCta — no class attribute,
+    // the engine draws it from currentColor). Assert the link + label exist.
+    cta: /href="\/"[^>]*>/.test(body) && /Back to Gistory/.test(body),
   }
 }
 

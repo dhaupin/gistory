@@ -1,11 +1,16 @@
 // Lander — the public homepage at "/", prerendered for SEO.
 //
-// This component is in the AppLayout graph, which prerender.js renders in
-// Node: no window/localStorage at render time, no browser-only imports.
+// This component is in the AppLayout graph, which the prestruct engine renders
+// in Node: no window/localStorage at render time, no browser-only imports.
 // Everything below is static content, so crawlers see the full pitch without
-// running JavaScript.
+// running JavaScript. The FAQ accordion is native <details>/<summary> on
+// purpose: the answers sit in the prerendered HTML regardless of JS state, so
+// crawlers and screen readers see every Q&A while users still get the
+// collapsible — and both read from ssr.config.js's FAQ_ITEMS, the same list
+// the FAQPage JSON-LD emits, so the schema can't drift from the page.
 
-import { Copy, Cloud, Tags, GitFork, Command, ShieldCheck, FileClock, Lock, Star, Check, ArrowRight } from 'lucide-react'
+import { Copy, Cloud, Tags, GitFork, Command, ShieldCheck, FileClock, Lock, Star, Check, ArrowRight, ChevronDown } from 'lucide-react'
+import { FAQ_ITEMS } from '../../ssr.config.js'
 
 const FEATURES = [
   {
@@ -75,9 +80,10 @@ export default function Lander() {
           Every prompt you write,<br />kept, found, and <em>filled in</em>.
         </h1>
         <p className="lander-sub">
-          Gistory is a personal prompt manager. Write a prompt once, tag it, find it in
-          a keystroke, and copy it with the variables filled in. Sync is end-to-end
-          encrypted — the server stores ciphertext it cannot read.
+          Gistory is a personal prompt manager and AI prompt library. Write a prompt
+          once, tag it, find it in a keystroke, and copy it with the variables filled
+          in — reuse it anywhere you chat or build. Sync is end-to-end encrypted: the
+          server stores ciphertext it cannot read.
         </p>
         <div className="lander-actions">
           <a href="#/" className="btn btn-primary">Open Gistory — it's free</a>
@@ -142,6 +148,21 @@ export default function Lander() {
               <p>Sync keeps the newest snapshots per chain; a full JSON export from Settings is your real archive, and Gistory nudges you when it goes stale.</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="lander-section lander-faq" id="faq">
+        <h2 className="lander-section-title">Frequently asked questions</h2>
+        <div className="lander-faq-list">
+          {FAQ_ITEMS.map((item, i) => (
+            <details key={item.q} className="lander-faq-item" open={i === 0}>
+              <summary>
+                <span>{item.q}</span>
+                <ChevronDown size={16} aria-hidden="true" />
+              </summary>
+              <p>{item.a}</p>
+            </details>
+          ))}
         </div>
       </section>
 

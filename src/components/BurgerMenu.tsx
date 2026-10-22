@@ -277,24 +277,28 @@ export default function BurgerMenu({
           <button className="btn btn-secondary btn-small" onClick={() => setShowNewProject(!showNewProject)}>
             + Project
           </button>
-        </div>
 
-        {showNewProject && (
-          <div className="form-inline form-inline-stacked">
-            <input
-              className="input-name"
-              placeholder="Project name..."
-              value={newProjectName}
-              onChange={e => setNewProjectName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') handleCreateProject()
-                if (e.key === 'Escape') { setShowNewProject(false); setNewProjectName('') }
-              }}
-              autoFocus
-            />
-            <button className="btn btn-primary btn-small" onClick={handleCreateProject}>Create</button>
-          </div>
-        )}
+          {/* Lives inside .quick-create on purpose: the wrapper owns the menu's
+              1rem inset, so the project-create row pads like the thread-create
+              row above it. A root-level sibling here is what left the input and
+              Create button flush against the menu edges on phones. */}
+          {showNewProject && (
+            <div className="form-inline form-inline-stacked">
+              <input
+                className="input-name"
+                placeholder="Project name..."
+                value={newProjectName}
+                onChange={e => setNewProjectName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleCreateProject()
+                  if (e.key === 'Escape') { setShowNewProject(false); setNewProjectName('') }
+                }}
+                autoFocus
+              />
+              <button className="btn btn-primary btn-small" onClick={handleCreateProject}>Create</button>
+            </div>
+          )}
+        </div>
 
         {/* Sort control — mirrors the board so the sidebar is not a dead end */}
         {onSortChange && (
