@@ -638,6 +638,8 @@ generate real pairs.
 | `scripts/lib/*.mjs` | Shared launch/fixture/collector helpers for the harness |
 | `tests/ui/*.mjs` | Browser tests (interaction flows, export/import round trip, snapshot metrics) |
 | `.github/workflows/maintenance.yml` | Daily D1 maintenance (03:17 UTC): verify gate → apply; dispatch defaults to dry run |
+| `.github/workflows/publish.yml` | Tag-driven npm publish for `gistory-sync` — Trusted Publishing (OIDC, no stored token), gates + registry-artifact smoke; dormant until the one-time manual bootstrap publish, then fires on `v*` tags |
+| `.github/workflows/release.yml` | Tag-driven GitHub Release: packs the tarball, gates on the artifact's own install-and-load battery, attaches it to the release page |
 | `eslint.config.js` | Flat ESLint config — high-value rules only (unused vars, react-hooks, no-undef); `bun run lint` |
 | `.puppeteerrc.cjs` | `skipDownload` so installs/builds never fetch Chromium |
 | `wrangler.toml` | Local-dev-only Wrangler config (placeholder D1 id, **no** `pages_build_output_dir`); prod bindings live in the Pages dashboard |

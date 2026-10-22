@@ -1,0 +1,94 @@
+# release.yml — GitHub Release generation on version tags.
+#
+# The npm publish runs in publish.yml (Trusted Publishing, OIDC); this flow
+# attaches the distributable and creates the release page itself. The
+# artifact IS the npm tarball: `npm pack` at the tag, then the same rule
+# prestruct's release battery burned in twice (v1.0.0 AND v1.1.0's first
+# zip shipped artifacts whose test imports only resolved inside the repo) —
+# gate the release on THE ARTIFACT'S OWN battery, not the checkout. A
+# tarball that installs but does not load must never carry a release.
+#
+# To release:
+#   git tag vX.Y.Z
+#   git push origin vX.Y.Z      # publish.yml and this fire together
+#
+# Note: the tarball smoke here installs from the PACKED file (pre-release
+# truth). publish.yml separately smokes the REGISTRY artifact after publish
+# — a registry-side regression (dist tarball corruption, missing files) is
+# its catch, not this one's.
+
+name: GitHub release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PUPPETEER_SKIP_DOWNLOAD: '1'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Gate (typecheck + lint + lib build)
+        run: npm run typecheck && npm run lint && npm run build:lib
+
+      - name: Pack the tarball
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          npm pack --pack-destination /tmp/dist --no-audit --no-fund
+          echo "TARBALL=/tmp/dist/gistory-sync-${VERSION}.tgz" >> $GITHUB_ENV
+
+      # Unpack the artifact into a scratch project, install it, and load the
+      # entry point. What is proven here is the tarball's own contents —
+      # files/ inclusion, export map, ESM shape, storage fallback — not the
+      # checkout's dist/ (which npm pack never touches when stale).
+      - name: Run the artifact's own battery
+        run: |
+          rm -rf /tmp/gs-verify && mkdir -p /tmp/gs-verify && cd /tmp/gs-verify
+          npm init -y >/dev/null
+          npm install "${{ env.TARBALL }}" --no-audit --no-fund
+          node --input-type=module -e "
+            const m = await import('gistory-sync')
+            const need = ['SyncAgent', 'mergePayload', 'mergeRegistry', 'SyncQos', 'pruneView', 'emptyVariables']
+            const missing = need.filter((n) => !(n in m))
+            if (missing.length) { console.error('missing exports:', missing); process.exit(1) }
+            if (typeof m.SyncAgent !== 'function') { console.error('SyncAgent is not a class'); process.exit(1) }
+            console.log('artifact smoke OK: ' + need.length + ' key exports load from the packed tarball')
+          "
+          # The declaration entry the package.json types condition points at
+          # must exist in the tarball, and so must the runtime one.
+          test -f node_modules/gistory-sync/dist/lib/index.d.ts
+          test -f node_modules/gistory-sync/dist/lib/index.mjs
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Gistory Sync ${{ github.ref_name }}"
+          body: |
+            The sync engine as `gistory-sync@${{ github.ref_name }}`.
+
+            - npm: `npm i gistory-sync` (this tag's version is on the registry —
+              published by `publish.yml` from the same tag)
+            - attached: the exact tarball npm received (`npm install <file>` works offline)
+
+            The package is the E2EE sync engine only — agent crypto, merge rules,
+            QoS scheduling, the storage seam — the same code the app and its
+            service worker run. The React app and the Relay are not the package.
+          files: ${{ env.TARBALL }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true

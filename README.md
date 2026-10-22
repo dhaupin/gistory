@@ -480,6 +480,32 @@ import {
   declarations, both landing in `dist/lib/`). `prepublishOnly` runs the full
   typecheck + lint suite before any publish can happen.
 
+##### Releasing to npm
+
+Publishing runs through npm Trusted Publishing (OIDC) — no `NPM_TOKEN` is
+stored anywhere; the registry verifies each run's identity against a
+Trusted Publisher entry on npmjs.com. Same runbook prestruct proved:
+
+```bash
+# one-time bootstrap — OIDC cannot create a brand-new package
+npm run typecheck && npm run lint && npm run build:lib
+npm publish                          # claims the gistory-sync name
+# then on npmjs.com: gistory-sync -> Settings -> Trusted Publisher
+#   repository dhaupin/gistory, workflow publish.yml
+
+# every release after that
+npm version patch|minor|major
+git push --follow-tags               # both workflows fire on the tag
+```
+
+From a tag, `publish.yml` gates (typecheck + lint + lib build), publishes
+via OIDC, and smokes the registry artifact by installing it into a scratch
+project and loading the entry point; `release.yml` packs the same tarball,
+gates on the artifact's own install-and-load battery, and attaches it to
+the GitHub release. Publish from version tags only, never `main`.
+Re-pushed tags skip cleanly: a version already on the registry publishes
+nothing and smokes nothing.
+
 `bun run sync:smoke` runs the real agent crypto, the real merge logic, and the
 real Pages Functions handlers against an in-memory SQLite database — no network
 or Cloudflare account needed.

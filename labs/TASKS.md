@@ -833,3 +833,17 @@ Conventions
   files back an issue here to swap `crashtest/fixture.mjs` (node:sqlite) for the extended
   shim once it ships to npm, drop the node-24 pin, and re-run the gate to the same
   37/6/0 ledger.
+
+- **2026-10-22 — npm/release pipeline landed for gistory-sync (prestruct pattern).**
+  `.github/workflows/publish.yml` (Trusted Publishing / OIDC on `v*` tags: gate =
+  typecheck + lint + build:lib, idempotent publish that skips when the registry
+  already has the version, then installs the registry artifact into a scratch
+  project and loads the entry point as a post-publish smoke) and
+  `.github/workflows/release.yml` (packs the tarball, gates on THE ARTIFACT'S OWN
+  install-and-load battery — the prestruct v1.0.0/v1.1.0 lesson —, asserts the
+  d.ts + .mjs exist inside the installed tarball, attaches it to the GitHub
+  release with generated notes). Both dormant until the one-time manual
+  `npm publish` bootstrap claims the name; then npmjs.com Trusted Publisher
+  entry (repo dhaupin/gistory, workflow publish.yml) and every future release is
+  `npm version x && git push --follow-tags`. README runbook section added
+  (##### Releasing to npm) and AGENTS.md quick-ref updated.

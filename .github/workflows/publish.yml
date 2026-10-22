@@ -1,0 +1,100 @@
+# publish.yml — npm Trusted Publishing (OIDC), tag-driven only.
+#
+# Mirrors the runbook proven on dhaupin/prestruct (its publish.yml says it
+# mirrors the crashtest one in turn): releases publish on version tags ONLY,
+# never from main. No NPM_TOKEN secret is stored anywhere — the npm
+# registry verifies this run's OIDC identity against the Trusted Publisher
+# entry configured on npmjs.com, and the run generates its own provenance
+# attestation automatically.
+#
+# DORMANT until the first manual publish: OIDC cannot create a brand-new
+# package (npm/cli#8544), so claim the name once from a dev machine:
+#
+#   1. npm run typecheck && npm run lint && npm run build:lib   # the gate
+#   2. npm publish            # one-time manual bootstrap — claims gistory-sync
+#   3. npmjs.com -> gistory-sync -> Settings -> Trusted Publisher:
+#      repo dhaupin/gistory, workflow publish.yml
+#   4. from then on: npm version patch|minor|major && git push --follow-tags
+#      — this workflow fires on the tag, gates, and publishes
+#
+# Rules (same as prestruct's):
+#   - Only publish from version tags, never from main directly.
+#   - The `files` field keeps the tarball to dist/lib/ + LICENSE + README.
+
+name: npm publish
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+# Nothing at publish time executes a browser: no UI suite, no headless
+# Chromium (skipping its install-time fetch chain matters — npm ci would
+# otherwise pull it for the puppeteer devDependency).
+env:
+  PUPPETEER_SKIP_DOWNLOAD: '1'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Trusted publishing needs node >= 22.14 / npm >= 11.5.1 (per npm docs
+      # docs.npmjs.com/trusted-publishers).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      # The same gate prepublishOnly would have run — done here explicitly so
+      # the CI log shows which stage refused, not just "npm publish failed".
+      - name: Gate (typecheck + lint + lib build)
+        run: npm run typecheck && npm run lint && npm run build:lib
+
+      # Idempotent: if the registry already has this exact version — e.g. the
+      # release was re-fired after fixing a later workflow — skip the publish
+      # instead of failing red on "cannot publish over the previously
+      # published version". Version drift between package.json and the
+      # registry still publishes normally.
+      - name: Publish (skip if the registry already has this version)
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(npm view gistory-sync@$LOCAL version 2>/dev/null || true)
+          if [ "$REMOTE" = "$LOCAL" ]; then
+            echo "gistory-sync@$LOCAL already on the registry -- skipping publish"
+          else
+            npm publish
+          fi
+
+      # Proof the shipped tarball works AS INSTALLED, not as checked out:
+      # pull the just-published version from the registry into a scratch
+      # project and load the real entry point. Skips cleanly when this run
+      # skipped the publish (version already on the registry before the fix,
+      # or a re-run).
+      - name: Smoke the registry artifact
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          if ! npm view gistory-sync@$LOCAL version >/dev/null 2>&1; then
+            echo "nothing published this run -- nothing to smoke"
+            exit 0
+          fi
+          rm -rf /tmp/gs-smoke && mkdir -p /tmp/gs-smoke
+          cd /tmp/gs-smoke
+          npm init -y >/dev/null
+          npm install gistory-sync@$LOCAL --no-audit --no-fund
+          GSYNC_VERSION=$LOCAL node --input-type=module -e "
+            const m = await import('gistory-sync')
+            const need = ['SyncAgent', 'mergePayload', 'mergeRegistry', 'SyncQos', 'pruneView', 'emptyVariables']
+            const missing = need.filter((n) => !(n in m))
+            if (missing.length) { console.error('missing exports:', missing); process.exit(1) }
+            console.log('registry artifact smoke OK: gistory-sync@' + process.env.GSYNC_VERSION + ' (' + need.length + ' key exports load)')
+          "
