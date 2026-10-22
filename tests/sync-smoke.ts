@@ -217,6 +217,78 @@ try {
 }
 check('a different passphrase cannot decrypt', wrongPassFailed)
 
+// --- 1b. Payload compression: deflate before encrypt --------------------------
+
+section('1b. Payload compression — deflate inside the envelope')
+
+// Prompt-heavy snapshots are highly repetitive, so they deflate hard. The
+// tag byte tells the two shapes apart: [0x02] compressed, [0x01] raw,
+// tag-less = the very first payloads ever pushed (legacy, no versioning
+// existed yet) — all three must decrypt through the same decryptPayload.
+const hasStreams = typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined'
+
+// Local base64 helpers for framing the legacy fixture (agent.ts keeps its
+// fns module-private on purpose).
+const b64OfBuf = (buf: ArrayBuffer | Uint8Array): string => {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf)
+  let s = ''
+  bytes.forEach(b => { s += String.fromCharCode(b) })
+  return Buffer.from(s, 'binary').toString('base64')
+}
+const b64ToBytes = (b64: string): Uint8Array => {
+  const s = Buffer.from(b64, 'base64').toString('binary')
+  const bytes = new Uint8Array(s.length)
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i)
+  return bytes
+}
+
+const roundTripTight = await decryptPayload<any>(ciphertext, keyA2)
+check('small payloads round-trip regardless of the compression decision', roundTripTight.n === 42)
+
+const bigSnapshot = {
+  threads: Array.from({ length: 200 }, (_, i) => ({
+    id: `t${i}`, name: 'grocery list prompt for the weekly planning session',
+    projectIds: [], createdAt: 1000 + i, updatedAt: 1001 + i,
+  })),
+  messages: {} as Record<string, unknown[]>,
+  projects: [],
+  deleted: emptyDeleted(),
+  view: {},
+}
+const bigCipher = await encryptPayload(bigSnapshot, keyA1)
+const bigBack = await decryptPayload<typeof bigSnapshot>(bigCipher, keyA2)
+check('a large payload round-trips',( bigBack.threads.length === 200))
+if (hasStreams) {
+  // Roughly a third of the base64 is overhead; the compressed body must land
+  // materially under the raw JSON's size for a repetitive snapshot.
+  const rawBytes = JSON.stringify(bigSnapshot).length
+  check(
+    'a repetitive snapshot compresses to well under its raw JSON size',
+    bigCipher.length < rawBytes * 0.5,
+    `${bigCipher.length} vs raw ${rawBytes}`,
+  )
+}
+
+// Legacy compatibility: hand-encrypt an untagged plaintext exactly as the
+// very first version of encryptPayload did. It has no tag byte (and cannot:
+// JSON starts with `\u007b`, which is neither tag), so it decrypts forever.
+const legacyIv = crypto.getRandomValues(new Uint8Array(12))
+const legacyCt = await crypto.subtle.encrypt(
+  { name: 'AES-GCM', iv: legacyIv },
+  keyA1,
+  new TextEncoder().encode(JSON.stringify({ hello: 'legacy', from: 'the first version' })),
+)
+const legacyBack = await decryptPayload<any>(
+  b64OfBuf(legacyIv) + '.' + b64OfBuf(new Uint8Array(legacyCt)), keyA2,
+)
+check('tag-less legacy payloads still decrypt', legacyBack.hello === 'legacy')
+const legacyFirstByte = b64ToBytes(b64OfBuf(new Uint8Array(legacyCt)))[0]
+check(
+  'a legacy blob and a tagged blob never collide on the first byte',
+  legacyFirstByte !== 1 && legacyFirstByte !== 2,
+  String(legacyFirstByte),
+)
+
 // --- 2. merge semantics ------------------------------------------------------
 
 section('2. Merge rules')

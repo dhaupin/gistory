@@ -73,14 +73,13 @@ export async function deriveKey(passphrase: string, salt: string): Promise<Crypt
     false,
     ['encrypt', 'decrypt'],
   )
-}
-
-export async function encryptPayload(data: unknown, key: CryptoKey): Promise<string> {
+}export async function encryptPayload(data: unknown, key: CryptoKey): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12))
+  const plaintext = await encodeSyncPayload(data)
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
-    enc.encode(JSON.stringify(data)),
+    plaintext,
   )
   return buf2base64(iv) + '.' + buf2base64(ciphertext)
 }
@@ -93,7 +92,101 @@ export async function decryptPayload<T = unknown>(payload: string, key: CryptoKe
     key,
     base642buf(data64),
   )
-  return JSON.parse(dec.decode(plaintext)) as T
+  return JSON.parse(await decodeSyncPayload(plaintext)) as T
+}
+
+// --- Compression inside the encrypted payload ---------------------------------
+
+/**
+ * The full-state snapshot is mostly prompt text, which deflates ~10×, so the
+ * JSON is DEFLATEd BEFORE encryption whenever that actually makes it smaller.
+ * This pushes the 5 MB relay payload cap (a hard 413 that quietly idles the
+ * push scheduler) ~10× further out — few hundred MB of raw JSON instead of
+ * a few dozen MB — at the cost of one streaming compress per push.
+ *
+ * No protocol change: the server already treats `data` as opaque ciphertext.
+ * Format IS versioned though, with a single tag byte in front of the body
+ * the sender and receiver agree on:
+ *
+ *   [0x01] raw JSON bytes      (uncompressed, the fallback everywhere)
+ *   [0x02] deflate-raw bytes   of the same JSON
+ *   <tag-less>                 the FIRST payloads ever pushed — no tag was
+ *                              written, and JSON famously starts with `{`
+ *                              (0x7b), which is neither tag, so they fall
+ *                              through to the legacy branch and keep
+ *                              decrypting forever.
+ *
+ * Compression wins are decided per payload (compressed iff strictly smaller,
+ * and only when the platform has CompressionStream at all), so incompressible
+ * snapshots pay nothing and a browser lacking streams keeps working exactly
+ * as before. Deflate-raw (no zlib wrapper) because the wrapper's two bytes
+ * and check value buy nothing inside an AEAD envelope.
+ *
+ * Security notes, both checked before shipping this:
+ *   • No compression oracle: CRIME-style length leaks need attacker-chosen
+ *     content sharing one compression context. Each payload deflates
+ *     independently with no dictionary or state carried across pushes, and
+ *     payload SIZE was already visible to the relay before this change —
+ *     the observation surface is unchanged.
+ *   • The tag byte is INSIDE the authenticated envelope, so flipping
+ *     raw↔deflate on the wire fails the AEAD check rather than misreading.
+ *   • No decompression-bomb amplifier: the reader's copy of any blob is
+ *     bounded by the relay's own 5 MB ciphertext cap (~3.7 MB binary), and
+ *     inflate can never make the plaintext exceed that. A hostile writer
+ *     with the chain secret could always fill that budget some other way;
+ *     compression changes the cap's meaning, not its ceiling.
+ */
+
+const TAG_RAW = 0x01
+const TAG_DEFLATE = 0x02
+
+async function streamThrough(bytes: Uint8Array, transform: 'CompressionStream' | 'DecompressionStream'): Promise<Uint8Array | null> {
+  const Ctor = (globalThis as { [k: string]: unknown })[transform] as
+    | (new (format: string) => TransformStream)
+    | undefined
+  if (!Ctor) return null
+  try {
+    const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new Ctor('deflate-raw'))
+    return new Uint8Array(await new Response(stream).arrayBuffer())
+  } catch {
+    return null
+  }
+}
+
+/** Tagged bytes for encryption, or null-tag raw when compression is a loss. */
+async function encodeSyncPayload(data: unknown): Promise<Uint8Array> {
+  const body = enc.encode(JSON.stringify(data))
+  const deflated = await streamThrough(body, 'CompressionStream')
+  if (deflated && deflated.length < body.length) {
+    const out = new Uint8Array(deflated.length + 1)
+    out[0] = TAG_DEFLATE
+    out.set(deflated, 1)
+    return out
+  }
+  const out = new Uint8Array(body.length + 1)
+  out[0] = TAG_RAW
+  out.set(body, 1)
+  return out
+}
+
+/** Inverse of {@link encodeSyncPayload}, accepting tag-less legacy blobs. */
+async function decodeSyncPayload(plaintext: ArrayBuffer | Uint8Array): Promise<string> {
+  // WebCrypto returns a plain ArrayBuffer; indexing one gives undefined, so
+  // the tag read must wrap first or every blob "looks" legacy and the tag
+  // byte rides into JSON.parse.
+  const bytes = plaintext instanceof Uint8Array ? plaintext : new Uint8Array(plaintext)
+  const tag = bytes[0]
+  if (tag === TAG_RAW) return dec.decode(bytes.subarray(1))
+  if (tag === TAG_DEFLATE) {
+    const body = bytes.subarray(1)
+    const inflated = await streamThrough(body, 'DecompressionStream')
+    if (!inflated) throw new Error('compressed payload but decompression is unavailable')
+    return dec.decode(inflated)
+  }
+  // Legacy: no tag byte — the whole plaintext is the JSON, exactly as the
+  // very first pushes wrote it. Note `{` is 0x7b, never 1/2, so a legacy
+  // blob can never be mistaken for a tagged one.
+  return dec.decode(plaintext)
 }
 
 // --- Chain / pairing helpers -------------------------------------------------

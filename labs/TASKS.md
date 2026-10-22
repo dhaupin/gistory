@@ -763,3 +763,23 @@ Conventions
   unified confirm copy, Header a11y, project-card keyboard access).
 - 2026-10 — sync edge-case fixes (message `updatedAt`, import merge by id,
   tombstone safety) + `usability.mjs` UI suite.
+- **Compression pass (2026-10-22): the sync payload deflates before it
+  encrypts.**
+  - `encryptPayload` now DEFLATEs the JSON (`CompressionStream` /
+    `deflate-raw`, streamed) **before** AES-GCM whenever the compressed body
+    is strictly smaller — incompressible snapshots pay nothing, a
+    stream-less platform writes raw — so a prompt-heavy library stretches
+    the relay's 5 MB payload cap ~10× further out. Measured on a fixture:
+    36 KB of JSON → ~650 base64 chars. No protocol change: `data` stays
+    opaque ciphertext at the relay.
+  - Format versioned with ONE tag byte: `[0x01]` raw, `[0x02]` deflate-raw,
+    tag-less = the very first pushed payloads (legacy, decrypted forever).
+    Decrypt-side: WebCrypto returns an ArrayBuffer, whose first `read`
+    without wrapping is `undefined` — the tag check wraps in a `Uint8Array`
+    or every blob "looks legacy" and the tag byte rides into `JSON.parse`
+    (that bug was caught by the roundtrip in the smoke's own fixture, not
+    by review).
+  - Smoke §1b: round-trip small + large, the compression actually wins on a
+    repetitive fixture, legacy tag-less payloads still decrypt, and a
+    legacy first byte can never collide with either tag. 363/363. The SW
+    wake path inherits all of it for free (same agent module).
