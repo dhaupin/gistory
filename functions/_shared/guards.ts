@@ -91,6 +91,19 @@ export const POLICIES = {
    */
   writeFailures: { limit: 20, windowMs: 60_000 },
   /**
+   * Wake fan-out per chain (background-sync step 4, labs/prd-sync.md).
+   *
+   * Every successful push triggers at most one wake per subscribed device;
+   * a chain of 8 with all devices subscribed costs 7 wakes per push. The
+   * per-device push limit already bounds how FAST a device can push (~40/min
+   * worst case via SyncQos), so ~120 wakes/min per chain sits far above any
+   * legitimate chain's ceiling while bounding a push-storm's ping cost to the
+   * push services. Over-budget wakes are skipped, never queued: the catch-up
+   * pull is the correctness net, and a skipped wake costs a few seconds, not
+   * a lost change.
+   */
+  fanout: { limit: 120, windowMs: 60_000 },
+  /**
    * Per-IP backstop across ALL /sync routes, checked FIRST in `guardRoute`.
    * Every other bucket is keyed by a client-supplied id (deviceId, chainId),
    * so a flood that rotates identities gets a fresh budget per request. The

@@ -30,6 +30,7 @@ import {
   readJson,
 } from '../_shared/sync'
 import { POLICIES, guardRoute, inspectBody, withBreaker } from '../_shared/guards'
+import { vapidFromEnv } from '../_shared/push-fanout'
 
 const ENDPOINT_MAX_CHARS = 1024
 // Key material is bounded by the regex in isValidPushKey (16..256 chars); no
@@ -57,12 +58,17 @@ export const onRequestOptions = async () => preflight()
 
 // --- GET: wiring state -------------------------------------------------------
 //
-// Step 3 ships with fan-out OFF, so the honest answer is "not configured".
-// The client's Settings row reads this to decide whether its toggle can
-// actually subscribe (step 4 adds `publicKey` and flips `enabled`).
+// Honest by construction: groups… `enabled` flips to true only when BOTH
+// VAPID keys are configured in the relay environment, at which point the
+// public key (which is public!) rides along for `pushManager.subscribe`. A
+// relay without keys answers `enabled: false` and the Settings row says so.
 
-export const onRequestGet = withBreaker(async () => {
-  return json({ enabled: false, publicKey: null })
+export const onRequestGet = withBreaker(async (_db, context) => {
+  const config = vapidFromEnv(context.env)
+  return json({
+    enabled: config != null,
+    publicKey: config ? config.publicKey : null,
+  })
 })
 
 // --- POST: store/update a wake target ----------------------------------------

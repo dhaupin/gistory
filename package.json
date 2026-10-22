@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/inject-brand.js && node scripts/prerender.js",
+    "build": "tsc -b && vite build && node scripts/inject-brand.js && node scripts/prerender.js && node scripts/build-sw.mjs",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
-    "lint": "eslint .",
+    "lint": "npm run lint:eslint && npm run lint:language",
+    "lint:eslint": "eslint .",
+    "lint:language": "node scripts/check-language.mjs",
     "sync:smoke": "bun tests/sync-smoke.ts",
     "sync:live": "bun scripts/live-sync.mjs",
     "sync:multidev": "bun scripts/live-multidevice.mjs",

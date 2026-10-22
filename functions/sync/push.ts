@@ -26,6 +26,7 @@ import {
   readJson,
   touchDevice,
 } from '../_shared/sync'
+import { sendFanOut } from '../_shared/push-fanout'
 import {
   POLICIES,
   chargeFailure,
@@ -118,6 +119,12 @@ export const onRequestPost = withBreaker(async (db, context) => {
   }
 
   await touchDevice(db, chainId, deviceId)
+
+  // Background-sync fan-out (labs/prd-sync.md step 4): wake this chain's OTHER
+  // subscribed devices so their service workers can pull without any open
+  // tab. Entirely fire-and-behind its own budget and error guard: a fan-out
+  // problem delays this response by at most its work and can never fail it.
+  await sendFanOut(db, chainId, deviceId, 1, context.env)
 
   return json({ seq, serverSeq: seq })
 })

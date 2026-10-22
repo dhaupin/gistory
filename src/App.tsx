@@ -507,6 +507,23 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     }
   }, [syncEnabled, syncReady, syncNow])
 
+  // Background-sync glue (rollout step 4 of labs/prd-sync.md): while this
+  // device's tabs were CLOSED, the service worker may have pulled and merged
+  // into the shared IndexedDB stores. The SW's BroadcastChannel ping is what
+  // tells an open page to re-render NOW instead of waiting for the next 60s
+  // tick. The channel carries no data from any chain — a count only.
+  useEffect(() => {
+    if (!syncEnabled || !syncReady) return
+    if (typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel('gistory-sync')
+    const onSync = () => { void syncNow({ push: false }) }
+    channel.addEventListener('message', onSync)
+    return () => {
+      channel.removeEventListener('message', onSync)
+      channel.close()
+    }
+  }, [syncEnabled, syncReady, syncNow])
+
   // Merge an imported export file into live state. The persistence effects
   // below write it out, so no page reload is needed to see the result.
   const handleImportData = useCallback((data: Parameters<typeof importData>[0]) => {

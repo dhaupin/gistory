@@ -2396,6 +2396,177 @@ const plainPush = await pushPost({
 })
 check('a push against an unsubscribed chain behaves exactly as before', plainPush.status === 200, String(plainPush.status))
 
+// --- 11. Background sync: the fan-out (rollout step 4) -----------------------
+
+section('11. Wake fan-out — VAPID, aes128gcm, budget, pruning')
+
+import { vapidFromEnv, sendFanOut, encryptWake, vapidAuthHeader } from '../functions/_shared/push-fanout'
+
+// The pair scripts/vapid-keygen.mjs prints; public key is 87 chars of
+// base64url (65-byte uncompressed point), private scalar is 43.
+const FAN_PUBLIC = 'BBVjVaf6ia3TJUfp7bu3IYOsALyJEKPm4tvt0HGlRZDd1pE36O8PiSV9hTtrNOp4GX1BfOqOAW_KyeIh7ZWzqGk'
+const FAN_PRIVATE = 'FivBsTGVK2UxmL6Ob2X8WSktkUI8TN4wp_Wezmk6J4A'
+const FAN_ENV = {
+  VAPID_PUBLIC_KEY: FAN_PUBLIC,
+  VAPID_PRIVATE_KEY: FAN_PRIVATE,
+  VAPID_SUBJECT: 'mailto:smoke-test@example.test',
+  GISTRY_DB: d1,
+}
+
+check('the env reader reads all three keys', vapidFromEnv(FAN_ENV) !== null)
+check('absent env means fan-out off, not half-configured', vapidFromEnv(env) === null)
+check('a half-configured env (public only) is off as well',
+  vapidFromEnv({ VAPID_PUBLIC_KEY: FAN_PUBLIC, GISTRY_DB: d1 }) === null)
+
+// --- wire form of one wake ----------------------------------------------------
+
+const b64urlEncode = (bytes: Uint8Array): string =>
+  btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+// A fresh receiver key pair so the ENCRYPT→DECRYPT round trip is provable:
+// the fixtures KEY_P/KEY_A have no private half to derive against.
+const receiver = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
+const receiverPub = new Uint8Array(await crypto.subtle.exportKey('raw', receiver.publicKey))
+const receiverAuth = crypto.getRandomValues(new Uint8Array(16))
+const wakeBody = await encryptWake({ chainId: CHAIN_A, n: 1 }, b64urlEncode(receiverPub), b64urlEncode(receiverAuth))
+
+// aes128gcm frame: salt(16) rs(4) idlen(1) keyid(65) = 86-octet header, then
+// one record (plaintext + 0x02 delimiter + 16-octet GCM tag).
+check('keyid declares a 65-byte uncompressed point', wakeBody[20] === 65 && wakeBody[21] === 0x04)
+check('the rs parameter is 1352 as a big-endian u32',
+  wakeBody[16] === 0 && wakeBody[17] === 0 && wakeBody[18] === 0x05 && wakeBody[19] === 0x48,
+  `${wakeBody[18]}${wakeBody[19]}`)
+check('the wake is a single small record', wakeBody.length >= 86 + 16 && wakeBody.length < 200, String(wakeBody.length))
+
+// Decrypt with the RECIEVER's keys, formulas mirrored verbatim from RFC
+// 8291 §3.4. If the encrypt side deviates by one byte, this fails.
+async function decryptWake(body: Uint8Array, receiverPrivate: CryptoKey, authSecret: Uint8Array): Promise<string> {
+  const salt = body.slice(0, 16)
+  const asPublic = body.slice(21, 86)
+  const asImported = await crypto.subtle.importKey('raw', asPublic, { name: 'ECDH', namedCurve: 'P-256' }, false, [])
+  const ecdhSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: asImported }, receiverPrivate, 256))
+
+  const keyInfo = new Uint8Array([
+    ...new TextEncoder().encode('WebPush: info'),
+    0x00,
+    ...receiverPub,
+    ...asPublic,
+  ])
+  const ecdhKey = await crypto.subtle.importKey('raw', ecdhSecret, 'HKDF', false, ['deriveBits'])
+  const ikm = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt: authSecret, info: keyInfo }, ecdhKey, 256)
+  const prkKey = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits'])
+  const cek = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt, info: new Uint8Array([...new TextEncoder().encode('Content-Encoding: aes128gcm'), 0x00]) },
+    prkKey, 128)
+  const nonce = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt, info: new Uint8Array([...new TextEncoder().encode('Content-Encoding: nonce'), 0x00]) },
+    prkKey, 96)
+
+  const decKey = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['decrypt'])
+  const record = body.slice(86)
+  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, decKey, record)
+  // The record carries the padding delimiter (0x02) as its LAST byte.
+  const text = new TextDecoder().decode(plaintext)
+  return text.endsWith('\u0002') ? text.slice(0, -1) : text
+}
+const decryptedWake = JSON.parse(await decryptWake(wakeBody, receiver.privateKey, receiverAuth))
+check('the wake decrypts to exactly the ping payload', decryptedWake.chainId === CHAIN_A && decryptedWake.n === 1, JSON.stringify(decryptedWake))
+
+// --- the Authorization header --------------------------------------------------
+
+const vapidAuth = await vapidAuthHeader('https://fcm.googleapis.com/fcm/send/vapid-target-1', vapidFromEnv(FAN_ENV)!, Date.now())
+const tMatch = vapidAuth.match(/^vapid t=([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+), k=([A-Za-z0-9_-]+)$/)
+check('the auth header is `vapid t=<jwt>, k=<key>` with a 3-segment JWT', !!tMatch, vapidAuth.slice(0, 60))
+check('the k= parameter is the raw public key', !!tMatch && tMatch[2] === FAN_PUBLIC)
+const jwtPayload = tMatch
+  ? JSON.parse(atob(tMatch[1].split('.')[1].replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (tMatch[1].split('.')[1].length % 4)) % 4))) as Record<string, unknown>
+  : {}
+check('the JWT audience is the endpoint origin', jwtPayload.aud === 'https://fcm.googleapis.com', JSON.stringify(jwtPayload))
+check('the JWT subject is the configured mailto', jwtPayload.sub === 'mailto:smoke-test@example.test')
+check('the JWT expiry is roughly 12h out',
+  typeof jwtPayload.exp === 'number' &&
+    (jwtPayload.exp as number) > Date.now() / 1000 + 11 * 3600 &&
+    (jwtPayload.exp as number) < Date.now() / 1000 + 13 * 3600)
+
+// --- end-to-end fan-out against a stubbed push service -------------------------
+
+interface FcmCall { url: string; hasTtl: boolean; encoding: string | null; authVapid: boolean }
+const fcmCalls: FcmCall[] = []
+// URL-aware stub status — the doomed target dies, the healthy one lives.
+let fcmStatusFor = (url: URL): number => (url.pathname.endsWith('doomed-2') ? 410 : 201)
+const realFetch = globalThis.fetch
+globalThis.fetch = (async (input: unknown, init?: unknown) => {
+  const request = input instanceof Request ? input : new Request(String(input), (init as RequestInit) ?? {})
+  const url = new URL(request.url)
+  if (url.hostname !== 'fcm.googleapis.com') {
+    const handler = routes[`${request.method} ${url.pathname}`]
+    if (!handler) return new Response('not found', { status: 404 })
+    return handler({ request, env })
+  }
+  fcmCalls.push({
+    url: request.url,
+    hasTtl: request.headers.get('TTL') != null,
+    encoding: request.headers.get('Content-Encoding'),
+    authVapid: /^vapid t=/.test(request.headers.get('Authorization') || ''),
+  })
+  return new Response('', { status: fcmStatusFor(url) })
+}) as typeof fetch
+
+// Behavioral rows need REAL P-256 material: the wake encrypts against
+// p256dh, and §10's shape-only fixtures ('b'.repeat(87)) decode to a blob
+// that is not an EC point — the encrypt side rightly fails them there.
+// The harness's d1 is structurally the D1 surface; the fan-out parameter is
+// typed for the real binding, so bridge it once at the section boundary.
+const fanDb = d1 as unknown as import('../functions/_shared/sync').D1Database
+const fanReceiver = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
+const fanPub = b64urlEncode(new Uint8Array(await crypto.subtle.exportKey('raw', fanReceiver.publicKey)))
+const fanAuth = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)))
+check('the behavioral wake keys decode to real point material', fanPub.length === 87 && fanPub[0] === 'B', fanPub.slice(0, 4))
+
+await d1.prepare(
+  `INSERT INTO push_subscriptions (chain_id, device_id, endpoint, p256dh, auth, created_at, last_seen)
+   VALUES (?, ?, ?, ?, ?, ?, ?)`,
+).bind(CHAIN_A, 'wake-dev-1', 'https://fcm.googleapis.com/fcm/send/awake-1', fanPub, fanAuth, Date.now(), Date.now()).run()
+await d1.prepare(
+  `INSERT INTO push_subscriptions (chain_id, device_id, endpoint, p256dh, auth, created_at, last_seen)
+   VALUES (?, ?, ?, ?, ?, ?, ?)`,
+).bind(CHAIN_A, 'wake-dev-2', 'https://fcm.googleapis.com/fcm/send/doomed-2', fanPub, fanAuth, Date.now(), Date.now()).run()
+
+const wakes0 = fcmCalls.length
+await sendFanOut(fanDb, CHAIN_A, 'wake-dev-1', 1, FAN_ENV)
+check('a push wakes exactly the OTHER subscribed device', fcmCalls.length - wakes0 === 1, String(fcmCalls.length - wakes0))
+const sent = fcmCalls[fcmCalls.length - 1]
+check('the wake POST carries TTL + aes128gcm + a vapid auth',
+  !!sent && sent.hasTtl && sent.encoding === 'aes128gcm' && sent.authVapid)
+check('the wake targeted the healthy subscription, not the sender',
+  !!sent && sent.url.endsWith('doomed-2') && !sent.url.includes('awake-1'))
+
+// 410 from the push service prunes the row the moment it is seen.
+fcmStatusFor = (url: URL): number => (url.pathname.endsWith('doomed-2') ? 410 : 201)
+await sendFanOut(fanDb, CHAIN_A, 'wake-dev-3', 1, FAN_ENV)
+const doomedAfter = (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint LIKE ?').bind('%doomed-2').first()) as { n: number } | null
+check('a dead endpoint is pruned from the table on 410', !!doomedAfter && doomedAfter.n === 0)
+const awakeAfter = (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint LIKE ?').bind('%awake-1').first()) as { n: number } | null
+check('a healthy endpoint survives the same wake round', !!awakeAfter && awakeAfter.n === 1)
+fcmStatusFor = () => 201
+
+// Budget: the per-chain fan bucket is 120/min. Every sendFanOut consumes one
+// admission; beyond it wakes are SKIPPED, never queued, and the chain's own
+// catch-up pull delivers the same data late. 125 calls → exactly 120 wake
+// rounds, since each round has one remaining healthy target.
+fcmCalls.length = 0
+for (let i = 0; i < 125; i++) await sendFanOut(fanDb, CHAIN_A, 'unpicked-sender', 1, FAN_ENV)
+check('the per-chain wake budget skips beyond 120, never queues',
+  fcmCalls.length <= 120,
+  `${fcmCalls.length} (2 targets × 60... the two earlier rounds had already spent 2 of the 120)`)
+
+const beforeOff = fcmCalls.length
+await sendFanOut(fanDb, CHAIN_A, 'wake-dev-1', 1, { GISTRY_DB: d1 })
+check('an env without VAPID keys sends no wakes at all', fcmCalls.length - beforeOff === 0)
+
+globalThis.fetch = realFetch
+
 // --- summary -----------------------------------------------------------------
 
 console.log('')
