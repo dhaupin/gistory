@@ -91,7 +91,37 @@ databases stranded on the old shape.
    `GISTRY_DB` is the only identifier that lives in the source code, and binding
    names are not secret.
 
-5. **Custom domain** — Settings → Custom domains → `gistory.creadev.org`.
+5. **Configure background sync (optional)** — Settings → **Variables and
+   Secrets** (add for production AND preview, then redeploy):
+
+   | Variable | Value | Type |
+   |---|---|---|
+   | `VAPID_PUBLIC_KEY` | base64url P-256 public key | Text |
+   | `VAPID_PRIVATE_KEY` | base64url private scalar | **Secret** |
+   | `VAPID_SUBJECT` | `mailto:` + your contact address, one string, no space after the colon | Text |
+
+   Generate the pair offline with `node scripts/vapid-keygen.mjs` — nothing
+   is fetched, the private key never leaves the machine that prints it.
+
+   - **Which is a secret:** only `VAPID_PRIVATE_KEY`. It signs every wake
+     (JWS `Authorization` header) and must not ship anywhere. The public key
+     is deliberately public (`GET /sync/subscribe` hands it to any
+     `pushManager.subscribe` call), and the subject is just the `sub` claim
+     the push service uses as a contact/abuse handle — RFC 8292 needs a real
+     shape (`mailto:you@example.com`), not a verified address.
+   - **Verify,** after the next deploy: `GET /sync/subscribe` answers
+     `{"enabled":true,"publicKey":"…"}`, and the Settings row switches from
+     "not configured" to a working toggle.
+   - **Rotation caveat:** browsers subscribe against the CURRENT public key.
+     Generating a new pair means every phone with Background sync on must
+     toggle it off and on once to re-subscribe, so rotate only if the key
+     leaked, not on a whim.
+
+   Note this is one of the two environment-shaped things the relay lives on:
+   `GISTRY_DB` (step 4) is a *binding*, but the `VAPID_*` entries are plain
+   environment variables — set them here, not as bindings.
+
+6. **Custom domain** — Settings → Custom domains → `gistory.creadev.org`.
 
 `wrangler.toml` deliberately **omits** `pages_build_output_dir`. Per
 [Cloudflare's docs](https://developers.cloudflare.com/pages/functions/wrangler-configuration/),

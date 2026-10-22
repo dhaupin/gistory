@@ -26,7 +26,15 @@ rule** on `/sync/*`.
    D1 database → variable name `GISTRY_DB`. Add it for **both** production and
    preview, then redeploy. (Dashboard bindings, not `wrangler.toml` — see
    README for why the database id must stay out of git.)
-5. **Verify** — open the app, enable sync in Settings, and pair a second
+5. **Configure background sync (optional)** — Pages project → Settings →
+   Variables and Secrets (production AND preview, then redeploy):
+   `VAPID_PUBLIC_KEY` (Text), `VAPID_PRIVATE_KEY` (**Secret** — the signing
+   key; nothing else needs hiding), `VAPID_SUBJECT` (`mailto:you@example.com`,
+   Text — the push service's contact claim). Generate the pair offline:
+   `node scripts/vapid-keygen.mjs`. Verified by `GET /sync/subscribe`
+   answering `{"enabled":true}`; full details and the rotation caveat are in
+   README step 5 of the Cloudflare setup.
+6. **Verify** — open the app, enable sync in Settings, and pair a second
    device with the QR. Both devices should show each other in the chain's
    device list.
 
