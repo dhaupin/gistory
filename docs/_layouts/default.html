@@ -9,32 +9,82 @@
        the engine deletes conflicting tags it did not write (missing-only gate). -->
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
   <link rel="stylesheet" href="{{ '/pagefind/pagefind.css' | relative_url }}" data-pagefind-ignore>
+  <!-- Theme before first paint: the attr on <html> drives the dark token
+       overrides in main.css, so there is no flash of the wrong mode. -->
+  <script>
+    (function () {
+      var t = null
+      try { t = localStorage.getItem('gistory_docs_theme') } catch (e) {}
+      if (t !== 'dark' && t !== 'light') {
+        t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+      document.documentElement.setAttribute('data-theme', t)
+    })()
+  </script>
 </head>
 <body>
+<!-- Frame ported from dhaupin/freestruct's own docs (fixed sidebar + mobile
+     drawer, pagefind search modal, persisted light/dark switch) on top of
+     gistory's palette tokens. No syntax-highlight CDN: this frame stays
+     dependency-free and the (small) docs content needs none. -->
 <div class="docs-shell">
   <header class="docs-header">
+    <button class="docs-toggle" id="docsSidebarToggle" aria-label="Toggle menu" aria-controls="docsNav" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M3 6h18M3 12h18M3 18h18"/>
+      </svg>
+    </button>
     <a class="docs-brand" href="{{ '/' | relative_url }}">Gistory <span>docs</span></a>
-    <nav class="docs-header-links">
-      <a href="https://gistory.creadev.org">Open the app</a>
-      <a href="https://github.com/dhaupin/gistory">Source</a>
-    </nav>
+    <div class="docs-header-right">
+      <button class="docs-icon-btn" id="docsSearchTrigger" aria-label="Search" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+      <button class="docs-icon-btn" id="docsThemeToggle" aria-label="Toggle dark mode">
+        <svg class="docs-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <svg class="docs-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+      </button>
+      <a class="docs-header-link" href="https://gistory.creadev.org">Open the app</a>
+    </div>
   </header>
 
-  <div class="docs-body">
-    <nav class="docs-nav" aria-label="Documentation">
+  <div class="docs-body" id="docsBody">
+    <nav class="docs-nav" id="docsNav" aria-label="Documentation">
       {% for section in site.data.nav %}
       <div class="docs-nav-section">
         <p class="docs-nav-title">{{ section.title }}</p>
         <ul>
           {% for item in section.items %}
+          {% comment %}nav URLs carry the baseurl('/gistory') prefix; page
+          permalinks don't — strip it or aria-current can never match and
+          nothing highlights (the "menu": no active state on the live site).{% endcomment %}
+          {% assign item_path = item.url | remove_first: site.baseurl %}
           <li>
-            <a href="{{ item.url }}"
-              {% if item.url == page.permalink %}aria-current="page"{% endif %}>{{ item.title }}</a>
+            <a href="{{ item.url }}"{% if item_path == page.permalink %} aria-current="page"{% endif %}>{{ item.title }}</a>
           </li>
           {% endfor %}
         </ul>
       </div>
       {% endfor %}
+      {% comment %}
+        Always-shown external links, like freestruct's sidebar "Project"
+        block — never part of site.data.nav (external targets).
+      {% endcomment %}
+      <div class="docs-nav-section">
+        <p class="docs-nav-title">Project</p>
+        <ul>
+          <li><a href="https://gistory.creadev.org">Open the app</a></li>
+          <li><a href="https://github.com/dhaupin/gistory" target="_blank" rel="noopener noreferrer">Source on GitHub</a></li>
+          <li><a href="https://creadev.org" target="_blank" rel="noopener">Creadev.org</a></li>
+        </ul>
+      </div>
     </nav>
 
     <main class="docs-content" data-pagefind-body>
@@ -43,14 +93,110 @@
   </div>
 
   <footer class="docs-footer">
-    <span>© Creadev.org · maintained by <a href="https://github.com/dhaupin">dhaupin</a></span>
-    <span>·</span>
+    <!-- The Creadev link is a deliberate public dofollow credit (no nofollow). -->
+    <span>© {{ 'now' | date: '%Y' }} Gistory <span class="docs-footer-dim">· maintained by</span>
+      <a href="https://github.com/dhaupin/gistory/blob/main/README.md">dhaupin</a></span>
+    <span class="docs-footer-sep">·</span>
+    <span>Made by <a href="https://creadev.org" target="_blank" rel="noopener">Creadev.org</a></span>
+    <span class="docs-footer-sep">·</span>
     <a href="{{ '/faq' | relative_url }}">FAQ</a>
-    <span>·</span>
+    <span class="docs-footer-sep">·</span>
     <a href="https://github.com/dhaupin/gistory/issues">Report an issue</a>
   </footer>
 </div>
 
-<script src="{{ '/pagefind/pagefind.js' | relative_url }}" data-pagefind-ignore></script>
+<!-- Search modal — pagefind is imported dynamically inside doSearch():
+     a static <script src> of the 1.5.x ESM bundle throws
+     "import.meta outside a module" (freestruct#15), the exact reason the
+     old layout's bottom script tag could break everything below it. -->
+<div class="docs-search-modal" id="docsSearchModal" role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="docs-search-panel">
+    <input type="text" class="docs-search-input" id="docsSearchInput" placeholder="Search docs… (Ctrl/⌘+K)" autocomplete="off" aria-label="Search documentation">
+    <div class="docs-search-results" id="docsSearchResults"></div>
+  </div>
+  <button class="docs-search-close" id="docsSearchClose" aria-label="Close search">&times;</button>
+</div>
+
+<!-- Mobile sidebar backdrop; display is keyframe-controlled in main.css. -->
+<div class="docs-overlay" id="docsOverlay" aria-hidden="true"></div>
+
+<script>
+  const docThemeToggle = document.getElementById('docsThemeToggle')
+  const docSidebarToggle = document.getElementById('docsSidebarToggle')
+  const docNav = document.getElementById('docsNav')
+  const docOverlay = document.getElementById('docsOverlay')
+
+  // --- Theme ---------------------------------------------------------------
+  const setDocsTheme = (t) => {
+    document.documentElement.setAttribute('data-theme', t)
+    try { localStorage.setItem('gistory_docs_theme', t) } catch (e) {}
+  }
+  docThemeToggle.addEventListener('click', () => {
+    setDocsTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')
+  })
+
+  // --- Sidebar drawer (<=760px the nav is an off-canvas panel) ---------------
+  const setSidebar = (open) => {
+    docNav.classList.toggle('docs-nav-open', open)
+    docOverlay.classList.toggle('docs-overlay-open', open)
+    docSidebarToggle.setAttribute('aria-expanded', String(open))
+  }
+  docSidebarToggle.addEventListener('click', () =>
+    setSidebar(!docNav.classList.contains('docs-nav-open')))
+  docOverlay.addEventListener('click', () => setSidebar(false))
+
+  // Highlight the entry matching the live path the same way the
+  // server-rendered aria-current does, for whichever renderer got there first.
+  document.querySelectorAll('.docs-nav a').forEach((a) => {
+    if (a.getAttribute('href') === window.location.pathname) a.classList.add('docs-nav-active')
+  })
+
+  // --- Pagefind search modal ------------------------------------------------
+  const modal = document.getElementById('docsSearchModal')
+  const input = document.getElementById('docsSearchInput')
+  const resultsBox = document.getElementById('docsSearchResults')
+  const openSearch = () => {
+    modal.classList.add('docs-search-open')
+    input.focus()
+  }
+  const closeSearch = () => modal.classList.remove('docs-search-open')
+
+  let pagefind
+  async function doSearch(q) {
+    if (q.trim().length < 2) { resultsBox.innerHTML = ''; return }
+    resultsBox.innerHTML = '<div class="docs-search-empty">Searching…</div>'
+    try {
+      pagefind = pagefind || await import('{{ "pagefind/pagefind.js" | relative_url }}')
+      await pagefind.init()
+      const resp = await pagefind.search(q)
+      if (!resp.results.length) {
+        resultsBox.innerHTML = '<div class="docs-search-empty">No results for “' + q + '”</div>'
+        return
+      }
+      let html = ''
+      for (let i = 0; i < resp.results.length && i < 6; i++) {
+        const data = await resp.results[i].data()
+        html += '<a href="' + data.url + '" class="docs-search-result">'
+        html += '<span class="docs-search-title">' + (data.meta?.title || data.url) + '</span>'
+        if (data.excerpt) html += '<span class="docs-search-excerpt">' + data.excerpt + '</span>'
+        html += '</a>'
+      }
+      resultsBox.innerHTML = html
+    } catch (err) {
+      resultsBox.innerHTML = '<div class="docs-search-empty">Search is unavailable on this page (' + err.message + ')</div>'
+    }
+  }
+  document.getElementById('docsSearchTrigger').addEventListener('click', openSearch)
+  document.getElementById('docsSearchClose').addEventListener('click', closeSearch)
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeSearch() })
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('docs-search-open')) closeSearch()
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault()
+      openSearch()
+    }
+  })
+  input.addEventListener('input', () => doSearch(input.value))
+</script>
 </body>
 </html>

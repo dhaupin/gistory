@@ -1003,3 +1003,25 @@ Conventions
   same staleness the scripts pass fixed. New scripts:
   verify-lander-tweaks.mjs + verify-footer-parity.mjs (browser checks;
   ui:audit cannot fit the 180s cap — parity PASS on all four surfaces).
+
+- **2026-10-22 — docs-site frame ported from freestruct's own docs.** The
+  docs frame (docs/_layouts/default.html + assets/main.css, no Ruby on the
+  sandbox, so verified via fixture) gains what freestruct docs.creadev.org
+  has: fixed sidebar with mobile hamburger + backdrop drawer (≤760px
+  off-canvas, aria-expanded managed),  pagefind search modal (header button,
+  Ctrl/⌘+K, Escape; dynamic `import(pagefind/pagefind.js)` — the old static
+  bottom <script> tag on the 1.5.x ESM bundle throws "import.meta outside a
+  module" (freestruct#15), which alone could kill every later script the
+  user saw break), and a
+  persisted light/dark switch (inline head script pins data-theme before
+  paint; localStorage gistory_docs_theme; OS default). Footer now carries
+  © year + Made by Creadev.org (dofollow, _blank) like the product footer,
+  plus an always-shown "Project" sidebar block. Real bug found while in
+  there: aria-current compared `item.url == page.permalink` — nav URLs
+  carry the baseurl prefix, permalinks don't, so NO nav item ever
+  highlighted; fixed with remove_first: site.baseurl. New
+  scripts/verify-docs-frame.mjs renders the layout as a static fixture and
+  drives drawer/theme/search in a browser (PASS: active marking, theme
+  persists across reload, sun/moon swap, Ctrl+K/Escape, off-canvas
+  geometry, backdrop-close on the exposed area). Ruby absent locally —
+  Jekyll + freestruct + pagefind verify in the docs workflow at deploy.
