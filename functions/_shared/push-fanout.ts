@@ -36,6 +36,13 @@ export function vapidFromEnv(env: unknown): VapidConfig | null {
   const subject = typeof vars?.VAPID_SUBJECT === 'string' && vars.VAPID_SUBJECT
     ? vars.VAPID_SUBJECT
     : 'mailto:gistory@example.invalid'
+  // RFC 8292 §5.1: the `sub` claim MUST be a mailto: URI or an https: URL.
+  // A malformed subject is not signed-with-a-warned-bytes question — push
+  // services reject the whole Authorization header (401), so every wake
+  // would fail forever with the config looking "on". Fail the reader
+  // instead: fan-out stays off and GET /sync/subscribe answers
+  // enabled:false, which sends the operator back to the variable.
+  if (subject.length > 512 || !/^(mailto:[^\s]*|https:\/\/[^\s]*)$/.test(subject)) return null
   return { publicKey, privateKey, subject }
 }
 
@@ -232,9 +239,15 @@ async function wakeOne(
   count: number,
   config: VapidConfig,
 ): Promise<'sent' | 'pruned' | 'failed'> {
+  // A wedged push-service connection must not hold the wake round (and the
+  // isolate's open fetch) open for minutes: every wake is bounded at 30s and
+  // an aborted send is just 'failed' — the row is left for its next wake.
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
     const auth = await vapidAuthHeader(row.endpoint, config)
     const body = await encryptWake({ chainId: row.chain_id, n: count }, row.p256dh, row.auth)
+    const signal = new AbortController()
+    timer = setTimeout(() => signal.abort(), 30_000)
     const res = await fetch(row.endpoint, {
       method: 'POST',
       headers: {
@@ -246,11 +259,14 @@ async function wakeOne(
         'Content-Type': 'application/octet-stream',
       },
       body: new Uint8Array(body),
+      signal: signal.signal,
     })
     if (res.status === 404 || res.status === 410) return 'pruned'
     return res.ok ? 'sent' : 'failed'
   } catch {
     return 'failed'
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
   }
 }
 

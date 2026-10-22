@@ -79,7 +79,67 @@ function notifyOpenPages(count: number): void {
   }
 }
 
+/**
+ * Is a LIVE app tab open for this origin? Only the app (hash-routed) pages
+ * pull on their own; a prerendered landing page counts as a controlled client
+ * but has no sync loop, so it can never carry the redirect. A frozen
+ * background page (Chrome suspends it after minutes) is also a poor redirect
+ * target — but its unfreeze path has its own visibilitychange handler that
+ * catches up on focus, so correctness is never lost, only paced.
+ */
+const swGlobal = self as unknown as {
+  clients: {
+    matchAll: (opts?: {
+      type?: string
+      includeUncontrolled?: boolean
+    }) => Promise<{ url: string }[]>
+  }
+}
+
+async function hasLiveAppPage(): Promise<boolean> {
+  try {
+    const clients = await swGlobal.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    return clients.some((c) => {
+      try {
+        return new URL(c.url).hash.startsWith('#/')
+      } catch {
+        return false
+      }
+    })
+  } catch {
+    return false
+  }
+}
+
+/** One wake at a time: two pushes a second apart would otherwise run two
+ *  concurrent pull→merge→push rounds with the SAME watermark — duplicate
+ *  blobs and interleaved idb writes for nothing. A skip is free: the skipped
+ *  ping's data is still above the watermark, and browsers keep delivering
+ *  pings (budget-bounded, budget skips, catch-up covers skips). */
+let waking = false
+
 async function handleWake(chainId: string): Promise<void> {
+  if (waking) return
+  waking = true
+  try {
+    await runWake(chainId)
+  } finally {
+    waking = false
+  }
+}
+
+async function runWake(chainId: string): Promise<void> {
+  // An OPEN page owns this wake: it does its own pull → merge → render (that
+  // is exactly what the BroadcastChannel ping below triggers), and letting
+  // the SW do the same work would make two processes write the shared
+  // IndexedDB stores — the page's next local save then overwrites the SW's
+  // merge with its stale snapshot, bouncing the same data around the chain.
+  // With no live app page this branch is skipped and the SW does the work.
+  if (await hasLiveAppPage()) {
+    notifyOpenPages(0)
+    return
+  }
+
   await ensureStorageReady()
 
   // A device runs exactly one configured chain; a wake for anything else

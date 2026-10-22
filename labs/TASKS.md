@@ -13,6 +13,18 @@ Conventions
 
 ## Now
 
+- **Receipt CONFIRMED (2026-10-22) — background sync works end to end on
+  real devices.** Cause of the initial silence: `agent.init()` read the
+  device name via bare `localStorage` — a ReferenceError inside the SW
+  (no such global), swallowed by the wake contract; fixed in bf256db with a
+  textual pin. Then a nitpick pass over the wake path: SW redirects a wake
+  to any open app page (clients.matchAll + #/ hash check + in-flight gate)
+  instead of racing the page's writer for the idb stores; wake fetches are
+  30s-bounded; `vapidFromEnv` refuses a non-RFC-8292 subject (failing
+  config reads as enabled:false, not as a wet fuse); `idb.ts` now reuses one
+  connection instead of open+write+close per write (draft autosaves
+  included). Smoke 329/329, UI suites all green incl. storage-migration,
+  build + probe:dist pass.
 - **VAPID env live + subscribe route probe (2026-10-22).** User set the three
   VAPID_* vars in Pages; relay now answers `{"enabled":true}` with the
   generated public key — background sync is switched on server-side after

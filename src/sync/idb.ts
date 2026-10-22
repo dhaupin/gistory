@@ -278,14 +278,52 @@ export function stSetString(key: string, value: string | null): void {
   void writeThrough(key, value)
 }
 
-async function writeThrough(key: string, value: string | null) {
+// One REUSED connection instead of an open+write+close round trip per write.
+// The db is version-1-stable (the boot path owns upgrades), so there is no
+// versionchange churn to lose connection state over; the only failure mode a
+// stale handle has (it was closed underneath us) is handled by the one retry
+// with a fresh open in writeThrough. One open per write burst saves the most
+// common small churn (draft autosaves) from fetching the database every time.
+let cachedDb: IDBDatabase | null = null
+
+async function conn(): Promise<IDBDatabase | null> {
+  if (cachedDb) return cachedDb
+  const db = await openDatabase().catch(() => null)
+  if (db) cachedDb = db
+  return cachedDb
+}
+
+function dropConn(): void {
   try {
-    const db = await openDatabase()
+    cachedDb?.close()
+  } catch {
+    /* already broken; the fresh open below replaces it */
+  }
+  cachedDb = null
+}
+
+async function writeThrough(key: string, value: string | null) {
+  let ok = false
+  let db = await conn()
+  if (db) {
     try {
       await idbWrite(db, key, value)
-    } finally {
-      db.close()
+      ok = true
+    } catch {
+      // A closed-underneath handle fails its transaction; rebuild once.
+      dropConn()
+      db = await conn()
+      try {
+        if (db) {
+          await idbWrite(db, key, value)
+          ok = true
+        }
+      } catch {
+        /* nothing more to try; the shadow below is the read path then */
+      }
     }
+  }
+  if (ok) {
     // Mirror to localStorage only on SUCCESS, so the shadow is always the
     // last state a reload could actually restore from.
     try {
@@ -294,7 +332,7 @@ async function writeThrough(key: string, value: string | null) {
     } catch {
       /* shadow write failing costs nothing; IndexedDB has the data */
     }
-  } catch {
+  } else {
     // IndexedDB unavailable now: keep the shadow updated anyway, since a
     // reload will read through it next time the database refuses to open.
     try {

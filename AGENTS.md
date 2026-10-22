@@ -538,12 +538,25 @@ push stores blob ─▶ sendFanOut (functions/_shared/push-fanout.ts)
                    └─ any throw is swallowed — a wake must never hurt its push
 ▶ FCM/autopush ─▶ OS wakes dist/sw.js (esbuild of src/sw/sw.ts — it imports
                    the REAL agent/merge/idb modules, no copied logic)
-sw: hydrate → pull → decrypt → merge → BroadcastChannel-nudge open tab
-    → push merged snapshot (sender's watermark already current, so a
-      push-away sends nothing — it only converges a half-synced chain)
+sw: if an APP page is open (#/ hash — a lander client cannot carry it) →
+    BroadcastChannel-nudge the page (it pulls/merges/renders itself) and stop
+    (else) hydrate → pull → decrypt → merge → nudge → push merged snapshot
+    (sender's watermark already current, so a push-away sends nothing — it
+      only converges a half-synced chain)
 ```
 
 Rules worth keeping:
+
+- **One writer per store, per moment.** If the SW pulled–merged while a page
+was open, the page's next local save would overwrite the SW's merge with its
+stale snapshot and bounce the same blobs around the chain — the redirect
+(`/clients.matchAll`, app-hash pages only + an in-flight gate so two pings
+cannot race two wake rounds) strikes the double-writer at the root. A frozen
+background tab drops the immediate pull; its unfreeze visibility handler
+catches up, so correctness is paced, never lost.
+- **Config that can never work is OFF, not half-on.** `vapidFromEnv` refuses
+a subject outside RFC 8292 §5.1 (`mailto:`/`https:`) — push services 401 every
+wake it appears in, reading as "subscribed but never woken".
 
 - **The ping is pacing, not truth.** Watermarks + catch-up-on-open are the
 correctness net; every other path already works without it. The fan budget

@@ -2433,6 +2433,25 @@ check('the env reader reads all three keys', vapidFromEnv(FAN_ENV) !== null)
 check('absent env means fan-out off, not half-configured', vapidFromEnv(env) === null)
 check('a half-configured env (public only) is off as well',
   vapidFromEnv({ VAPID_PUBLIC_KEY: FAN_PUBLIC, GISTRY_DB: d1 }) === null)
+// RFC 8292 §5.1: the JWT `sub` must be a mailto: URI or https URL — a push
+// service rejects anything else with a 401 on EVERY wake, which reads as
+// "subscribed but never woken". The reader fails instead so the GET probe
+// reports an unconfigured (fixable) relay rather than a silently broken one.
+check('a malformed VAPID_SUBJECT reads as a config error, not a wet fuse',
+  vapidFromEnv({ VAPID_PUBLIC_KEY: FAN_PUBLIC, VAPID_PRIVATE_KEY: FAN_PRIVATE, VAPID_SUBJECT: 'dhaupin@example.invalid', GISTRY_DB: d1 }) === null)
+check('an https: subject is a valid RFC 8292 substitute for mailto:',
+  vapidFromEnv({ VAPID_PUBLIC_KEY: FAN_PUBLIC, VAPID_PRIVATE_KEY: FAN_PRIVATE, VAPID_SUBJECT: 'https://example.com/contact', GISTRY_DB: d1 }) !== null)
+
+// The wake handler runs in the ACTUAL service worker context (there is no
+// test harness for a real browser wake), so its process-boundary invariants
+// are pinned textually the way §8g pins App.tsx:
+const swSource = readFileSync(new URL('../src/sw/sw.ts', import.meta.url), 'utf8')
+check('a wake with an open app page is REDIRECTED to that page, not run in parallel',
+  /hasLiveAppPage\(\)/.test(swSource) && /clients\.matchAll/.test(swSource))
+check('only an APP page carries the redirect (a lander client would drop the wake)',
+  /\.hash\.startsWith\('#\/'\)/.test(swSource))
+check('two pings cannot race two wake rounds (in-flight gate)',
+  /if \(waking\) return/.test(swSource) && /waking = true/.test(swSource))
 
 // --- wire form of one wake ----------------------------------------------------
 
