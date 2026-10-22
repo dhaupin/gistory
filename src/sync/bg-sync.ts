@@ -150,6 +150,64 @@ export async function unsubscribeBackground(deviceId: string): Promise<void> {
   setStoredEndpoint(null)
 }
 
+/**
+ * Re-post the stored wake target (rollout step 5). Background:
+ *
+ * The relay's maintenance sweep drops wake targets that have received no
+ * confirmed wake in STALE_WAKE_DAYS — a browser that was purged, a phone
+ * that wiped the site, junk. A well device whose row got swept would
+ * otherwise sit 'enabled' locally and push while being woken by nobody.
+ * Re-posting on app open heals it in one hop: the POST is an upsert by
+ * endpoint that refreshes last_seen AND the keys, and the browser's own
+ * subscription is reused — this never re-prompts for permission.
+ *
+ * Best-effort everywhere: called fire-and-forget from the app's restore
+ * effect, throws nothing the caller has to handle.
+ */
+export async function revalidateWakeTarget(chainId: string): Promise<void> {
+  const deviceId = getStoredDeviceId()
+  const endpoint = getStoredEndpoint()
+  if (!chainId || !deviceId || !endpoint) return
+  if (!backgroundSyncSupported()) return
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration()
+    const sub = await registration?.pushManager.getSubscription()
+    if (!sub || sub.endpoint !== endpoint) {
+      // The browser no longer holds this subscription (data cleared, or the
+      // registration was recreated): the local marker is fiction — clear it
+      // so the Settings row states the truth until the user re-enables.
+      setStoredEndpoint(null)
+      return
+    }
+    const json = sub.toJSON() as {
+      endpoint?: string
+      keys?: Record<string, string>
+    }
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return
+
+    const res = await fetch(`${SYNC_BASE}/sync/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chainId,
+        deviceId,
+        endpoint: json.endpoint,
+        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+      }),
+    })
+    // A definitive refusal means the relay no longer accepts this target
+    // (chain gone, keys malformed): drop the marker so the row reads
+    // disabled rather than silently broken. Throttles/pauses (or anything
+    // transient) are left alone — the next open can simply retry.
+    if (res.status === 400 || res.status === 404 || res.status === 409) {
+      setStoredEndpoint(null)
+    }
+  } catch {
+    /* offline or worker busy: catch-up polling is the fallback, as ever */
+  }
+}
+
 // Wire-format helper: the browser wants an ArrayBuffer for VAPID keys.
 function urlBase64ToUint8Array(base64url: string): Uint8Array {
   const pad = '='.repeat((4 - (base64url.length % 4)) % 4)

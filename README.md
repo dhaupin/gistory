@@ -145,24 +145,59 @@ chain but not write to it.
 - Changes are pulled every 60 s, and when the tab regains focus / comes online
 - **Sync Now** forces a pull → merge → push
 
+### Background sync (web push, optional per device)
+
+Where the browser supports it (Android Chrome/Brave; iOS needs an installed
+PWA, so it stays on catch-up), Settings → Sync gains a **Background sync**
+toggle. With the relay's `VAPID_*` environment configured, turning it on
+gisters the browser's own push subscription with the relay (`POST
+/sync/subscribe`), and from then on every push on the chain wakes all
+*other* subscribed devices — even with no tab open — with a **silent** ping:
+
+```
+A pushes ──▶ relay stores blob ──▶ VAPID-signed aes128gcm wake (RFC 8291,
+                                    payload {chainId, n} — opaque, no data)
+                                        ──▶ OS wakes /sw.js
+sw: pull → decrypt → merge (shared IndexedDB)
+    → BroadcastChannel-nudge any open tab → push merged state
+```
+
+Rules that keep it safe and cheap: the wake never touches the push that
+spawning it (all failures swallowed), a per-chain fan budget skips rather
+than queues (the catch-up pull is what guarantees convergence), a 404/410
+prunes the dead target on sight, and every successful wake stamps
+`last_seen` — the weekly maintenance sweep drops targets nothing has
+confirmed alive in 30 days, while each app open re-posts the stored target
+so a well device self-heals from its own subscription.
+
+Correctness never depends on the ping: it is pacing, not truth. Watermarks
+make sync converge regardless; devices that never subscribe (or anyone on
+iOS) keep the exact same behaviour as before.
+
 ## Architecture
 
 ### Client (React)
 
 - `src/sync/agent.ts` — key derivation, encrypt/decrypt, push/pull, pairing codes
 - `src/sync/merge.ts` — pure merge logic (LWW + tie-break + tombstones)
+- `src/sync/bg-sync.ts` — background-sync plumbing: subscribe/unsubscribe, relay config probe, boot revalidation
+- `src/sw/sw.ts` — the service worker (esbuild-bundled to `dist/sw.js`: same agent/merge/IndexedDB modules)
 - `src/App.tsx` — agent lifecycle and merge wiring
 
 ### API (Cloudflare Pages Functions → D1)
 
 ```
 functions/
-├── _shared/sync.ts   # D1 helpers, validation, CORS (not a route: "_" prefix)
+├── _shared/
+│   ├── sync.ts          # D1 helpers, validation, CORS (not a route: "_" prefix)
+│   ├── guards.ts        # throttle / circuit breaker / WAF / body caps
+│   └── push-fanout.ts   # VAPID signing + RFC 8291 wake encryption (no deps)
 └── sync/
-    ├── handshake.ts  # POST  /sync/handshake  create/join chain, register device
-    ├── push.ts       # POST  /sync/push       store blob, assign seq
-    ├── pull.ts       # GET   /sync/pull       blobs since <seq>, minus own device
-    └── status.ts     # GET   /sync/status     head seq, version, devices
+    ├── handshake.ts     # POST  /sync/handshake  create/join chain, register device
+    ├── push.ts          # POST  /sync/push       store blob, assign seq
+    ├── pull.ts          # GET   /sync/pull       blobs since <seq>, minus own device
+    ├── status.ts        # GET   /sync/status     head seq, version, devices
+    └── subscribe.ts     # GET/POST/DELETE /sync/subscribe  wake targets
 ```
 
 ### Key model

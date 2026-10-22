@@ -41,6 +41,16 @@
 //      request, not the table. Status lists at most 50 devices per chain, so
 //      pruning ancient rows keeps that list honest too.
 //
+//   5. push_subscriptions last_seen older than --subs-days (default 30) are
+//      dropped. The stamp is a confirmed successful wake (push-fanout.ts) or
+//      a re-subscribe, and every app open re-posts the device's stored
+//      target (src/sync/bg-sync.ts revalidateWakeTarget), so a row this old
+//      belongs to a device that has neither been woken nor opened the app in
+//      a month. Losing the row is cheap and self-healing: the device
+//      re-subscribes from its own stored browser subscription on next open—the
+//      only alternative, waking into a black hole forever, spends the chain's
+//      fan budget every push.
+//
 // What it deliberately does NOT do:
 //   • never deletes a real (non live-test) chain. The server cannot tell
 //     "on holiday since March" from "abandoned", and guessing wrong destroys
@@ -62,6 +72,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const KEEP_BLOBS = 5
 const STALE_DEVICE_DAYS = 90
+const STALE_WAKE_DAYS = 30
 const PRUNE_HORIZON_MS = 10 * 60_000 // mirrors guards.ts PRUNE_AFTER_MS
 const LIVE_TEST_PREFIX = 'live-test-'
 const LIVE_TEST_GRACE_DAYS = 7
@@ -80,11 +91,13 @@ function parseArgs(argv) {
   }
   const daysIdx = argv.indexOf('--days')
   const keepIdx = argv.indexOf('--keep')
+  const subsIdx = argv.indexOf('--subs-days')
   return {
     target: remote ? 'remote' : 'local',
     statusOnly,
     check,
     staleDeviceDays: daysIdx >= 0 ? Number(argv[daysIdx + 1]) || STALE_DEVICE_DAYS : STALE_DEVICE_DAYS,
+    staleWakeDays: subsIdx >= 0 ? Number(argv[subsIdx + 1]) || STALE_WAKE_DAYS : STALE_WAKE_DAYS,
     keepBlobs: keepIdx >= 0 ? Number(argv[keepIdx + 1]) || KEEP_BLOBS : KEEP_BLOBS,
   }
 }
@@ -120,7 +133,7 @@ function execSql(target, statements, { file = false } = {}) {
 // rather than DELETE against a guess.
 function assertRelaySchema(tables) {
   const names = tables.map((t) => t.name || t.tablename || Object.values(t)[0]).sort()
-  const required = ['_migrations', 'blobs', 'chains', 'devices', 'rate_limits']
+  const required = ['_migrations', 'blobs', 'chains', 'devices', 'push_subscriptions', 'rate_limits']
   for (const table of required) {
     if (!names.includes(table)) {
       throw new Error(`Table "${table}" is missing — not a Gistory relay database (found: ${names.join(', ')})`)
@@ -191,6 +204,19 @@ async function runCheck() {
     `INSERT INTO devices (id, chain_id, name, last_seen) VALUES ('ancient-dev', 'real-chain-01', 'Old', ?)`,
   ).run(now - STALE_DEVICE_DAYS * 2 * DAY_MS)
 
+  // Wake targets on the real chain: one confirmed alive seconds before the
+  // run (a successful wake re-stamps it), one silent for 40 days — past the
+  // 30-day horizon of rule 5. Both live on a chain that survives everything
+  // else, so the sub rule is the only thing that can touch them.
+  db.prepare(
+    `INSERT INTO push_subscriptions (chain_id, device_id, endpoint, p256dh, auth, created_at, last_seen)
+     VALUES ('real-chain-01', 'wake-fresh', 'https://fcm.googleapis.com/fcm/send/fresh-target', ?, ?, ?, ?)`,
+  ).run('K'.repeat(87), 'k'.repeat(43), now, now)
+  db.prepare(
+    `INSERT INTO push_subscriptions (chain_id, device_id, endpoint, p256dh, auth, created_at, last_seen)
+     VALUES ('real-chain-01', 'wake-stale', 'https://fcm.googleapis.com/fcm/send/stale-target', ?, ?, ?, ?)`,
+  ).run('K'.repeat(87), 'k'.repeat(43), now - 90 * DAY_MS, now - 40 * DAY_MS)
+
   // Rate-limit rows: one long-expired, one current.
   db.prepare(`INSERT INTO rate_limits (key, window_start, count) VALUES ('push:stale', 1, 1)`).run()
   db.prepare(`INSERT INTO rate_limits (key, window_start, count) VALUES ('push:live', ?, 1)`).run(now)
@@ -202,6 +228,7 @@ async function runCheck() {
       blobs: q('SELECT COUNT(*) AS n FROM blobs'),
       devices: q('SELECT COUNT(*) AS n FROM devices'),
       rate_limits: q('SELECT COUNT(*) AS n FROM rate_limits'),
+      push_subscriptions: q('SELECT COUNT(*) AS n FROM push_subscriptions'),
     }
   }
   const before = counts()
@@ -209,6 +236,7 @@ async function runCheck() {
     now,
     keepBlobs: KEEP_BLOBS,
     staleDeviceDays: STALE_DEVICE_DAYS,
+    staleWakeDays: STALE_WAKE_DAYS,
   })
   for (const stmt of report.statements) db.exec(stmt)
   const after = counts()
@@ -249,6 +277,10 @@ async function runCheck() {
   expect('current rate-limit buckets survive', db.prepare(`SELECT COUNT(*) AS n FROM rate_limits WHERE key = 'push:live'`).get().n === 1)
   expect('ancient device rows on real chains are dropped',
     db.prepare(`SELECT COUNT(*) AS n FROM devices WHERE id = 'ancient-dev'`).get().n === 0)
+  expect('the long-silent wake target is swept',
+    db.prepare(`SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint LIKE '%stale-target'`).get().n === 0)
+  expect('the freshly-stamped wake target survives',
+    db.prepare(`SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint LIKE '%fresh-target'`).get().n === 1)
 
   // --- Hostile knob values (the workflow_dispatch edge) ---------------------
   // --keep/--days come from CLI flags and a manual dispatch input. They are
@@ -256,7 +288,7 @@ async function runCheck() {
   // sailing through `Number(x) || default` (truthy!) into the SQL, where
   // `rn > -1` matches every blob of every chain. Run the hostile statements
   // last: they mutate the fixture, but every earlier check is already done.
-  const fresh = maintenanceSql({ now, keepBlobs: -1, staleDeviceDays: -1 })
+  const fresh = maintenanceSql({ now, keepBlobs: -1, staleDeviceDays: -1, staleWakeDays: -1 })
   expect('hostile knobs are clamped in the generated SQL (no negative bounds)',
     !fresh.statements.join('\n').match(/> -\d/),
     fresh.statements.find((s) => s.includes('rn >'))?.slice(-120))
@@ -274,10 +306,21 @@ async function runCheck() {
   expect('a negative keep count still keeps the newest snapshot of every chain',
     db.prepare(`SELECT COUNT(*) AS n FROM blobs WHERE chain_id = 'real-chain-01' AND seq = 9`).get().n === 1)
 
-  const fractional = maintenanceSql({ now, keepBlobs: 2.9, staleDeviceDays: 1.5 })
+  // A negative wake horizon clamps to the default — unlike `last_seen <
+  // now+X` nonsense, the clamp alone must keep the fresh row alive.
+  const wakeDelete = fresh.statements.find((s) => s.startsWith('DELETE FROM push_subscriptions'))
+  db.exec(wakeDelete)
+  expect('a negative subs horizon does not delete current wake targets',
+    db.prepare(`SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint LIKE '%fresh-target'`).get().n === 1,
+    wakeDelete?.slice(-100))
+
+  const fractional = maintenanceSql({ now, keepBlobs: 2.9, staleDeviceDays: 1.5, staleWakeDays: 2.9 })
   expect('fractional knobs floor to whole rows',
     fractional.statements.some((s) => s.includes('rn > 2')) &&
       fractional.statements.some((s) => s.includes(`last_seen < ${now - 1 * DAY_MS}`)))
+  expect('the subs horizon floors too',
+    fractional.statements.some((s) => s.startsWith('DELETE FROM push_subscriptions') &&
+      s.includes(`last_seen < ${now - 2 * DAY_MS}`)))
 
   console.log('')
   if (failed) {
@@ -289,8 +332,8 @@ async function runCheck() {
 
 // --- The SQL, as data, so check mode and real runs cannot drift -------------
 
-export function maintenanceSql({ now, keepBlobs, staleDeviceDays }) {
-  // Clamp the two caller-controlled knobs before they reach the SQL. They
+export function maintenanceSql({ now, keepBlobs, staleDeviceDays, staleWakeDays }) {
+  // Clamp the caller-controlled knobs before they reach the SQL. They
   // arrive from CLI flags and a workflow_dispatch input, so a typo must
   // degrade to "safe", never to "delete everything": `rn > -1` would wipe
   // every chain's blobs — the only server-side copy of the data — and a
@@ -299,6 +342,7 @@ export function maintenanceSql({ now, keepBlobs, staleDeviceDays }) {
   // smallest safe value, and fractions floor to a whole number of snapshots.
   const keep = Math.max(1, Math.floor(Number(keepBlobs) || KEEP_BLOBS))
   const staleDays = Math.max(1, Math.floor(Number(staleDeviceDays) || STALE_DEVICE_DAYS))
+  const wakeDays = Math.max(1, Math.floor(Number(staleWakeDays) || STALE_WAKE_DAYS))
 
   const statements = []
   const report = []
@@ -366,12 +410,25 @@ export function maintenanceSql({ now, keepBlobs, staleDeviceDays }) {
     `devices unseen for ${staleDays} days`,
   )
 
-  // 5. Report — what the Actions log shows every week.
+  // 5. Stale wake targets — push_subscriptions rows no successful wake has
+  //    stamped within wakeDays. Failed wakes do NOT stamp (the staleness is
+  //    the signal), and every app open re-posts the stored target, so a row
+  //    this old is a device that has neither been woken nor opened the app
+  //    in a month. Applied AFTER the live-test child rules so any sub row on
+  //    a removed chain is already gone.
+  pushRule(
+    'push_subscriptions',
+    `last_seen < ${now - wakeDays * DAY_MS}`,
+    `wake targets unseen for ${wakeDays} days`,
+  )
+
+  // 6. Report — what the Actions log shows every week.
   statements.push(`SELECT
   (SELECT COUNT(*) FROM chains) AS chains,
   (SELECT COUNT(*) FROM blobs) AS blobs,
   (SELECT COUNT(*) FROM devices) AS devices,
-  (SELECT COUNT(*) FROM rate_limits) AS rate_limits`)
+  (SELECT COUNT(*) FROM rate_limits) AS rate_limits,
+  (SELECT COUNT(*) FROM push_subscriptions) AS subs`)
 
   return { statements, report }
 }
@@ -394,15 +451,17 @@ async function main() {
   (SELECT COUNT(*) FROM chains) AS chains,
   (SELECT COUNT(*) FROM blobs) AS blobs,
   (SELECT COUNT(*) FROM devices) AS devices,
-  (SELECT COUNT(*) FROM rate_limits) AS rate_limits`,
+  (SELECT COUNT(*) FROM rate_limits) AS rate_limits,
+  (SELECT COUNT(*) FROM push_subscriptions) AS subs`,
   ])
   const before = beforeRows[0]?.results?.[0] || {}
-  console.log(`  before: chains=${before.chains} blobs=${before.blobs} devices=${before.devices} rate_limits=${before.rate_limits}`)
+  console.log(`  before: chains=${before.chains} blobs=${before.blobs} devices=${before.devices} rate_limits=${before.rate_limits} subs=${before.subs}`)
 
   const { statements, report } = maintenanceSql({
     now: Date.now(),
     keepBlobs: opts.keepBlobs,
     staleDeviceDays: opts.staleDeviceDays,
+    staleWakeDays: opts.staleWakeDays,
   })
   const writes = statements.slice(0, -1) // the last statement is the report query
 
@@ -428,9 +487,9 @@ async function main() {
 
   const afterRows = execSql(opts.target, [statements[statements.length - 1]])
   const after = afterRows[0]?.results?.[0] || {}
-  console.log(`  after:  chains=${after.chains} blobs=${after.blobs} devices=${after.devices} rate_limits=${after.rate_limits}`)
+  console.log(`  after:  chains=${after.chains} blobs=${after.blobs} devices=${after.devices} rate_limits=${after.rate_limits} subs=${after.subs}`)
   const delta = (k) => Number(after[k] ?? 0) - Number(before[k] ?? 0)
-  console.log(`  pruned: ${-delta('chains')} chain(s), ${-delta('blobs')} blob(s), ${-delta('devices')} device(s), ${-delta('rate_limits')} limit bucket(s)`)
+  console.log(`  pruned: ${-delta('chains')} chain(s), ${-delta('blobs')} blob(s), ${-delta('devices')} device(s), ${-delta('rate_limits')} limit bucket(s), ${-delta('subs')} wake target(s)`)
   console.log('')
 }
 

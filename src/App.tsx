@@ -49,6 +49,7 @@ import { parseSort, toSortParam, type SortState } from './ui/sort'
 // Exported from src/sync/identity.ts since rollout step 3 — the background-sync
 // plumbing needs the same base, and duplicating the env read invites drift.
 import { SYNC_BASE } from './sync/identity'
+import { revalidateWakeTarget } from './sync/bg-sync'
 
 const DELETED_KEY = 'gistory_deleted'
 
@@ -456,6 +457,11 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
           return
         }
         setSyncReady(true)
+        // Step 5: re-post this device's wake target (idempotent upsert) so a
+        // relay maintenance sweep cannot silently strand a subscribed phone.
+        // Fire-and-forget — it throws nothing, and the first sync must not
+        // wait on a push-service round trip.
+        void revalidateWakeTarget(chain)
         await syncNow()
       } catch (err) {
         if (!cancelled) {

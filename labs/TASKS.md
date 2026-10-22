@@ -13,6 +13,20 @@ Conventions
 
 ## Now
 
+- **Background sync rollout COMPLETE (2026-10-22, steps 1–5; step 5 pushed
+  this pass):** maintenance sweep for `push_subscriptions` (db-maintain rule
+  5, `--subs-days` default 30, fixture-covered incl. hostile-knob clamps) +
+  the two things that make that sweep SAFE: successful wakes now stamp
+  `last_seen` (`sendFanOut`, one IN-bounded UPDATE), and every app open
+  re-posts the device's stored wake target (`src/sync/bg-sync.ts
+  revalidateWakeTarget` — idempotent upsert reusing the browser's own
+  subscription, no prompt; fires fire-and-forget from App's restore effect).
+  A swept-but-alive phone self-heals on next open. Docs: README background-
+  sync section + function tree, AGENTS.md pattern + Quick Ref rows,
+  prd-sync status marked shipped (incl. the deviation: failure-counting
+  never built — positive liveness instead). Tests: smoke 322/322,
+  db:maintain:check 19/19, typecheck 0, lint 0. **Awaiting user receipt**
+  (VAPID env + Settings toggle on Android phones) — see prior pass e40fc29.
 - **Crashtest launched (2026-10-08):** new project at dhaupin/crashtest —
   adversarial QA for agent-built software (in-process redteam/fuzz/barrage,
   hardening report + risk ledger). Full PRD + AGENTS + DEPLOY + README + MIT

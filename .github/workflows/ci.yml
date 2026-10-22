@@ -52,6 +52,8 @@ jobs:
       # The high-value rule subset (unused vars, react-hooks, no-undef). Warnings
       # do not gate: the three react-refresh warnings on view-state.tsx are the
       # intentional provider+hooks export pattern.
+      - name: Language gate (English-only prose)
+        run: npm run lint:language
       - name: Lint
         run: bun run lint
 

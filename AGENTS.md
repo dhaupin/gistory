@@ -522,6 +522,58 @@ Two traps the maintenance script's self-check caught before they reached prod:
 `bun run db:maintain:check` pins all three against a real SQLite fixture; run it
 whenever the maintenance SQL changes.
 
+## Background Sync (Web Push — rollback steps 1–5 shipped, labs/prd-sync.md)
+
+A successful push wakes the chain's OTHER subscribed devices via a silent
+VAPID-signed `aes128gcm` ping (RFC 8291; payload `{chainId, n}` — opaque by
+design). The pipeline:
+
+```
+push stores blob ─▶ sendFanOut (functions/_shared/push-fanout.ts)
+                   ├─ only if VAPID_* env present (else total silence)
+                   ├─ fanout-chain budget (120/min per chain): SKIP, never
+                   │   queue — the catch-up pull is the correctness net
+                   ├─ wakeOne per target (≤50 rows): 2xx → stamp last_seen,
+                   │   404/410 → DELETE the row, failed → left for the sweep
+                   └─ any throw is swallowed — a wake must never hurt its push
+▶ FCM/autopush ─▶ OS wakes dist/sw.js (esbuild of src/sw/sw.ts — it imports
+                   the REAL agent/merge/idb modules, no copied logic)
+sw: hydrate → pull → decrypt → merge → BroadcastChannel-nudge open tab
+    → push merged snapshot (sender's watermark already current, so a
+      push-away sends nothing — it only converges a half-synced chain)
+```
+
+Rules worth keeping:
+
+- **The ping is pacing, not truth.** Watermarks + catch-up-on-open are the
+correctness net; every other path already works without it. The fan budget
+sits above an ordinary client's debounce-driven push rate, so a well
+device never sees a skip.
+- **Liveness is a positive signal, not an absence of failures.** Failed
+wakes do NOT age a row (their staleness is what the sweep acts on, and
+counting them would prune a working-but-slow device); a wake the push
+service ACCEPTED stamps `last_seen`, and the maintenance sweep
+(`db-maintain.mjs` rule 5, `--subs-days`, default 30) drops only rows with
+no confirmed stamp. A sweep-stranded device self-heals: every app open
+re-posts its stored subscription (`src/sync/bg-sync.ts
+revalidateWakeTarget`, an idempotent upsert, reuses the browser's own
+subscription — no permission prompt). That re-POST is also what refreshes
+keys after a browser renews its subscription.
+- **Edit `src/sw/sw.ts`, never its bundles.** `dist/sw.js` is build output,
+`public/sw.js` the dev-time passive placeholder. The wake path deliberately
+shares the page's agent crypto + merge + `src/sync/idb.ts` — divergent
+copies are how wakes silently corrupt a chain.
+- **`userVisibleOnly: true` is a Chrome hard requirement** for
+`pushManager.subscribe` even though deliveries are fully silent here (a
+capability flag, not a promise to notify). Do not drop it.
+- The relay stays blind end to end: the wake payload carries no chain data
+and is itself encrypted per endpoint, so even FCM sees only ciphertext.
+- Wake behavioral tests need REAL P-256 key material. Shape-only fakes like
+`'b'.repeat(87)` pass the relay's regexes but are not EC points, so
+`encryptWake` fails them and the "target unreachable" swallow makes the
+test return silently instead of proving anything. §11's behavioral rows
+generate real pairs.
+
 ## Files Quick Ref
 
 | File | Purpose |
@@ -533,6 +585,8 @@ whenever the maintenance SQL changes.
 | `src/sync/view-state.ts` | Synced arrangement: ranks + collapsed flags, merge + rank maths |
 | `src/sync/qos.ts` | Client QoS: `backoffDelay` + `SyncQos` (debounce, coalesce, retry) |
 | `src/sync/errors.ts` | User-facing sync error messages (pure) |
+| `src/sync/bg-sync.ts` | Background-sync plumbing: subscribe/unsubscribe, relay config probe, `revalidateWakeTarget` (boot re-POST) |
+| `src/sw/sw.ts` | Service worker SOURCE — wake path (pull/merge/push, BroadcastChannel nudge); bundled to `dist/sw.js` |
 | `src/ui/view-state.tsx` | `ViewStateProvider` / `useViewState` — the synced arrangement API |
 | `src/ui/sortable.tsx` | `SortableProvider` / `SortableRow` / `SortableHandle` — pointer + keyboard drag |
 | `labs/TASKS.md` | Rolling work log — update before/after each pass |
@@ -540,12 +594,14 @@ whenever the maintenance SQL changes.
 | `functions/sync/push.ts` | Accept encrypted blobs → D1, assign seq |
 | `functions/sync/pull.ts` | Return filtered blobs ← D1 |
 | `functions/sync/status.ts` | Chain health checkpoint (throttled — it leaks the device list) |
+| `functions/sync/subscribe.ts` | Wake-target CRUD: GET state, POST upsert-by-endpoint, DELETE by endpoint+deviceId |
+| `functions/_shared/push-fanout.ts` | VAPID ES256 signing + RFC 8291 `aes128gcm` wake encryption + `sendFanOut` (budget, pruning, last_seen stamps) |
 | `functions/_shared/sync.ts` | D1 helpers/validation shared by the routes |
 | `functions/_shared/guards.ts` | Throttle policies + counter, circuit breaker, WAF, `withBreaker` |
 | `schema.sql` | Flattened D1 schema for a fresh build |
 | `migrations/` | Versioned schema history (`bun run db:migrate:*`) |
 | `scripts/db-migrate.mjs` | Migration runner: applies pending files, records checksums |
-| `scripts/db-maintain.mjs` | D1 maintenance: prune rate_limits, blob retention, live-test cleanup, stale devices; `--check` self-verifies the SQL on in-memory SQLite |
+| `scripts/db-maintain.mjs` | D1 maintenance: prune rate_limits, blob retention, live-test cleanup, stale devices, stale wake targets (`--subs-days`); `--check` self-verifies the SQL on in-memory SQLite |
 | `tests/sync-smoke.ts` | End-to-end smoke test (bun + in-memory SQLite) |
 | `scripts/ui-audit.mjs` | Headless UI audit: every route x 2 themes x 2 viewports |
 | `scripts/ui-browsers.mjs` | Installs the headless browser on demand |

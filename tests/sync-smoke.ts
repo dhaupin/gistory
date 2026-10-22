@@ -2524,10 +2524,15 @@ const fanPub = b64urlEncode(new Uint8Array(await crypto.subtle.exportKey('raw', 
 const fanAuth = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)))
 check('the behavioral wake keys decode to real point material', fanPub.length === 87 && fanPub[0] === 'B', fanPub.slice(0, 4))
 
+// awake-1 is stamped 5 days in the past on purpose: a successful wake must
+// re-stamp last_seen — that stamp is exactly what the relay's maintenance
+// sweep ages wake targets against, so the liveness loop (wake → stamp →
+// sweep only rows nothing ever wakes) is provable end to end here.
+const fiveDaysAgo = Date.now() - 5 * 24 * 60 * 60 * 1000
 await d1.prepare(
   `INSERT INTO push_subscriptions (chain_id, device_id, endpoint, p256dh, auth, created_at, last_seen)
    VALUES (?, ?, ?, ?, ?, ?, ?)`,
-).bind(CHAIN_A, 'wake-dev-1', 'https://fcm.googleapis.com/fcm/send/awake-1', fanPub, fanAuth, Date.now(), Date.now()).run()
+).bind(CHAIN_A, 'wake-dev-1', 'https://fcm.googleapis.com/fcm/send/awake-1', fanPub, fanAuth, fiveDaysAgo, fiveDaysAgo).run()
 await d1.prepare(
   `INSERT INTO push_subscriptions (chain_id, device_id, endpoint, p256dh, auth, created_at, last_seen)
    VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -2560,6 +2565,16 @@ for (let i = 0; i < 125; i++) await sendFanOut(fanDb, CHAIN_A, 'unpicked-sender'
 check('the per-chain wake budget skips beyond 120, never queues',
   fcmCalls.length <= 120,
   `${fcmCalls.length} (2 targets × 60... the two earlier rounds had already spent 2 of the 120)`)
+
+// Every delivered wake re-stamps last_seen, so the sweep's age rule measures
+// "nobody could confirm this target works in N days", not "subscribed long
+// ago" — an idle-but-alive phone stays subscribed forever.
+const wakeStampAfter = (await d1.prepare(
+  'SELECT last_seen AS ts FROM push_subscriptions WHERE endpoint LIKE ?',
+).bind('%awake-1').first()) as { ts: number } | null
+check('a successful wake re-stamps the row (the liveness signal)',
+  !!wakeStampAfter && wakeStampAfter.ts > fiveDaysAgo + 4 * 24 * 60 * 60 * 1000,
+  wakeStampAfter ? String(wakeStampAfter.ts) : 'row missing')
 
 const beforeOff = fcmCalls.length
 await sendFanOut(fanDb, CHAIN_A, 'wake-dev-1', 1, { GISTRY_DB: d1 })

@@ -291,13 +291,34 @@ export async function sendFanOut(
 
     // Prune dead targets: 404/410 from the push service means the endpoint is
     // gone (site data purged, worker replaced). Failed rows stay for now — the
-    // maintenance sweep (step 5) drops targets that stay silent forever.
+    // maintenance sweep drops targets that stay silent forever.
     const pruned = results.filter((_, i) => outcomes[i] === 'pruned')
     for (const row of pruned) {
       try {
         await db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(row.endpoint).run()
       } catch {
         /* pruned next wake; nothing depends on it */
+      }
+    }
+
+    // A 2xx wake is the one true liveness signal for a row: it proves the push
+    // service accepted the target AND the row was charged to a working fan
+    // budget, so stamp it — this is exactly what the maintenance sweep ages
+    // rows against. Failed rows are deliberately NOT touched: their staleness
+    // is the signal the sweep acts on, and they already cost nothing to retry.
+    // One statement for all survivors (the IN list is bounded by LIMIT 50).
+    const survived = results.filter((_, i) => outcomes[i] === 'sent')
+    if (survived.length > 0) {
+      try {
+        await db
+          .prepare(
+            `UPDATE push_subscriptions SET last_seen = ?
+             WHERE endpoint IN (${survived.map(() => '?').join(', ')})`,
+          )
+          .bind(Date.now(), ...survived.map((row) => row.endpoint))
+          .run()
+      } catch {
+        /* a missed stamp only shortens the row's life; nothing breaks */
       }
     }
   } catch {

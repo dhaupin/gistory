@@ -1,8 +1,19 @@
 # PRD — Background Sync via Web Push (no PWA)
 
-Status: planned · authored 2026-10-22 · owner: dhaupin
+Status: shipped (rollout steps 1–5 done; live receipts pending) · authored 2026-10-22 · owner: dhaupin
 Sibling docs: `src/sync/SPEC.md` (relay protocol), `functions/_shared/guards.ts`
 (policies this design must respect)
+
+> **Shipped as:** 1) IndexedDB migration (`src/sync/idb.ts`) · 2) SW registration
+> (`public/sw.js` → `dist/sw.js` via esbuild) · 3) `/sync/subscribe` + Settings
+> toggle (`src/sync/bg-sync.ts`) · 4) fan-out + SW wake (`e40fc29`) · 5)
+> wake-target sweep + docs (this pass). One deviation from the plan below:
+> repeated-failure counting was never built — a failed wake is treated like a
+> budget-skipped one (rows live on), and liveness is proven instead by a
+> successful wake stamping `last_seen` plus every app open re-posting the
+> stored target; the maintenance sweep ages rows that have had neither for
+> STALE_WAKE_DAYS (30). What remained true everywhere: pushes accelerate sync,
+> watermarks guarantee it.
 
 ## 1. The problem
 
@@ -155,9 +166,15 @@ new chain must MOVE, not multiply.
    **push accelerates sync; watermarks guarantee it.**
 5. Response hygiene: FCM/autopush answer `410 Gone` when a subscription
    died (device uninstalled, new SW replacing the endpoint, OS revoked).
-   On 404/410 the relay deletes the row. On repeated non-2xx, mark
-   `last_seen` and count failures instead — after 5 consecutive failures
-   delete the row (self-healing; re-subscription recreates it).
+   On 404/410 the relay deletes the row. Failed rows (non-2xx or timed
+   out) are LEFT in place on purpose — they cost one skipped slot at the
+   next wake — and are aged out by the weekly sweep instead: every
+   successful wake stamps `last_seen` (push-fanout.ts), so a row the sweep
+   finally removes is one that has received no confirmed wake in 30 days.
+   The self-healing half is client-side: every app open re-posts the
+   device's stored target (bg-sync `revalidateWakeTarget`, idempotent
+   upsert), so a swept-but-alive device re-subscribes from its own browser
+   subscription on next open — no permission prompt, no data lost.
 6. Fan-out is capped per chain (subscription table scan, at most 50 rows
    like `listDevices` does), and each ping is a single fetch — a chain of
    8 devices costs 7 fetches at push time. Affordable.
@@ -261,7 +278,8 @@ device governs itself, same as sync enable today.
    yet — the toggle is a no-op waiting for wiring, but probeable.
 4. **Fan-out + SW push handler + VAPID secrets.** The payoff commit.
 5. Maintenance sweep for the new table; docs (`src/sync/SPEC.md` addendum,
-   README section).
+   README section). — **done** (db-maintain rule 5 + last_seen wake stamps
+   + boot revalidation; README + AGENTS.md + this doc).
 
 ## 8. Open questions / risks (parked for the build)
 
