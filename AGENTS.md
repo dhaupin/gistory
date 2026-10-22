@@ -647,6 +647,10 @@ generate real pairs.
 | `tsconfig.json` | App build/typecheck config — covers `src/` only |
 | `tsconfig.functions.json` | Strict typecheck for `functions/` (run by `bun run typecheck`) |
 | `wrangler.deploy.example.toml` | Template for the gitignored private config holding the real D1 id |
+| `README.md` | The **npm landing** for `gistory-sync` — pitch, install, quickstart, security one-breath, docs links. Setup content that used to live here was moved to `DEPLOY.md` (it ships in the tarball via `files`) |
+| `DEPLOY.md` | The full setup + operations runbook (was previously split with the README): local dev, first-deploy checklist, bindings/VAPID with rationale, migrations + GitHub Actions path, maintenance tables, edge rate-limit rule + graceful fallback, troubleshooting, config-files table |
+| `CHANGELOG.md` | Keep-a-Changelog format; every release bumps `package.json` + appends a section in the SAME commit (the tag release reads the version from package.json, not the changelog) |
+| `scripts/build-og.mjs` | Regenerates the OG cards (`npm run build:og`): `docs/og-image.png`, `public/og-image.png` (ssr.config ogImage), `horcrux/prestruct-og-image.png` (handoff for dhaupin/prestruct#31 — their og:image is an SVG, which the big crawlers refuse) |
 
 ## Testing Notes
 
@@ -738,6 +742,36 @@ curl -s http://localhost:5173/src/components/BurgerMenu.tsx | grep -c aria-label
 
 If that disagrees with the file on disk, restart the managed preview; a plain
 `?t=<ts>` URL always re-transforms, so comparing the two isolates the cause.
+
+## Releasing gistory-sync
+
+The package version is the release: `package.json` version + a
+`CHANGELOG.md` section (Keep a Changelog) ride in the SAME commit, then
+`npm version patch|minor|major && git push --follow-tags` fires both tag
+workflows. Rules worth keeping:
+
+- **The manual bootstrap is one-time and already the model.** npm Trusted
+  Publishing (OIDC) cannot create a brand-new package, so 0.9.0's first
+  `npm publish` runs from a dev machine after the full gate; then the
+  Trusted Publisher entry (repo dhaupin/gistory, workflow publish.yml) takes
+  over. Never publish from `main`.
+- **Both workflows gate, smoke, and attach.** `publish.yml` gates on
+  typecheck + lint + `build:lib` (the same `prepublishOnly` battery, made
+  visible in CI logs), idempotently skips when the registry already has the
+  version, then installs the registry artifact into a scratch project and
+  loads the entry point. `release.yml` packs the tarball, gates on the
+  artifact's own install-and-load battery (the prestruct v1.0.0/v1.1.0
+  lesson: a tarball that installs but does not load must never carry a
+  release), asserts both `dist/lib/index.mjs` and `dist/lib/index.d.ts`
+  exist inside the installed tarball, and attaches it to the GitHub release.
+- **House rule stays:** synced fields keep old payloads mergeable —
+  optional-field additions must merge so devices on older package versions
+  stay in one chain (see CHANGELOG preamble + `src/index.ts` header).
+- **README is the package landing.** Consumer-facing docs live on the docs
+  site; repo setup lives in `DEPLOY.md`. Anything npm-consumer-visible
+  (exports, engines, security one-breath) belongs in README; anything
+  contribution-visible (battery, runbooks, mechanics) belongs in
+  `AGENTS.md`/`DEPLOY.md`.
 
 ## Future Improvements
 

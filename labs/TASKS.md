@@ -903,3 +903,46 @@ Conventions
   (docs.creadev.org) is a one-time dashboard step. Follow-up (user's ps):
   freestruct/prestruct ship crashtest packs that can extend gistory's
   CI/runners — evaluate alongside the relay-shapes pack once docs deploy.
+
+- **2026-10-22 — og-image SVG gap filed on prestruct (dhaupin/prestruct#31).**
+  Their site's og:image is an SVG (example/ssr.config.js line 6), which the
+  big crawlers refuse as an og:image candidate — PNG handoff card committed at
+  horcrux/prestruct-og-image.png (raw URL in the issue), regenerable via
+  scripts/build-og.mjs; issue proposes committing it at example/og-image.png
+  + flipping the config. Note: cross-repo ISSUE CREATION works with the
+  Freebuff scoping, but addComment refused (Resource not accessible) — file
+  new issues rather than commenting when handoff needs to cross repos.
+
+- **2026-10-22 — docs rework: README → npm landing, DEPLOY absorbs all setup,
+  AGENTS gains the release runbook, 0.9.0 everywhere.** README rewritten as
+  the package landing (pitch, install, quickstart, export map, security
+  one-breath, docs links, Keep-a-Changelog pointer; ships in the tarball via
+  files — CHANGELOG.md added to files too). Every setup section (dev quick
+  start, first-deploy checklist, bindings/VAPID + rationale, migration
+  apply path incl. GitHub Actions + secrets table, maintenance tables,
+  storage schema, config-files table, troubleshooting) moved into
+  DEPLOY.md — the usage/background-sync content moved to the docs site
+  (docs/sync-and-security.md gained Timings + Background sync +
+  Observability sections; features deletion flow already covered there).
+  AGENTS.md gained "Releasing gistory-sync" (bootstrap rules, both
+  tag-workflows' gates, house merge rule, README/DEPLOY split rule) and
+  quick-ref rows for README/DEPLOY/CHANGELOG/build-og. Version bumped
+  0.1.0 → 0.9.0 in package.json + lock; CHANGELOG.md created in
+  Keep-a-Changelog format with the [0.9.0] entry (lockfile-level release
+  note craft: house-merge preamble so consumers see the cross-version
+  invariant). Verified: language gate (16 prose files), CHECK-DOCS PASS,
+  full lint + typecheck green; grep audits clean (no 0.1.0 residue, all
+  gistory-sync references consistent, header anchors resolve).
+
+- **2026-10-22 — v1.0.0 announcement draft (docs/discussions/announcing-v1.0.0.md).**
+  Mirrors dhaupin/prestruct's discussions pattern: frontmatter contract kept
+  (5 fields), the full post inside a ~~~md block to copy into the community
+  announcement when the v1.0.0 tag ships, prose contract honored (direct,
+  dry, no em dashes, no marketing). Current line is honestly framed as 0.9.0
+  in the page wrapper; the draft body becomes true at the tag (it describes
+  the engine package, the stable-line merge contract, the sync model, and
+  the relay — all shipped capabilities, nothing aspirational). pages under
+  discussions/ are exempt from nav listing in scripts/check-docs.mjs
+  (prestruct keeps theirs off the nav too); CHECK-DOCS PASS (8 pages),
+  language gate PASS (17 files), typecheck green. Uncommitted — awaiting the
+  batch commit with the docs rework.

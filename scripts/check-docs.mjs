@@ -94,6 +94,10 @@ if (!existsSync(navFile)) {
   }
   const listed = new Set(navUrls.map(u => (u === NAV_URL_PREFIX + '/' ? '/' : u.replace(NAV_URL_PREFIX, '').replace(/\/$/, ''))))
   for (const [permalink, file] of permalinks) {
+    // Release-draft pages under discussions/ are exempt from nav listing
+    // (the prestruct docs pattern: they are copy sources for community
+    // announcements, reachable by link; frontmatter + links still checked).
+    if (file.includes('/discussions/')) continue
     if (permalink === '/' && listed.has('/')) continue
     if (!listed.has(permalink)) err(file, frontmatterOf[file]._lineOf('permalink'), `page not listed in _data/nav.yml`)
   }

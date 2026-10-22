@@ -71,6 +71,53 @@ best-effort on top. An offline edit is queued and pushed when the connection
 returns; a throttled push is held and retried without losing the change.
 Nothing on the critical path requires the relay to be up.
 
+**Timings.** Local edits push about 1.5 s after you stop typing; changes are
+pulled every 60 s, and immediately when the tab regains focus or comes back
+online. **Sync Now** forces a pull → merge → push.
+
+## Background sync (web push, optional per device)
+
+Where the browser supports it (Android Chrome/Brave; iOS needs an installed
+PWA, so it stays on catch-up), Settings → Sync gains a **Background sync**
+toggle. With the relay's `VAPID_*` environment configured, turning it on
+registers the browser's own push subscription with the relay (`POST
+/sync/subscribe`), and from then on every push on the chain wakes all
+*other* subscribed devices — even with no tab open — with a **silent** ping:
+
+```
+A pushes ──▶ relay stores blob ──▶ VAPID-signed aes128gcm wake (RFC 8291,
+                                    payload {chainId, n} — opaque, no data)
+                                        ──▶ OS wakes /sw.js
+sw: pull → decrypt → merge (shared IndexedDB)
+    → BroadcastChannel-nudge any open tab → push merged state
+```
+
+Rules that keep it safe and cheap: the wake never touches the push that
+spawned it (all failures swallowed), a per-chain fan budget skips rather
+than queues (the catch-up pull is what guarantees convergence), a 404/410
+prunes the dead target on sight, and every successful wake stamps
+`last_seen` — the daily maintenance sweep drops targets nothing has
+confirmed alive in 30 days, while each app open re-posts the stored target
+so a well device self-heals from its own subscription.
+
+Correctness never depends on the ping: it is pacing, not truth. Watermarks
+make sync converge regardless; devices that never subscribe (or anyone on
+iOS) keep the exact same behavior as before.
+
+**Optional "N new messages" notice.** Silent stays the default: after a
+closed-tab wake delivers messages, the worker can show one notification —
+"Gistory · 3 new messages" — only if the device opted in inside the
+Settings row (nothing moves on the wire; the count is computed in the
+worker from the snapshot diff, so the relay still never learns anything
+about content). Tapping it focuses or opens the app. An open tab never
+triggers one — the wake is redirected there instead.
+
+**Observability.** Wake outcomes appear in `npx wrangler pages deployment
+tail`: every `pruned` / `failed` / budget-`skip` outcome always logs (with
+the push service hostname only — endpoints carry a subscription token);
+a round summary logs when a `DEBUG_WAKE=1` variable is added to the Pages
+project.
+
 ## Self-hosting
 
 The relay is plain Cloudflare Pages Functions plus a D1 database —
