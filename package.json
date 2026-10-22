@@ -42,7 +42,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/inject-brand.js && node scripts/prerender.js && node scripts/build-sw.mjs",
+    "build": "tsc -b && prestruct build && node scripts/build-sw.mjs",
     "build:lib": "node scripts/build-lib.mjs && tsc -p tsconfig.lib.json",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
     "lint": "npm run lint:eslint && npm run lint:language",
@@ -73,8 +73,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "qrcode.react": "^4.2.0",
     "lucide-react": "^1.17.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.18.4"
@@ -90,6 +90,7 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
     "globals": "^15.14.0",
+    "prestruct": "^1.1.0",
     "puppeteer": "^25.12.0",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",

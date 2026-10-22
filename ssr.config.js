@@ -2,8 +2,8 @@
  * ssr.config.js — prestruct prerender configuration for Gistory.
  *
  * Environment-specific on purpose (see prestruct's docs): change siteUrl here
- * when the production origin changes. The build pipeline is
- * `vite build && node scripts/inject-brand.js && node scripts/prerender.js`.
+ * when the production origin changes. The build pipeline is `prestruct build`
+ * (npm engine: vite build → inject-brand → prerender, failing on route errors).
  */
 export default {
   siteUrl: 'https://gistory.creadev.org',
