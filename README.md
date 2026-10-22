@@ -455,7 +455,7 @@ deletion, in which case the newer edit wins and the item is restored.
 
 ### Tests
 
-#### On npm (`npm i gistory`)
+#### On npm (`npm i gistory-sync`)
 
 The package publishes the **sync engine** — the exact code the app and its
 service worker run (agent crypto, pure merge, QoS, errors, view-state,
@@ -467,7 +467,7 @@ import {
   mergePayload,   // pure LWW + tombstone merge for SyncData
   SyncQos,        // debounced, coalescing, back-off push scheduler
   ensureStorageReady, // IndexedDB-backed storage (localStorage fallback)
-} from 'gistory'
+} from 'gistory-sync'
 ```
 
 - Runtime: no React, no bundler requirement; Node ≥ 18, any web worker.

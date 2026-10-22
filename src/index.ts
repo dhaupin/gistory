@@ -11,7 +11,7 @@
 // the REAL agent/merge/idb modules with no copied logic, so the npm bundle
 // is that same code in one file. Consumer shapes:
 //
-//   Web/mobile client   import { SyncAgent, mergePayload } from 'gistory'
+//   Web/mobile client   import { SyncAgent, mergePayload } from 'gistory-sync'
 //   Node/bun tooling    the same import — storage degrades to localStorage
 //                       when IndexedDB is absent (see ./sync/idb.ts)
 //

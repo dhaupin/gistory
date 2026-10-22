@@ -1,5 +1,5 @@
 {
-  "name": "gistory",
+  "name": "gistory-sync",
   "private": false,
   "version": "0.1.0",
   "description": "Privacy-first prompt keeper. This package ships the sync engine: E2EE multi-device push/pull, pure merge rules (LWW + tombstones), QoS scheduling, and the storage seam — the same code the app and its service worker run.",

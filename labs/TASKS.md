@@ -825,3 +825,11 @@ Conventions
     + `tsconfig.lib.json` ship `src/index.ts` — the sync engine as one ESM
     bundle with declarations (`npm i gistory` → SyncAgent/mergePayload/
     SyncQos/...). The app and relay stay out of the package by design.
+
+- **2026-10-22 — faked1 extension proposal filed (dhaupin/crashtest#8).** Growth plan for
+  crashtest's FakeD1 SQL subset (upserts with `excluded.*`, CASE expressions, MAX/COALESCE +
+  aliasing, INSERT..SELECT..RETURNING, param LIMIT) grounded in the eight real relay
+  statements gistory's handlers use — with the requirement that whichever agent implements it
+  files back an issue here to swap `crashtest/fixture.mjs` (node:sqlite) for the extended
+  shim once it ships to npm, drop the node-24 pin, and re-run the gate to the same
+  37/6/0 ledger.
