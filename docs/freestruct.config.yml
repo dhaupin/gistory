@@ -1,0 +1,36 @@
+# Site configuration — freestruct post-build SEO layer for docs/_site.
+# Shipped via the init kit; filled in for gistory.
+site:
+  name: Gistory Docs
+  url: https://docs.creadev.org/gistory
+  description: >-
+    Documentation for Gistory: a personal prompt manager with variable
+    filling and end-to-end encrypted sync.
+
+# Author identity: ships as a schema.org Person under "founder" on the
+# injected Organization JSON-LD block — the same ownership shape the product
+# site carries.
+author:
+  name: Creadev.org
+  url: https://creadev.org
+
+# Maintainer identity: custom JSON-LD appended after the built-in
+# Organization + WebSite blocks (missing-only gate keeps pages that arrive
+# with their own ld+json untouched).
+jsonLd:
+  - "@type": Person
+    name: dhaupin
+    url: https://github.com/dhaupin
+    jobTitle: Gistory maintainer
+
+# Open Graph — rendered by scripts/build-og.mjs (Liberation Sans via resvg).
+og:
+  image: /og-image.png
+  type: website
+  locale: en_US
+
+# The output tree is served under /gistory (Jekyll baseurl does the prefix;
+# this strips it from the URLs freestruct computes).
+basePath: /gistory
+
+outputDir: _site

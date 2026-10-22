@@ -530,6 +530,20 @@ probe ports 5173–5180.
 the Pages build runs — fast and browser-free; `ui:browsers` re-enables the
 download only for itself.
 
+## Docs
+
+The documentation site lives in this repo at `docs/` — Jekyll + the
+[freestruct](https://www.npmjs.com/package/freestruct) post-build SEO layer +
+pagefind search, deployed to **docs.creadev.org/gistory** by
+`.github/workflows/docs.yml` (fired by a push to `main` touching `docs/`, or
+manually from the Actions tab). Pages authoring rules: every page carries the
+5 frontmatter fields (`version`, `permalink`, `layout`, `title`, `nav_order`),
+the nav lives once in `docs/_data/nav.yml`, and `npm run lint:docs` holds all
+of it honest — CI fails on broken links, a nav/page disagreement, or missing
+frontmatter. Ruby is only needed to build locally
+(`cd docs && bundle exec jekyll build`); the node-only slice is
+`npm run lint:docs`.
+
 ## Configuration files
 
 | File | Committed? | Purpose |

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page.title }} | {{ site.title }}</title>
+  <!-- freestruct injects description/OG/Twitter/canonical/JSON-LD post-build
+       (docs/_freestruct templates). The Jekyll head stays meta-free on purpose:
+       the engine deletes conflicting tags it did not write (missing-only gate). -->
+  <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/pagefind/pagefind.css' | relative_url }}" data-pagefind-ignore>
+</head>
+<body>
+<div class="docs-shell">
+  <header class="docs-header">
+    <a class="docs-brand" href="{{ '/' | relative_url }}">Gistory <span>docs</span></a>
+    <nav class="docs-header-links">
+      <a href="https://gistory.creadev.org">Open the app</a>
+      <a href="https://github.com/dhaupin/gistory">Source</a>
+    </nav>
+  </header>
+
+  <div class="docs-body">
+    <nav class="docs-nav" aria-label="Documentation">
+      {% for section in site.data.nav %}
+      <div class="docs-nav-section">
+        <p class="docs-nav-title">{{ section.title }}</p>
+        <ul>
+          {% for item in section.items %}
+          <li>
+            <a href="{{ item.url }}"
+              {% if item.url == page.permalink %}aria-current="page"{% endif %}>{{ item.title }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </nav>
+
+    <main class="docs-content" data-pagefind-body>
+      {{ content }}
+    </main>
+  </div>
+
+  <footer class="docs-footer">
+    <span>© Creadev.org · maintained by <a href="https://github.com/dhaupin">dhaupin</a></span>
+    <span>·</span>
+    <a href="{{ '/faq' | relative_url }}">FAQ</a>
+    <span>·</span>
+    <a href="https://github.com/dhaupin/gistory/issues">Report an issue</a>
+  </footer>
+</div>
+
+<script src="{{ '/pagefind/pagefind.js' | relative_url }}" data-pagefind-ignore></script>
+</body>
+</html>

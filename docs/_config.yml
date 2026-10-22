@@ -1,0 +1,31 @@
+# gistory docs configuration
+# Frame ported from dhaupin/prestruct docs (which ported it from
+# dhaupin/vant): single nav source (_data/nav.yml), no theme gem — the
+# layout reads site.data.nav, every page carries the 5 frontmatter fields
+# (version, permalink, layout, title, nav_order), and pages link by their
+# permalink. scripts/check-docs.mjs holds all of that honest in CI.
+title: gistory
+description: Personal prompt manager with variable filling and E2EE sync — Documentation
+baseurl: "/gistory"
+url: "https://docs.creadev.org"
+show_downloads: false
+
+markdown: kramdown
+highlighter: rouge
+
+# Pretty URLs (/page/ with trailing slash); page frontmatter permalinks override
+permalink: pretty
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - freestruct.config.yml
+  - pagefind
+  - pagefind.tar.gz
+
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    default_lang: plaintext

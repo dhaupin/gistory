@@ -1,0 +1,101 @@
+# docs.yml — builds docs/ with Jekyll + freestruct + pagefind, then deploys
+# to GitHub Pages (frame ported from dhaupin/freestruct's own docs workflow,
+# which dogfoods the same engine).
+#
+# The site lands at docs.creadev.org/gistory — set "Custom domain
+# docs.creadev.org" in the repo's Pages settings once; the workflow deploys
+# the artifact regardless.
+#
+# Local: docs build needs Ruby; `npm run lint:docs` is the node-only slice
+# and runs everywhere.
+
+name: Deploy docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'scripts/check-docs.mjs'
+      - '.github/workflows/docs.yml'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+
+      - name: Install Ruby deps
+        working-directory: docs
+        run: bundle install
+
+      - name: Build Jekyll
+        working-directory: docs
+        run: bundle exec jekyll build
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install npm deps (freestruct + crashtest devDeps)
+        run: npm ci --no-audit --no-fund
+
+      - name: Docs consistency gate
+        run: npm run lint:docs
+
+      # --strict: broken links and dangerous tags fail the build.
+      - name: Run freestruct strict
+        run: node node_modules/freestruct/bin/freestruct.mjs --strict
+
+      # Pinned + cached: the pagefind npm package resolves a platform BINARY
+      # at install (cost ~355s cold — the freestruct repo's measurement); a
+      # cache hit skips it. Cache BOTH scopes or a hit ships a runner that
+      # cannot find its binary.
+      - name: Restore pagefind (indexer cache)
+        id: pf
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/pagefind
+            node_modules/@pagefind
+          key: pagefind-1.5.2-v2
+      - name: Install Pagefind (cache misses only, pinned)
+        if: ${{ steps.pf.outputs['cache-hit'] != 'true' }}
+        run: npm install --no-save --no-audit --no-fund pagefind@1.5.2
+      - name: Index search
+        run: node node_modules/pagefind/lib/runner/bin.cjs --site docs/_site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

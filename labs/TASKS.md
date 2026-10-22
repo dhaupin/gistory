@@ -847,3 +847,59 @@ Conventions
   entry (repo dhaupin/gistory, workflow publish.yml) and every future release is
   `npm version x && git push --follow-tags`. README runbook section added
   (##### Releasing to npm) and AGENTS.md quick-ref updated.
+
+- **2026-10-22 — JSON-LD gap filed upstream (dhaupin/prestruct#30).** The npm
+  engine emits Open Graph/Twitter/OG-image injection but ZERO structured data
+  unless the host hand-writes `buildJsonLd` — no built-in Organization or
+  WebSite blocks, even though siteName/siteUrl/author (all the fields they'd
+  need) are already top-level config. Proposed: (A) config-driven defaults with
+  @type dedupe so host `buildJsonLd` blocks still win; (B) adopt gistory's
+  proven ownership pattern on the /example site (author/founder entity + a
+  standalone maintainer Person block appended last; gistory ships
+  Creadev.org-founder + dhaupin-maintainer on every page via the engine's
+  @graph wrapper). Filed alongside the same-turn landed work: faq accordion +
+  single-source FAQ_ITEMS on the lander, full SEO content pass (FAQPage
+  JSON-LD === visible summaries verified in dist/, Owner JSON: author
+  Creadev.org on WebApplication + Organization.founder, maintainer dhaupin
+  last), stale dist-probe 404 assertion (vendored-era notfound-cta class)
+  fixed to the npm engine's themed markup.
+
+- **2026-10-22 — CSS duplicate-rule tidy pass.** Selector-audit of index.css
+  found 25 duplicated selectors; 6 were exact no-ops (same body verbatim,
+  cascade-invisible): .quick-create x2 (the flagged one), .project-label,
+  .thread-link-row, .btn-secondary + :hover, .btn-lg. Earlier twins deleted —
+  byte-identical bodies, so zero behavior change; 19 remaining duplicates
+  genuinely differ (shared-base + context-scoped cascade additions) and stay.
+  Verified: typecheck, lint, build 3/3 pages, probe:dist PASS.
+- **2026-10-22 — vant audit triage (cross-repo, actionable = none here).** The
+  deps list (chalk ^4.1.2 / js-yaml ^4.1.1 flagged next-major deliberate;
+  jsqr, qrcode-generator, prestruct 1.1.0, ts 7.0.2, freestruct 1.0.0
+  newest-in-range) and the "web/home test script calls vitest but never
+  declares it" item belong to dhaupin/vant, not this repo: gistory has one
+  root package.json, no web/ or home/ dir, no freestruct dep, vitest
+  referenced nowhere. Vant live-tree receipts: web/home is a static vendor
+  site (index.html, sitemap, vendor/three.module.js — no package.json, no
+  test script, no tests); vitest IS declared in web/dashboard; check-home.js
+  and test/runner.js are plain Node (no vitest calls). The audit note's
+  web/home-vitest gap does not reproduce on main — stale or another
+  branch/repo; asked the owner for the pointer rather than filing on a gap
+  that cannot be shown.
+
+- **2026-10-22 — docs/ system scaffolded (Jekyll + freestruct + pagefind) for
+  docs.creadev.org/gistory.** Frame ported from prestruct/vant docs (single nav
+  source in `_data/nav.yml`, no theme gem, 5-field frontmatter contract,
+  permalinks as link targets); `freestruct init` shipped the injection kit and
+  the config was filled with gistory's identity (author/founder Creadev.org,
+  maintainer dhaupin Person via jsonLd — same ownership shape the product site
+  ships). Seven content pages seeded from repo truths: index, getting-started,
+  features, sync-and-security, npm (gistory-sync), faq (mirrors the lander's
+  FAQ_ITEMS), contributing (full battery + release runbook).
+  `scripts/check-docs.mjs` (`npm run lint:docs`, wired into `lint`) holds
+  frontmatter/nav/links honest; `.github/workflows/docs.yml` ports the
+  freestruct dogfood runbook (ruby 3.4 jekyll build → freestruct --strict →
+  pinned+cached pagefind → Pages deploy). Verified: 4/4 YAML files parse,
+  CHECK-DOCS PASS (7 pages), full lint + typecheck green. Open: og-image.png
+  for the docs og block (commented until drawn); Pages custom-domain setting
+  (docs.creadev.org) is a one-time dashboard step. Follow-up (user's ps):
+  freestruct/prestruct ship crashtest packs that can extend gistory's
+  CI/runners — evaluate alongside the relay-shapes pack once docs deploy.

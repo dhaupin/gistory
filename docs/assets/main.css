@@ -1,0 +1,148 @@
+/* gistory docs — slim two-pane frame in the app's own palette.
+   Self-contained by design: no Jekyll theme gem, no shared bundle with the
+   app build (docs deploys sit purely on GitHub Pages). Tokens mirror the
+   lander's so the docs and the product read as one brand. */
+:root {
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --text: #16181d;
+  --text-dim: #5f6470;
+  --border: #e3e4e8;
+  --primary: #2563eb;
+  --primary-fg: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.docs-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.docs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.docs-brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.docs-brand span { color: var(--text-dim); font-weight: 500; }
+
+.docs-header-links { display: flex; gap: 1.1rem; }
+
+.docs-header-links a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.docs-header-links a:hover { color: var(--primary); }
+
+.docs-body {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 2.5rem;
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+  flex: 1;
+}
+
+.docs-nav { font-size: 0.92rem; }
+
+.docs-nav-section + .docs-nav-section { margin-top: 1.4rem; }
+
+.docs-nav-title {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0 0 0.4rem;
+}
+
+.docs-nav ul { list-style: none; margin: 0; padding: 0; }
+
+.docs-nav li + li { margin-top: 0.15rem; }
+
+.docs-nav a {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.docs-nav a:hover { color: var(--primary); background: var(--surface); }
+
+.docs-nav a[aria-current="page"] {
+  color: var(--primary);
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.docs-content h1 { font-size: 1.9rem; letter-spacing: -0.02em; margin: 0 0 1rem; }
+.docs-content h2 { font-size: 1.35rem; margin: 2rem 0 0.6rem; }
+.docs-content h3 { font-size: 1.08rem; margin: 1.4rem 0 0.4rem; }
+.docs-content pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  overflow: auto;
+  font-size: 0.85rem;
+}
+.docs-content code {
+  font-size: 0.9em;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+}
+.docs-content pre code { background: none; border: none; padding: 0; }
+.docs-content table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+.docs-content th, .docs-content td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
+.docs-content details { margin: 0.6rem 0; }
+.docs-content summary { cursor: pointer; font-weight: 600; padding: 0.55rem 0.2rem; }
+
+@media (max-width: 760px) {
+  .docs-body { grid-template-columns: 1fr; gap: 1.25rem; }
+}
+
+.docs-footer {
+  padding: 1.25rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+}
+
+.docs-footer a { color: var(--text-dim); }
+.docs-footer a:hover { color: var(--primary); }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131418;
+    --surface: #1c1e24;
+    --text: #eceef2;
+    --text-dim: #9aa0ac;
+    --border: #2c2f37;
+  }
+}
