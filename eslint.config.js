@@ -26,7 +26,12 @@ import globals from 'globals'
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', '.wrangler/**', '.ui-audit/**', 'labs/**'],
+    ignores: [
+      'dist/**', 'node_modules/**', '.wrangler/**', '.ui-audit/**', 'labs/**',
+      // Crashtest build output (generated before every run by
+      // scripts/build-crashtest.mjs) — lint the entry + fixture, not the bundle.
+      'crashtest/handlers.mjs',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -69,6 +74,25 @@ export default tseslint.config(
       // point of the shim, and fixtures intentionally repeat shapes.
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    // Crashtest files run under the crashtest CLI's Node (webcrypto, Blob,
+    // btoa — worker-ish globals — all exist there since Node 18), so they
+    // get the union: node globals for fs/url/sqlite, browser globals for
+    // the web-platform surfaces the pack itself uses.
+    files: ['crashtest/**/*.{js,ts,mjs}', 'packs/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: {
+      // Empty catches in fixture/pack boundaries are deliberate
+      // ("no device list" / "no store" reads swallow a parse failure).
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      // The bundled WAF probe builds a proto-key body by string surgery; the
+      // literal-controlled-character regexes live in the compiled bundle,
+      // not here.
+      'no-control-regex': 'off',
     },
   },
   {

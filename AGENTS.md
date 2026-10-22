@@ -629,6 +629,10 @@ generate real pairs.
 | `scripts/db-migrate.mjs` | Migration runner: applies pending files, records checksums |
 | `scripts/db-maintain.mjs` | D1 maintenance: prune rate_limits, blob retention, live-test cleanup, stale devices, stale wake targets (`--subs-days`); `--check` self-verifies the SQL on in-memory SQLite |
 | `tests/sync-smoke.ts` | End-to-end smoke test (bun + in-memory SQLite) |
+| `packs/public/sync-relay-shapes/` | Crashtest pack: 13 chain-relay attacks (takeover, races, oracles, floods, watermark pin, WAF probes); vocabulary injected from `moduleCtx` |
+| `crashtest.config.js` | Crashtest run root — routes + D1 fixture + the pack's vocabulary, incl. the six accepted-risk bounds (a bound gone false is a CI finding) |
+| `crashtest/` | Handlers bundle entry (`handlers-entry.ts` → `handlers.mjs`, built before every run) + `node:sqlite` fixture |
+| `labs/crashledger.json` | Committed crashtest baseline — CI fails on a new EXPLOITED or a regression; adopt new bounds by re-running |
 | `scripts/ui-audit.mjs` | Headless UI audit: every route x 2 themes x 2 viewports |
 | `scripts/ui-browsers.mjs` | Installs the headless browser on demand |
 | `scripts/lib/*.mjs` | Shared launch/fixture/collector helpers for the harness |

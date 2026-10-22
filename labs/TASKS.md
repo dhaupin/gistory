@@ -783,3 +783,45 @@ Conventions
     repetitive fixture, legacy tag-less payloads still decrypt, and a
     legacy first byte can never collide with either tag. 363/363. The SW
     wake path inherits all of it for free (same agent module).
+
+- **Crashtest pass (2026-10-22): the red-team surface moved into scenario
+  packs + the CI ledger gate.**
+  - **`tests/redteam.ts` is retired** — its 13 scenarios (A takeover/race,
+    B existence oracle, C identity games, D storage economics, E WAF/parser
+    probes, F watermark pin, G guard-header hygiene) now live as
+    `packs/public/sync-relay-shapes/`, a target-independent crashtest pack
+    speaking the generic chain-relay dialect: route names, body factories
+    (real agent-crypted push bodies), and materialized-state oracles all
+    inject from `moduleCtx['sync-relay-shapes']`, and the pack throws loudly
+    on un-armed keys. Six bounded attacks carry the relay's documented
+    accepted risks (owner + bound in the config) — a bound gone stale turns
+    into an EXPLOITED finding, i.e. the doc can no longer drift from the code.
+    `sync:barrage` stays (it is volumetrics, not verdicts); the `sync:redteam`
+    script is gone.
+  - **Run root**: `crashtest.config.js` registers the four relay routes and
+    arms the pack. `crashtest/fixture.mjs` brings a `node:sqlite` D1 fixture
+    (real SQL: INSERT…SELECT RETURNING, ON CONFLICT, CASE — beyond the
+    crashtest FakeD1 v0.1 subset) seeded from migrations/, one instance per
+    run so attacks see each other's materialized rows. Handlers bundle via
+    `scripts/build-crashtest.mjs` (the CLI loads plain Node, not TS).
+  - **CI**: `.github/workflows/crashtest.yml` builds the bundle, then runs
+    `dhaupin/crashtest@v1.0.0` (config `crashtest.config.js`, node-version 24
+    for unflagged `node:sqlite`); exit 1 = new EXPLOITED or a refusal
+    regression, exit 2 = broken run root. `labs/crashledger.json` committed
+    as the adopted baseline (37 REFUSED / 6 BOUNDED / 0 EXPLOITED at cut,
+    seed 12648430).
+  - **First-run findings fixed in the pack itself** (worth the paper trail):
+    attack secrets were uuid-derived 32-char strings, failing the relay's
+    43-char base64url shape — every create 400'd and downstream verdicts
+    mislabeled as refusals, so attacks now mint wire-shaped secrets AND
+    assert preconditions (a failed setup throws, never reads REFUSED); the
+    poison-blob attack must push with the OWNER's secret but wrong-for-the-
+    chain key material (its first version minted a fresh secret and mis-
+    proved the wrong premise); the WAF probe's `.replace('}}')` needle never
+    matched a single-brace JSON, so it fired a valid body and misread the
+    200 — proto surgery is now brace-correct.
+  - **npm**: package.json gains the publish surface (name/description/
+    license/files/exports/engines/prepublishOnly) and `scripts/build-lib.mjs`
+    + `tsconfig.lib.json` ship `src/index.ts` — the sync engine as one ESM
+    bundle with declarations (`npm i gistory` → SyncAgent/mergePayload/
+    SyncQos/...). The app and relay stay out of the package by design.

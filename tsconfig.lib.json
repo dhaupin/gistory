@@ -1,0 +1,22 @@
+// tsconfig for the npm library surface (see scripts/build-lib.mjs).
+//
+// The npm package ships ONE declaration tree rooted at src/index.ts: the
+// sync engine (sync/, lib/) — never the React app. `include` is deliberately
+// narrow: emitDeclarationOnly emits .d.ts for every *included* file, so a
+// wide include would publish declarations for components and pages that the
+// bundle never carried. The bundler (esbuild) inlines the runtime; these
+// declarations ride alongside it, so extensionless relative imports in the
+// emitted .d.ts resolve against sibling files in the same dist/lib tree.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": false,
+    "outDir": "dist/lib",
+    "rootDir": "src",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.lib.tsbuildinfo"
+  },
+  "include": ["src/index.ts", "src/sync/**/*.ts", "src/lib/**/*.ts"]
+}

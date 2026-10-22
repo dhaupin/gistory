@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "name": "sync-relay-shapes",
+  "description": "Chain-relay abuse shapes: write-secret takeover and create races, existence and identity oracles, storage-flood economics, watermark pinning, WAF/parser probes, guard header hygiene. Zero-WAF-token, zero-speculative; every target-specific action is injected from moduleCtx['sync-relay-shapes'].",
+  "version": "0.1.0",
+  "entry": "index.js"
+}

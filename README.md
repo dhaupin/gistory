@@ -455,6 +455,31 @@ deletion, in which case the newer edit wins and the item is restored.
 
 ### Tests
 
+#### On npm (`npm i gistory`)
+
+The package publishes the **sync engine** — the exact code the app and its
+service worker run (agent crypto, pure merge, QoS, errors, view-state,
+storage seam, data models) — as one ESM bundle with declarations:
+
+```ts
+import {
+  SyncAgent,      // key derivation, E2EE push/pull, pairing tokens
+  mergePayload,   // pure LWW + tombstone merge for SyncData
+  SyncQos,        // debounced, coalescing, back-off push scheduler
+  ensureStorageReady, // IndexedDB-backed storage (localStorage fallback)
+} from 'gistory'
+```
+
+- Runtime: no React, no bundler requirement; Node ≥ 18, any web worker.
+  Storage reads `typeof indexedDB` / `typeof localStorage` at call time and
+  degrades the same way it does inside the service worker.
+- The React app and the relay (Pages Functions + D1) are **not** the package:
+  the app deploys to Cloudflare Pages from this repo; the relay has zero
+  dependencies and ships at deploy time.
+- Build it locally: `bun run build:lib` (esbuild runtime bundle + `tsc`
+  declarations, both landing in `dist/lib/`). `prepublishOnly` runs the full
+  typecheck + lint suite before any publish can happen.
+
 `bun run sync:smoke` runs the real agent crypto, the real merge logic, and the
 real Pages Functions handlers against an in-memory SQLite database — no network
 or Cloudflare account needed.

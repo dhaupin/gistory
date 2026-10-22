@@ -10,3 +10,7 @@ wrangler.deploy.toml
 # Vant brain workspace (lives in the repo dir, travels only via horcrux/)
 models/
 bun.lock
+
+# Crashtest bundle output (built before every run; see scripts/build-crashtest.mjs)
+crashtest/handlers.mjs
+dist/lib/

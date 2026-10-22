@@ -1,0 +1,49 @@
+# Crashtest gate — the packs under packs/public/ fire on every push and PR.
+#
+# Crashtest runs an in-process adversarial campaign against the REAL relay
+# handlers (no sockets, no staging deploy; see packs/README.md) and compares
+# the outcome against the committed labs/crashledger.json. Exit 1 = a NEW
+# exploited finding, or a previously refused surface that REGRESSED; exit 2 =
+# a broken run root (config/vocabulary) — both block the change. Nothing else
+# here decides the gate: the action and its ledger do.
+#
+# Ordering matters: the handlers bundle must exist BEFORE the action, because
+# crashtest.config.js imports it to speak real bodies with the pack's
+# vocabulary — a missing bundle would read as run-root misconfiguration (exit
+# 2), which is the conspicuously loud failure we want, not a green no-op.
+#
+# node-version is 24 (not the action's default 22) because the run root's
+# in-memory D1 fixture uses `node:sqlite` with the full SQL surface gistory's
+# handlers need (INSERT…SELECT RETURNING, ON CONFLICT, CASE), and node:sqlite
+# is out from behind its flag on the 24 line.
+
+name: Crashtest gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: crashtest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the repo (esbuild for the bundle step)
+        run: npm ci
+
+      - name: Build the handlers bundle the config imports
+        run: node scripts/build-crashtest.mjs
+
+      - name: Run the packs (ledger gate)
+        uses: dhaupin/crashtest@v1.0.0
+        with:
+          config: crashtest.config.js
+          run-tests: 'false'
+          node-version: '24'

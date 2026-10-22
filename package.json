@@ -1,11 +1,49 @@
 {
   "name": "gistory",
-  "private": true,
-  "version": "0.0.0",
+  "private": false,
+  "version": "0.1.0",
+  "description": "Privacy-first prompt keeper. This package ships the sync engine: E2EE multi-device push/pull, pure merge rules (LWW + tombstones), QoS scheduling, and the storage seam — the same code the app and its service worker run.",
+  "license": "MIT",
   "type": "module",
+  "homepage": "https://gistory.creadev.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dhaupin/gistory.git"
+  },
+  "bugs": "https://github.com/dhaupin/gistory/issues",
+  "keywords": [
+    "prompts",
+    "sync",
+    "e2ee",
+    "encryption",
+    "offline-first",
+    "local-first",
+    "note-taking",
+    "cloudflare-pages",
+    "aes-gcm",
+    "multi-device"
+  ],
+  "main": "dist/lib/index.mjs",
+  "types": "dist/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "default": "./dist/lib/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/lib",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/inject-brand.js && node scripts/prerender.js && node scripts/build-sw.mjs",
+    "build:lib": "node scripts/build-lib.mjs && tsc -p tsconfig.lib.json",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
     "lint": "npm run lint:eslint && npm run lint:language",
     "lint:eslint": "eslint .",
@@ -14,14 +52,15 @@
     "sync:live": "bun scripts/live-sync.mjs",
     "sync:multidev": "bun scripts/live-multidevice.mjs",
     "sync:subscribe": "bun scripts/live-subscribe.mjs",
-    "sync:redteam": "bun tests/redteam.ts",
     "sync:barrage": "bun tests/barrage.ts",
+    "crashtest:build": "node scripts/build-crashtest.mjs",
+    "crashtest:run": "node scripts/build-crashtest.mjs && crashtest run",
     "test:ui": "node tests/ui/run.mjs",
     "ui:audit": "node scripts/ui-audit.mjs",
     "probe:dist": "node scripts/dist-probe.mjs",
     "ui:browsers": "node scripts/ui-browsers.mjs",
-    "db:init:local": "npx --yes wrangler d1 execute GISTRY_DB --local --file=schema.sql",
-    "db:init:remote": "npx --yes wrangler d1 execute GISTRY_DB --remote --config wrangler.deploy.toml --file=schema.sql",
+    "db:init:local": "npx --yes wrangler d1 execute GISTORY_DB --local --file=schema.sql",
+    "db:init:remote": "npx --yes wrangler d1 execute GISTORY_DB --remote --config wrangler.deploy.toml --file=schema.sql",
     "db:migrate:local": "node scripts/db-migrate.mjs --local",
     "db:migrate:remote": "node scripts/db-migrate.mjs --remote",
     "db:migrate:status": "node scripts/db-migrate.mjs --local --status",
@@ -30,11 +69,12 @@
     "db:maintain:local": "node scripts/db-maintain.mjs --local",
     "db:maintain:remote": "node scripts/db-maintain.mjs --remote",
     "db:maintain:check": "node scripts/db-maintain.mjs --check",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run build:lib",
     "preview": "vite preview"
   },
   "dependencies": {
-    "lucide-react": "^1.17.0",
     "qrcode.react": "^4.2.0",
+    "lucide-react": "^1.17.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.18.4"
@@ -45,6 +85,7 @@
     "@types/react": "^19.0.6",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "crashtest": "^1.0.0",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
