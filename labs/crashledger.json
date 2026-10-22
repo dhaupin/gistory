@@ -1,0 +1,309 @@
+{
+  "schemaVersion": 1,
+  "findings": [
+    {
+      "id": "auth/identity-spoof-headers",
+      "verdict": "REFUSED",
+      "detail": "route \"admin\" not declared on this target - spoof matrix skipped (declare it for coverage)"
+    },
+    {
+      "id": "auth/secret-watermark",
+      "verdict": "REFUSED",
+      "detail": "no fake secrets planted in env - declare CRASHTEST_SECRET to arm this probe"
+    },
+    {
+      "id": "auth/privilege-escalation",
+      "verdict": "REFUSED",
+      "detail": "route \"device\" not declared on this target - escalation skipped (declare it for coverage)"
+    },
+    {
+      "id": "authz/method-matrix-privileged",
+      "verdict": "REFUSED",
+      "detail": "route \"admin\" not declared on this target - authz skipped (declare it for coverage)"
+    },
+    {
+      "id": "authz/role-body-spoof-family",
+      "verdict": "REFUSED",
+      "detail": "route \"admin\" not declared on this target - authz skipped (declare it for coverage)"
+    },
+    {
+      "id": "authz/handler-alias-confusion",
+      "verdict": "REFUSED",
+      "detail": "route \"admin\" not declared on this target - authz skipped (declare it for coverage)"
+    },
+    {
+      "id": "guards/hygiene-no-store",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - attack skipped (declare it for coverage)"
+    },
+    {
+      "id": "guards/burst-wall",
+      "verdict": "REFUSED",
+      "detail": "route \"burst\" not declared on this target - attack skipped (declare it for coverage)"
+    },
+    {
+      "id": "input/proto-pollution-body",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - attack skipped (declare it for coverage)"
+    },
+    {
+      "id": "input/never-fail-mutations",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - attack skipped (declare it for coverage)"
+    },
+    {
+      "id": "input/oversized-field",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - attack skipped (declare it for coverage)"
+    },
+    {
+      "id": "proto-hygiene/head-get-parity",
+      "verdict": "REFUSED",
+      "detail": "4 route(s): HEAD mirrors GET (no throws, no status drift beyond honest 405) + 4 info note(s)"
+    },
+    {
+      "id": "proto-hygiene/request-shape-flood",
+      "verdict": "REFUSED",
+      "detail": "4 route(s) x 18 bare shapes (query chaos, path shapes, header casings) all landed 4xx-or-cleaner with case-parity intact"
+    },
+    {
+      "id": "race/double-submit-idempotency",
+      "verdict": "REFUSED",
+      "detail": "route \"charge\" not declared on this target - race skipped (declare it for coverage)"
+    },
+    {
+      "id": "race/concurrent-write-lost-update",
+      "verdict": "REFUSED",
+      "detail": "route \"profile\" not declared on this target - race skipped (declare it for coverage)"
+    },
+    {
+      "id": "recursion/deep-nest-stack-overflow",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - recursion skipped (declare it for coverage)"
+    },
+    {
+      "id": "recursion/redos-catastrophic-pattern",
+      "verdict": "REFUSED",
+      "detail": "route \"validate\" not declared on this target - recursion skipped (declare it for coverage)"
+    },
+    {
+      "id": "session/cookie-hygiene",
+      "verdict": "REFUSED",
+      "detail": "route \"login\" not declared on this target - session skipped (declare it for coverage)"
+    },
+    {
+      "id": "session/session-fixation",
+      "verdict": "REFUSED",
+      "detail": "route(s) \"login\", \"me\" not declared on this target - session skipped (declare it for coverage)"
+    },
+    {
+      "id": "session/token-replay-deny",
+      "verdict": "REFUSED",
+      "detail": "route \"login\" not declared on this target - session skipped (declare it for coverage)"
+    },
+    {
+      "id": "session/logout-invalidates",
+      "verdict": "REFUSED",
+      "detail": "route(s) \"login\", \"me\", \"logout\" not declared on this target - session skipped (declare it for coverage)"
+    },
+    {
+      "id": "state/enumeration-oracle",
+      "verdict": "REFUSED",
+      "detail": "route \"device\" not declared on this target - enumeration skipped (declare it for coverage)"
+    },
+    {
+      "id": "state/id-collision-alias",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - alias check skipped"
+    },
+    {
+      "id": "sync-relay-shapes/takeover-by-own-secret",
+      "verdict": "REFUSED",
+      "detail": "joining handshake 200 did not replace the stored secret; attacker write 403"
+    },
+    {
+      "id": "sync-relay-shapes/create-race-second-writer",
+      "verdict": "REFUSED",
+      "detail": "loser write 403, winner 200 — the first creator kept the chain"
+    },
+    {
+      "id": "sync-relay-shapes/secret-format-variants",
+      "verdict": "REFUSED",
+      "detail": "no case/format variant (4 tried) was accepted"
+    },
+    {
+      "id": "sync-relay-shapes/existence-oracle",
+      "verdict": "BOUNDED",
+      "detail": "known chain 200 vs unknown 400 — the difference reads as an oracle",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "handshake status codes distinguish existing vs unknown chain ids; chain ids are uuid-strength (~122 bits) and the per-IP flood bucket caps probes at 1200/min"
+    },
+    {
+      "id": "sync-relay-shapes/member-rename-nuisance",
+      "verdict": "BOUNDED",
+      "detail": "\"Renamed Target\" is now \"PWNED-DEVICE\"; names are display-level, pushes and data were never touched",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "a member holding any secret can rewrite another device display name via handshake; names are metadata only — pushes, blobs, and data are never touched"
+    },
+    {
+      "id": "sync-relay-shapes/spoofed-device-write",
+      "verdict": "REFUSED",
+      "detail": "push 403 and the victim's blob count stayed 0"
+    },
+    {
+      "id": "sync-relay-shapes/status-nonmember-read",
+      "verdict": "BOUNDED",
+      "detail": "a valid-shape (non-member) deviceId read the chain's device names",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "/sync/status returns member names to any valid-shaped deviceId; names are the only readable content, blobs are ciphertext, and status draws from the same per-device pull budget that rate-limits it"
+    },
+    {
+      "id": "sync-relay-shapes/chain-rows-farm",
+      "verdict": "BOUNDED",
+      "detail": "25 permanent chain rows from one prober; storage growth is bounded only by the relay's edge rate policy",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "fresh chain ids create permanent rows (~1200/min per IP behind the edge flood bucket, per-device handshake bucket 20/min); real chains are never deleted, so the cap is edge rate policy, not row hygiene"
+    },
+    {
+      "id": "sync-relay-shapes/phantom-device-rows",
+      "verdict": "BOUNDED",
+      "detail": "5 phantom device rows joined a chain they hold no secret for; the device list is a metadata surface",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "anyone who knows a chain id can add device rows to it; the device list is capped at 50 in responses and maintenance prunes rows idle for 90 days"
+    },
+    {
+      "id": "sync-relay-shapes/waf-body-shapes",
+      "verdict": "REFUSED",
+      "detail": "4 hostile body shapes rejected, none authenticated"
+    },
+    {
+      "id": "sync-relay-shapes/parser-query-shapes",
+      "verdict": "REFUSED",
+      "detail": "hostile since/limit clamped (3 probes) and the overlong deviceName stored at 64 chars"
+    },
+    {
+      "id": "sync-relay-shapes/watermark-pin",
+      "verdict": "BOUNDED",
+      "detail": "poison ciphertext (wrong-for-the-chain passphrase) relayed through a valid write secret (200)",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "the relay cannot validate ciphertext (it is blind by design), so a valid-secret blobs hold the victim watermark — the client-side consequence is a watermark that holds before the poison blob and RETRIES on the next sync, never skips; pinned behaviorally in tests/sync-smoke.ts"
+    },
+    {
+      "id": "sync-relay-shapes/guard-header-hygiene",
+      "verdict": "REFUSED",
+      "detail": "a shaped 429 carries Cache-Control: no-store"
+    },
+    {
+      "id": "taxonomy/abuse-not-5xx",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - taxonomy skipped (declare it for coverage)"
+    },
+    {
+      "id": "taxonomy/errors-stay-impersonal",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - taxonomy skipped (declare it for coverage)"
+    },
+    {
+      "id": "upload/filename-traversal-family",
+      "verdict": "REFUSED",
+      "detail": "route \"upload\" not declared on this target - upload skipped (declare the upload route + its kv store for coverage)"
+    },
+    {
+      "id": "upload/mime-polyglot-family",
+      "verdict": "REFUSED",
+      "detail": "route \"upload\" not declared on this target - upload skipped (declare the upload route + its kv store for coverage)"
+    },
+    {
+      "id": "volume/credential-stuffing",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - stuffing skipped (declare it for coverage)"
+    },
+    {
+      "id": "volume/storage-fill",
+      "verdict": "REFUSED",
+      "detail": "route \"kvwrite\" not declared on this target - fill check skipped (declare a KV-writing route)"
+    },
+    {
+      "id": "volume/cost-amplification",
+      "verdict": "REFUSED",
+      "detail": "route \"enroll\" not declared on this target - amplification skipped (declare it for coverage)"
+    }
+  ],
+  "acceptedRisks": [
+    {
+      "id": "sync-relay-shapes/existence-oracle",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "handshake status codes distinguish existing vs unknown chain ids; chain ids are uuid-strength (~122 bits) and the per-IP flood bucket caps probes at 1200/min",
+      "detail": "known chain 200 vs unknown 400 — the difference reads as an oracle"
+    },
+    {
+      "id": "sync-relay-shapes/member-rename-nuisance",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "a member holding any secret can rewrite another device display name via handshake; names are metadata only — pushes, blobs, and data are never touched",
+      "detail": "\"Renamed Target\" is now \"PWNED-DEVICE\"; names are display-level, pushes and data were never touched"
+    },
+    {
+      "id": "sync-relay-shapes/status-nonmember-read",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "/sync/status returns member names to any valid-shaped deviceId; names are the only readable content, blobs are ciphertext, and status draws from the same per-device pull budget that rate-limits it",
+      "detail": "a valid-shape (non-member) deviceId read the chain's device names"
+    },
+    {
+      "id": "sync-relay-shapes/chain-rows-farm",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "fresh chain ids create permanent rows (~1200/min per IP behind the edge flood bucket, per-device handshake bucket 20/min); real chains are never deleted, so the cap is edge rate policy, not row hygiene",
+      "detail": "25 permanent chain rows from one prober; storage growth is bounded only by the relay's edge rate policy"
+    },
+    {
+      "id": "sync-relay-shapes/phantom-device-rows",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "anyone who knows a chain id can add device rows to it; the device list is capped at 50 in responses and maintenance prunes rows idle for 90 days",
+      "detail": "5 phantom device rows joined a chain they hold no secret for; the device list is a metadata surface"
+    },
+    {
+      "id": "sync-relay-shapes/watermark-pin",
+      "owner": "gistory relay (dhaupin)",
+      "bound": "the relay cannot validate ciphertext (it is blind by design), so a valid-secret blobs hold the victim watermark — the client-side consequence is a watermark that holds before the poison blob and RETRIES on the next sync, never skips; pinned behaviorally in tests/sync-smoke.ts",
+      "detail": "poison ciphertext (wrong-for-the-chain passphrase) relayed through a valid write secret (200)"
+    }
+  ],
+  "baseline": [
+    "auth/identity-spoof-headers",
+    "auth/secret-watermark",
+    "auth/privilege-escalation",
+    "authz/method-matrix-privileged",
+    "authz/role-body-spoof-family",
+    "authz/handler-alias-confusion",
+    "guards/hygiene-no-store",
+    "guards/burst-wall",
+    "input/proto-pollution-body",
+    "input/never-fail-mutations",
+    "input/oversized-field",
+    "proto-hygiene/head-get-parity",
+    "proto-hygiene/request-shape-flood",
+    "race/double-submit-idempotency",
+    "race/concurrent-write-lost-update",
+    "recursion/deep-nest-stack-overflow",
+    "recursion/redos-catastrophic-pattern",
+    "session/cookie-hygiene",
+    "session/session-fixation",
+    "session/token-replay-deny",
+    "session/logout-invalidates",
+    "state/enumeration-oracle",
+    "state/id-collision-alias",
+    "sync-relay-shapes/takeover-by-own-secret",
+    "sync-relay-shapes/create-race-second-writer",
+    "sync-relay-shapes/secret-format-variants",
+    "sync-relay-shapes/spoofed-device-write",
+    "sync-relay-shapes/waf-body-shapes",
+    "sync-relay-shapes/parser-query-shapes",
+    "sync-relay-shapes/guard-header-hygiene",
+    "taxonomy/abuse-not-5xx",
+    "taxonomy/errors-stay-impersonal",
+    "upload/filename-traversal-family",
+    "upload/mime-polyglot-family",
+    "volume/credential-stuffing",
+    "volume/storage-fill",
+    "volume/cost-amplification"
+  ]
+}

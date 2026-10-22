@@ -18,16 +18,17 @@ before pushing.
 | Gate | Command | What it covers |
 |------|---------|----------------|
 | Typecheck | `bun run typecheck` | App (`src/`), relay (`functions/`), test code — three strict passes. |
-| Lint | `bun run lint` | ESLint (unused vars, hooks, no-undef) + the docs' English-only prose gate. |
+| Lint | `bun run lint` | ESLint (unused vars, hooks, no-undef), the English-only prose gate, and the docs consistency gate. |
 | Sync smoke | `bun run sync:smoke` | Real agent crypto + real relay handlers on in-memory SQLite — no account. |
-| Database | `bun run db:migrate:check` | Migrations self-verify on a fixture databases. |
+| Database | `bun run db:migrate:check` | Migrations self-verify on a fixture database. |
 | UI harness | `bun run test:ui` / `bun run ui:audit` | Headless browser flows + per-route audits (contrast, targets, overflow). |
 | Crashtest | `bun run crashtest:run` | Red-team pack against the relay (committed ledger is the gate). |
 | Docs | `npm run lint:docs` | Every page's frontmatter + nav↔permalink + internal links. |
 
-CI runs the first four plus a production build on every push; the browser
-suites need Chromium (`bun run ui:browsers` once per machine) so they are
-local gates.
+CI runs every gate except the browser suites on every push (typecheck, the
+full lint chain, the sync smoke test, both database self-checks, and the
+production prerender build); the browser suites need Chromium
+(`bun run ui:browsers` once per machine) so they are local gates.
 
 ## Writing docs
 

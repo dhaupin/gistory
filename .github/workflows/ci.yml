@@ -49,11 +49,10 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      # The high-value rule subset (unused vars, react-hooks, no-undef). Warnings
-      # do not gate: the three react-refresh warnings on view-state.tsx are the
+      # The high-value rule subset (unused vars, react-hooks, no-undef) plus the
+      # English-only prose gate and the docs consistency gate. Warnings do not
+      # gate: the three react-refresh warnings on view-state.tsx are the
       # intentional provider+hooks export pattern.
-      - name: Language gate (English-only prose)
-        run: npm run lint:language
       - name: Lint
         run: bun run lint
 
@@ -70,7 +69,7 @@ jobs:
 
       # Runs the maintenance script's own SQL against an in-memory database —
       # it checks itself. Proves the DELETEs prune what they claim, keep every
-      # chain's newest snapshot, and never leak across chains. The weekly
+      # chain's newest snapshot, and never leak across chains. The daily
       # maintenance workflow re-runs this before touching the real database.
       - name: Maintenance SQL check
         run: bun run db:maintain:check

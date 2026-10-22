@@ -13,4 +13,3 @@ bun.lock
 
 # Crashtest bundle output (built before every run; see scripts/build-crashtest.mjs)
 crashtest/handlers.mjs
-dist/lib/

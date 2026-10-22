@@ -946,3 +946,44 @@ Conventions
   (prestruct keeps theirs off the nav too); CHECK-DOCS PASS (8 pages),
   language gate PASS (17 files), typecheck green. Uncommitted — awaiting the
   batch commit with the docs rework.
+
+- **2026-10-22 — release nitpick sweep.** Verified the publishable tarball by
+  actually running `npm pack` after `build:lib` (landing + LICENSE +
+  CHANGELOG.md + the dist/lib bundle + declarations; a dry-run without
+  `build:lib` shows a 4-file shell for exactly that reason — noted for the
+  release checklist). Fixed ahead of 0.9.0: removed a leftover tagged-tarball
+  artifact from npm pack experimentation; pruned the redundant nested
+  ignore-pattern line from `.gitignore` (covered by the broader rule),
+  including undoing a line-merge that first pass accidentally created inside
+  the ignore list (the split entries are back on their own rows);
+  folded CI's standalone "Language gate" step into `bun run lint`, which
+  already chains the prose gate + docs gate; AGENTS.md CI paragraph now
+  lists the actual CI jobs (typecheck 3-pass, lint chain, sync smoke, both
+  database self-checks, the production prerender build); docs/contributing
+  grammar + accuracy ("migrations self-verify on a fixture database"; CI
+  runs everything except the browser suites). Left as-is (intentional): 19
+  cascade-merge duplicate CSS selectors; `models/` (Vant brain workspace,
+  documented in the ignore list); the user's .vant-*.md audit files.
+  Grep receipts: 0 TODO/FIXME anywhere; no unreferenced components (every
+  src/components/*.tsx has a caller);  import-adapters used by Settings;
+  `misc/art-pack-gallery/` was an empty unreferenced untracked dir — removed.
+
+- **2026-10-22 — second polish pass (post-release word-accuracy).** Stale
+  wording fixed where reality moved under it: three "weekly" mentions that
+  predate the daily-at-03:17 maintenance schedule (scripts/db-maintain.mjs ×2,
+  scripts/live-subscribe.mjs — the schedule line in maintenance.yml itself
+  says why daily: blob retention is the only storage bound). docs/npm.md had
+  two real bugs: the heading typo "Whatisto know" and, worse, a code sample
+  calling `agent.sync({ passphrase, pairingToken })` — a method SyncAgent has
+  never had. Rewritten to the real surface (constructor takes passphrase/
+  chainId/deviceName/baseUrl/writeSecret; init → handshake → pull/push;
+  pull returns `{ blobs, ... }`; chainIdFromToken parses the pairing token;
+  legacy write-less tokens fail writes by design — the sample spells that).
+  Verified the docs FAQ copy still mirrors ssr.config FAQ_ITEMS 1:1 (8
+  questions, same order) and that getting-started/sync-and-security claims
+  hold against code (1.5 s push debounce, 60 s pull interval, 30-day wake
+  sweep). Brain workspace: prestruct + rook goals.md "Current" items marked
+  done where passes made them done. Left as is: index.html noscript overflow
+  (real 0-strange-overflow — real plus shell shell), 19 cascade-merge
+  selectors, models/ lore voice. Gates: lint + language gate + CHECK-DOCS 8
+  pages PASS, typecheck 3-pass green, sync:smoke 363/363.

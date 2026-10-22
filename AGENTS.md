@@ -679,10 +679,13 @@ generate real pairs.
   are the intentional provider+hooks export pattern and do not gate. `no-undef`
   browser globals are granted to the harness files because their
   `page.evaluate` callbacks run in the page, not Node.
-- **CI:** `.github/workflows/ci.yml` runs `npm ci`, `bun run typecheck`,
-  `bun run sync:smoke`, `bun run db:migrate:check` and `vite build` on push and
-  PR. It deliberately does **not** run the browser suites: they need a Chromium
-  download and a dev server, which is slow and flaky in CI. Run
+- **CI:** `.github/workflows/ci.yml` runs `npm ci`, the three-pass
+  `bun run typecheck`, `bun run lint` (ESLint subset + English-only prose gate
+  + docs consistency), `bun run sync:smoke`, `bun run db:migrate:check`,
+  `bun run db:maintain:check`, and `npx prestruct build` (the full prerender
+  pipeline) on push and PR. It deliberately does **not** run the browser
+  suites: they need a Chromium download and a dev server, which is slow and
+  flaky in CI. Run
   `bun run test:ui` and `bun run ui:audit` locally before pushing a UI change —
   they are the only suite that exercises rendering.
   Note CI installs with `npm ci` because `package-lock.json` is the tracked

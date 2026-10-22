@@ -15,14 +15,15 @@ of the product, not of the package).
 
 ```ts
 import {
-  SyncAgent,         // key derivation, E2EE push/pull, pairing tokens
-  mergePayload,      // pure LWW + tombstone merge for SyncData
-  SyncQos,           // debounced, coalescing, back-off push scheduler
-  ensureStorageReady // IndexedDB storage with localStorage fallback
+  SyncAgent,           // key derivation, E2EE push/pull, pairing tokens
+  chainIdFromToken,    // parse a pairing token (chain id + write secret)
+  mergePayload,        // pure LWW + tombstone merge for SyncData
+  SyncQos,             // debounced, coalescing, back-off push scheduler
+  ensureStorageReady,  // IndexedDB storage with localStorage fallback
 } from 'gistory-sync'
 ```
 
-## Whatisto know
+## What to know
 
 - **Runtime**: Node ≥ 18, any web worker, no React, no bundler required.
   Storage reads `typeof indexedDB` / `typeof localStorage` at call time and
@@ -37,21 +38,31 @@ import {
   --follow-tags` publishes via npm Trusted Publishing and attaches the
   tarball to a GitHub release whose install-and-load battery gates it.
 
-## A minimal two-device script
+## A minimal client script
 
 ```ts
-import { SyncAgent } from 'gistory-sync'
+import { SyncAgent, chainIdFromToken } from 'gistory-sync'
+
+// The pairing token carries the chain id and the write secret — never the
+// passphrase. Legacy tokens (no secret) fail every write by design.
+const { chainId, writeSecret } = chainIdFromToken(pairingToken)
 
 const agent = new SyncAgent({
-  name: 'Headless backup node'
-  // baseUrl points at your relay (default: same-origin /sync)
+  passphrase,              // required; never leaves the device
+  chainId,                 // required; also the key-derivation salt
+  deviceName: 'Headless backup node',
+  baseUrl: 'https://your-relay.example', // optional; default: same-origin /sync
+  writeSecret,
 })
 
-await agent.sync({ passphrase, pairingToken })   // join an existing chain
-const { blobs } = await agent.pull()             // receive others' changes
-await agent.push(myState)                        // push full encrypted state
+await agent.init()       // derive the key, hydrate/restore this device's identity
+await agent.handshake()  // register with the chain (creates it when none exists)
+
+const { blobs } = await agent.pull() // receive others' changes (encrypted blobs)
+await agent.push(myState)            // push a full encrypted snapshot; returns seq
 ```
 
-The pairing token carries the chain id and the write secret — never the
-passphrase. See [Sync & Security](/gistory/sync-and-security) for what the
-relay can and cannot see.
+A push is full-state: every device's client merges snapshots by
+newest-edit-wins, so order and delivery timing do not matter. See
+[Sync & Security](/gistory/sync-and-security) for what the relay can and
+cannot see.

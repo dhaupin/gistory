@@ -11,7 +11,7 @@
  * status-code level; correctness of row handling is pinned by sync:smoke §11
  * and db:maintain:check instead.
  *
- * The chain and any surviving row are `live-test-` debris: the weekly
+ * The chain and any surviving row are `live-test-` debris: the daily
  * maintenance sweep removes them (chain after its age bound; the row ages out
  * of the wake-target rule). Nothing real is touched and nothing is woken —
  * the fake endpoint is never fetched: only real pushes fan out, and this

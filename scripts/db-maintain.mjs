@@ -9,7 +9,7 @@
 //   • locally, against .wrangler state:      bun run db:maintain:local
 //   • against the real database:             bun run db:maintain:remote
 //                                            (needs wrangler.deploy.toml — the
-//                                            weekly GitHub workflow sets that up)
+//                                            daily GitHub workflow sets that up)
 //   • report only, no writes:                append --status
 //   • self-check on an in-memory database:   bun run db:maintain:check
 //
@@ -480,7 +480,10 @@ async function main() {
 
   // One statement per exec call so a mid-run failure leaves earlier work done
   // and later work unstarted — every statement here is idempotent, so the
-  // weekly run simply finishes the job.
+  // daily run simply finishes the job.
+  for (const stmt of writes) {
+    execSql(opts.target, [stmt])
+  }
   for (const stmt of writes) {
     execSql(opts.target, [stmt])
   }
