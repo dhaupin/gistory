@@ -37,6 +37,7 @@ for (const [from, to] of [
   ['{{ page.title }} | {{ site.title }}', 'FAQ | Gistory docs'],
   ["{{ '/assets/main.css' | relative_url }}", '/assets/main.css'],
   ["{{ '/pagefind/pagefind.css' | relative_url }}", '/pagefind.css'],
+  ["{{ '/favicon.svg' | relative_url }}", '/favicon.svg'],
   ["{{ '/' | relative_url }}", '/'],
   ['{{ "pagefind/pagefind.js" | relative_url }}', '/pagefind.js'],
   ["{{ '/faq' | relative_url }}", '/faq'],
@@ -50,10 +51,12 @@ html = html.replace(/<main class="docs-content" data-pagefind-body>[\s\S]*?<\/ma
   '<main class="docs-content" data-pagefind-body><h1>FAQ</h1><p>fixture body</p></main>')
 
 const css = readFileSync(new URL('../docs/assets/main.css', import.meta.url), 'utf8')
+const favicon = readFileSync(new URL('../docs/favicon.svg', import.meta.url), 'utf8')
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0]
   if (url === '/' || url === '/faq') { res.setHeader('content-type', 'text/html'); res.end(html); return }
   if (url === '/assets/main.css') { res.setHeader('content-type', 'text/css'); res.end(css); return }
+  if (url === '/favicon.svg') { res.setHeader('content-type', 'image/svg+xml'); res.end(favicon); return }
   res.statusCode = 404
   res.setHeader('content-type', 'text/plain')
   res.end('fixture 404')
@@ -74,6 +77,8 @@ const expect = (actual, expected, msg) => { if (actual !== expected) problems.pu
     current: document.querySelector('.docs-nav a[aria-current="page"]')?.getAttribute('href') || null,
     active: document.querySelector('.docs-nav a.docs-nav-active')?.getAttribute('href') || null,
     sidebarVisible: getComputedStyle(document.getElementById('docsNav')).display !== 'none',
+    logoLoaded: document.querySelector('.docs-logo') instanceof HTMLImageElement && document.querySelector('.docs-logo').naturalWidth > 0,
+    faviconLink: document.querySelector('link[rel="icon"]')?.getAttribute('href'),
     theme: document.documentElement.getAttribute('data-theme'),
     sunShown: getComputedStyle(document.querySelector('.docs-icon-sun')).display !== 'none',
     credit: [...document.querySelectorAll('.docs-footer a')].map(a => ({ t: a.textContent.trim(), href: a.getAttribute('href'), target: a.getAttribute('target'), rel: a.getAttribute('rel') })),
@@ -83,6 +88,8 @@ const expect = (actual, expected, msg) => { if (actual !== expected) problems.pu
   expect(d.current, '/faq', 'aria-current not on FAQ')
   expect(d.active, '/faq', 'JS active class not on FAQ')
   expect(d.sidebarVisible, true, 'sidebar hidden on desktop')
+  expect(d.logoLoaded, true, 'header logo did not render')
+  expect(d.faviconLink, '/favicon.svg', 'favicon link href wrong')
   expect(d.credit.some(c => c.t === 'Creadev.org' && c.href === 'https://creadev.org' && c.target === '_blank' && !/nofollow/i.test(c.rel)), true, 'footer credit link wrong')
 
   await page.click('#docsThemeToggle')

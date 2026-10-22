@@ -8,23 +8,27 @@
    preference. Every dark token therefore hangs off that attribute, and the
    toggle is a real control, not just prefers-color-scheme. */
 :root {
-  --bg: #f7f7f8;
+  --bg: #f6f7f9;
   --surface: #ffffff;
-  --text: #16181d;
-  --text-dim: #5f6470;
-  --border: #e3e4e8;
-  --primary: #2563eb;
+  --text: #0c0d10;
+  --text-dim: #565b66;
+  --border: #dfe2e7;
+  --primary: #3552cc;
   --primary-fg: #ffffff;
   --sidebar-width: 240px;
   --header-height: 52px;
 }
 
 :root[data-theme='dark'] {
-  --bg: #131418;
-  --surface: #1c1e24;
-  --text: #eceef2;
-  --text-dim: #9aa0ac;
-  --border: #2c2f37;
+  --bg: #101217;
+  --surface: #191c23;
+  --text: #ecedf1;
+  --text-dim: #9aa1ae;
+  --border: #2b2f38;
+  /* The docs use --primary as text/link colour on dark surfaces too, so dark
+     needs the lighter half of the family (the app splits this across a
+     light-fill --primary + --primary-fg; here one token does both jobs). */
+  --primary: #8ba4ff;
 }
 
 * { box-sizing: border-box; }
@@ -125,6 +129,16 @@ body {
   margin: 0 auto;
   padding: 2rem 1.25rem;
   flex: 1;
+}
+
+.docs-logo {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 0.45rem;
+  vertical-align: -6px; /* the mark sits on a dark tile; center it on the caps line */
+  border-radius: 5px; /* clip on theme surfaces that differ from the tile */
+  flex-shrink: 0;
 }
 
 .docs-nav { font-size: 0.92rem; }

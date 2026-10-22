@@ -35,13 +35,13 @@ const shell = (inner) => `
       <stop offset="1" stop-color="#131722"/>
     </linearGradient>
     <radialGradient id="glow" cx="82%" cy="18%" r="55%">
-      <stop offset="0" stop-color="#2563eb" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+      <stop offset="0" stop-color="#3552cc" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#3552cc" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <rect width="${W}" height="${H}" fill="url(#bg)"/>
   <rect width="${W}" height="${H}" fill="url(#glow)"/>
-  <rect x="0" y="0" width="${W}" height="6" fill="#2563eb"/>
+  <rect x="0" y="0" width="${W}" height="6" fill="#3552cc"/>
   ${inner}
 </svg>`
 

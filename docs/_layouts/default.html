@@ -7,6 +7,7 @@
   <!-- freestruct injects description/OG/Twitter/canonical/JSON-LD post-build
        (docs/_freestruct templates). The Jekyll head stays meta-free on purpose:
        the engine deletes conflicting tags it did not write (missing-only gate). -->
+  <link rel="icon" type="image/svg+xml" href="{{ '/favicon.svg' | relative_url }}">
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
   <link rel="stylesheet" href="{{ '/pagefind/pagefind.css' | relative_url }}" data-pagefind-ignore>
   <!-- Theme before first paint: the attr on <html> drives the dark token
@@ -34,7 +35,7 @@
         <path d="M3 6h18M3 12h18M3 18h18"/>
       </svg>
     </button>
-    <a class="docs-brand" href="{{ '/' | relative_url }}">Gistory <span>docs</span></a>
+    <a class="docs-brand" href="{{ '/' | relative_url }}"><img src="{{ '/favicon.svg' | relative_url }}" class="docs-logo" alt="" width="24" height="24">Gistory <span>docs</span></a>
     <div class="docs-header-right">
       <button class="docs-icon-btn" id="docsSearchTrigger" aria-label="Search" aria-haspopup="dialog">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

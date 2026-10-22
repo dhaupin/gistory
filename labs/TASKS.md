@@ -1023,5 +1023,21 @@ Conventions
   scripts/verify-docs-frame.mjs renders the layout as a static fixture and
   drives drawer/theme/search in a browser (PASS: active marking, theme
   persists across reload, sun/moon swap, Ctrl+K/Escape, off-canvas
-  geometry, backdrop-close on the exposed area). Ruby absent locally —
+  geometry, backdrop-close on the exposed area).  Ruby absent locally —
   Jekyll + freestruct + pagefind verify in the docs workflow at deploy.
+  Logo/favicon added too: public/favicon.svg copied to docs/favicon.svg,
+  linked in the layout head and inlined in the header brand tile with a
+  docs-logo clip radius; the fixture asserts the img renders and the
+  icon link resolves.
+  Palette decision applied (user approved): signature shade = deeper
+  indigo-blue --primary #3552cc (hover #2a41a8 light; dark themes get the
+  lighter half: app #7b95f5 light-fill + #0a1021 fg, docs #8ba4ff text/link)
+  plus option-1 ink tweaks — cooler denser ramp: --text #0c0d10,
+  --text-dim #565b66 on #f6f7f9, dark ramp #101217/#191c23/#2b2f38 with a
+  whisper of the primary hue. Favicon tile + theme-color #080808→#0c0d10,
+  OG cards regenerated (build:og). Contrast receipt: scripts/
+  verify-palette.mjs (WCAG 2.1 ratios, 15 pairs, both themes, app+docs,
+  favicon; PASS — deep primary raised the white-on-fill ratio 6.5:1) —
+  parser handles comments/nested braces after a one-regex grab misfired.
+  scripts/verify-palette-live.mjs asserts the preview renders the tokens.
+
