@@ -85,6 +85,7 @@ function parseArgs(argv) {
   const local = argv.includes('--local')
   const check = argv.includes('--check')
   const statusOnly = argv.includes('--status')
+  const census = argv.includes('--census')
   if (!check && remote === local) {
     console.error('  Pass exactly one of --local or --remote (or --check).')
     process.exit(2)
@@ -96,6 +97,7 @@ function parseArgs(argv) {
     target: remote ? 'remote' : 'local',
     statusOnly,
     check,
+    census,
     staleDeviceDays: daysIdx >= 0 ? Number(argv[daysIdx + 1]) || STALE_DEVICE_DAYS : STALE_DEVICE_DAYS,
     staleWakeDays: subsIdx >= 0 ? Number(argv[subsIdx + 1]) || STALE_WAKE_DAYS : STALE_WAKE_DAYS,
     keepBlobs: keepIdx >= 0 ? Number(argv[keepIdx + 1]) || KEEP_BLOBS : KEEP_BLOBS,
@@ -447,11 +449,58 @@ export function maintenanceSql({ now, keepBlobs, staleDeviceDays, staleWakeDays 
   return { statements, report }
 }
 
+// --- Census: read-only byte map of where the storage went -------------------
+// Reads still succeed on a database that refuses writes (error 7500), which
+// is what makes a census possible at exactly the moment maintenance is
+// failing. Every statement runs separately and a refusal is reported, not
+// fatal — the PRAGMAs may be unavailable on some D1 states, but the bytes-
+// per-chain breakdown works off plain SELECTs.
+const MB = 1024 * 1024
+function censusStatements() {
+  return [
+    { label: 'page geometry (pages, free, page_size)', sql: "PRAGMA page_count" },
+    { label: 'page geometry — freelist', sql: "PRAGMA freelist_count" },
+    { label: 'page geometry — page size', sql: "PRAGMA page_size" },
+    { label: 'total blob bytes', sql: "SELECT COUNT(*) AS n, SUM(LENGTH(data)) AS bytes, MAX(LENGTH(data)) AS max_blob FROM blobs" },
+    { label: 'blobs by chain, heaviest first', sql: "SELECT chain_id, COUNT(*) AS n, SUM(LENGTH(data)) AS bytes FROM blobs GROUP BY chain_id ORDER BY bytes DESC LIMIT 15" },
+    { label: 'single-blob size distribution', sql: "SELECT CASE WHEN LENGTH(data) < 65536 THEN '<64KB' WHEN LENGTH(data) < 262144 THEN '64-256KB' WHEN LENGTH(data) < 1048576 THEN '256KB-1MB' ELSE '>=1MB' END AS bucket, COUNT(*) AS n, SUM(LENGTH(data)) AS bytes FROM blobs GROUP BY bucket ORDER BY bytes DESC" },
+    { label: 'live-test debris', sql: `SELECT COUNT(*) AS chains FROM chains WHERE id LIKE '${LIVE_TEST_PREFIX}%'` },
+    { label: 'other tables', sql: "SELECT 'devices' AS t, COUNT(*) AS rows, SUM(LENGTH(id)+LENGTH(chain_id)+LENGTH(name)) AS bytes FROM devices UNION ALL SELECT 'rate_limits', COUNT(*), SUM(LENGTH(key)+8) FROM rate_limits UNION ALL SELECT 'push_subscriptions', COUNT(*), SUM(LENGTH(endpoint)+LENGTH(p256dh)+LENGTH(auth)) FROM push_subscriptions" },
+  ]
+}
+function fmtBytes(n) {
+  const v = Number(n ?? 0)
+  if (v >= MB) return `${(v / MB).toFixed(1)}MB`
+  if (v >= 1024) return `${(v / 1024).toFixed(1)}KB`
+  return `${v}B`
+}
+function runCensus(opts) {
+  console.log(`\n  Gistory census -> ${opts.target} (read-only, writes skipped)\n`)
+  for (const { label, sql } of censusStatements()) {
+    console.log(`-- ${label}`)
+    try {
+      const result = execSql(opts.target, [sql])
+      for (const row of result[0]?.results || []) {
+        console.log(
+          '  ' +
+            Object.entries(row)
+              .map(([k, v]) => (/bytes|max_blob/.test(k) ? `${k}=${fmtBytes(v)}` : `${k}=${v}`))
+              .join('  '),
+        )
+      }
+    } catch (err) {
+      console.log(`  (refused: ${String(err.message).slice(0, 240)})`)
+    }
+  }
+  console.log('')
+}
+
 // --- Main -------------------------------------------------------------------
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2))
   if (opts.check) return runCheck()
+  if (opts.census) return runCensus(opts)
 
   console.log(`\n  Gistory maintenance -> ${opts.target === 'remote' ? 'remote D1' : 'local D1'}`)
 
@@ -495,9 +544,6 @@ async function main() {
   // One statement per exec call so a mid-run failure leaves earlier work done
   // and later work unstarted — every statement here is idempotent, so the
   // daily run simply finishes the job.
-  for (const stmt of writes) {
-    execSql(opts.target, [stmt])
-  }
   for (const stmt of writes) {
     execSql(opts.target, [stmt])
   }

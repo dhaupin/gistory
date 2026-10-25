@@ -61,6 +61,10 @@ on:
         description: "Device last_seen age to drop, in days (default 90)"
         type: string
         default: "90"
+      census:
+        description: "Read-only byte map — where is the storage going (skips all writes)"
+        type: boolean
+        default: false
   schedule:
     # 03:17 UTC daily — an off-minute, so shared schedulers are not
     # thundering on the same instant. Daily rather than weekly because blob
@@ -136,10 +140,17 @@ jobs:
           rm -f wrangler.deploy.toml.bak
           echo "Wrangler configured (database id redacted)."
 
+      # Read-only census first: when applicable nothing else runs.
+      - name: Storage census (read-only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.census }}
+        run: |
+          set -eu
+          bun run db:maintain:remote -- --census
+
       # Dry-run helper for manual dispatches: reports what WOULD be pruned
       # and the current row counts, writes nothing.
       - name: Report what would be pruned
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && !inputs.census }}
         run: |
           set -eu
           echo "::group::Dry run — no changes written"
@@ -152,5 +163,5 @@ jobs:
       # idempotent and pre-verified by db:maintain:check, so a schedule run
       # cannot do more than the tested SQL says.
       - name: Apply maintenance
-        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        if: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) && !inputs.census }}
         run: bun run db:maintain:remote -- --keep "${KEEP_BLOBS}" --days "${STALE_DAYS}"
