@@ -1,0 +1,42 @@
+# ONE-SHOT LANE v2 — delete-me-on-run.
+# v1 regenerated the staging lock with npm --package-lock-only in CI, but
+# npm REUSES existing lockfile integrity strings whenever the dep spec is
+# unchanged — so the corrupted character rode straight through the
+# "repair" and even v1's own run looked green. The only regeneration npm
+# actually re-verifies is a FROM-SCRATCH resolution: rm the lock, resolve
+# fresh from package.json against the registry, commit with git machinery,
+# prove it with a real npm ci (not dry-run), and delete this lane.
+name: Repair eyestruct-staging lockfile v2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Regenerate the staging lock from scratch (registry truth)
+        run: |
+          rm eyestruct-staging/package-lock.json
+          npm install --prefix eyestruct-staging --package-lock-only --no-audit --no-fund
+
+      - name: Prove npm ci survives on the regenerated lock
+        run: npm ci --prefix eyestruct-staging --no-audit --no-fund
+
+      - name: Commit (and remove this lane)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add eyestruct-staging/package-lock.json
+          git rm -q .github/workflows/fix-staging-lock-v2.yml
+          git commit -q -m "build: resolve eyestruct-staging lock from scratch against the registry" -m "v1 of this lane regenerated the lock with --package-lock-only, but npm reuses existing lockfile integrity strings when dep specs are unchanged, so the corrupted lru-cache 7.18.3 integrity character survived. This lane deletes the lockfile first, so every entry resolves fresh from the registry, then proves the result with a real npm ci. The lane removes itself in the same push."
+          git push
