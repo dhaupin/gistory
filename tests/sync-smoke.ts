@@ -2961,6 +2961,321 @@ check('a live thread keeps its draft row',
 check('the sweep is idempotent (a second run stays quiet and green)',
   (sweepDrafts(aliveThreads), localStorage.getItem(draftKeyOf('draft-dead-thread'))) === null)
 
+// --- 13. Attachment groundwork — metadata syncs, bytes never do --------------
+
+section('13. Attachment groundwork — metadata syncs, bytes never do')
+
+// (mergePayload is imported at the top of this file.)
+
+// The image groundwork (2026-10-25): a Message may carry `attachments`
+// metadata; the bytes live device-local and NEVER ride a payload. These
+// checks pin the money rules the future UI must not break. Messages ride
+// under a LIVE thread — the merge drops arrays whose thread was tombstoned.
+const att = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  id: 'att_1',
+  name: 'board.png',
+  mime: 'image/png',
+  bytes: 1024,
+  addedAt: 500,
+  ...overrides,
+})
+const attMsg = (ts: number, attachments: unknown[] = []) => ({
+  id: 'm-att',
+  threadId: 't1',
+  content: 'board screenshot',
+  createdAt: 100,
+  updatedAt: ts,
+  ...(attachments.length ? { attachments } : {}),
+})
+
+const attWinner = mergePayload(
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [attMsg(200, [att()])] } },
+  { threads: [thread('t1', 100)], messages: { t1: [attMsg(300)] }, senderDeviceId: 'devA' },
+  'devZ',
+) as { messages: Record<string, Array<Record<string, unknown>>> }
+check('a newer edit that removes attachments replaces the whole item (LWW)',
+  (attWinner.messages.t1[0].attachments ?? []).length === 0)
+
+const attCarried = mergePayload(
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [attMsg(200)] } },
+  { threads: [thread('t1', 100)], messages: { t1: [attMsg(300, [att()])] }, senderDeviceId: 'devA' },
+  'devZ',
+) as { messages: Record<string, Array<Record<string, unknown>>> }
+const carried0 = attCarried.messages.t1[0].attachments?.[0] ?? {}
+check('an edit that ADDS attachments carries them whole (no partial merge)',
+  carried0.id === 'att_1' && carried0.mime === 'image/png' && typeof carried0.bytes === 'number')
+
+const oldPayloadFriendly = mergePayload(
+  { ...base(), threads: [thread('t1', 100)], messages: { t1: [attMsg(200, [att()])] } },
+  { threads: [thread('t1', 100)], messages: { t1: [attMsg(150)] }, senderDeviceId: 'devA' },
+  'devZ',
+) as { messages: Record<string, Array<Record<string, unknown>>> }
+check('payloads saved before attachments existed still merge (house rule)',
+  (oldPayloadFriendly.messages.t1[0].attachments ?? []).length === 1)
+
+const serialized = JSON.stringify([attMsg(200, [att()])])
+check('attachment metadata serializes small (no bytes can be smuggled into a payload)',
+  serialized.length < 400 && !serialized.includes('base64') && !serialized.includes('raw'))
+check('the metadata record survives a JSON round-trip losslessly',
+  JSON.parse(serialized)[0].attachments[0].id === 'att_1'
+  && JSON.parse(serialized)[0].attachments[0].mime === 'image/png')
+
+// --- 14. Upload discipline for the message-image fields ---------------------
+
+section('14. Upload discipline for the message-image fields')
+
+// The crashtest upload-family law, moved to the harness where the class
+// actually lives (gistory has no server upload route - the relay stays
+// blind, bytes are device-local): the verdict reads what the builder DERIVES
+// and STORES. This section drives buildAttachment through a fake store so
+// the browserless battery proves the discipline, not the WAF refusal path.
+import { buildAttachment, isAllowedImageMime, collectAttachmentIds } from '../src/lib/attachments'
+import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_MESSAGE } from '../src/lib/models'
+
+function fakeStore() {
+  const rows = new Map<string, string | ArrayBuffer>()
+  return {
+    rows,
+    store: async (id: string, bytes: ArrayBuffer | Blob) => {
+      rows.set(id, bytes)
+      return true
+    },
+  }
+}
+const file = (bytes: number): ArrayBuffer => {
+  const buf = new ArrayBuffer(bytes)
+  return buf
+}
+
+// 1. Hostile NAMES never reach a storage key: the key is app-derived, the
+//    name is display metadata only.
+const hostileStore = fakeStore()
+const hostileNames: Array<[string, string]> = [
+  ['unix traversal', '../../etc/passwd'],
+  ['double extension', 'shell.php.jpg'],
+  ['absolute path', '/etc/cron.d/x'],
+  ['dotfile', '.env'],
+]
+for (const [label, name] of hostileNames) {
+  const meta = await buildAttachment(
+    { name, mime: 'image/png', bytes: file(16) },
+    [],
+    { store: hostileStore.store },
+  )
+  check(`hostile name "${label}" still builds (the key is app-derived, not the name)`,
+    !!meta && /^att_/.test(meta.id))
+}
+check('no hostile NAME escaped into a STORE key (safe-key grammar, the family law)',
+  hostileStore.rows.size === hostileNames.length
+  && Array.from(hostileStore.rows.keys()).every((k) => /^att_[0-9a-z_]+$/.test(k)))
+
+// 2. The size cap refuses before storage.
+const overCap = await buildAttachment(
+  { name: 'big.png', mime: 'image/png', bytes: file(MAX_ATTACHMENT_BYTES + 1) },
+  [],
+  { store: fakeStore().store },
+)
+check('an image over 4MB is refused outright (nothing stored)', overCap === null)
+
+// 3. The per-message count cap refuses.
+const six = Array.from({ length: MAX_ATTACHMENTS_PER_MESSAGE }, (_, i) => ({
+  id: `att_x${i}`, name: `p${i}.png`, mime: 'image/png', bytes: 8, addedAt: 0,
+})) as Parameters<typeof buildAttachment>[1]
+const seventh = await buildAttachment(
+  { name: 'seven.png', mime: 'image/png', bytes: file(16) },
+  six,
+  { store: fakeStore().store },
+)
+check('a 7th image on one message is refused (the cap, not the store)', seventh === null)
+
+// 4. The mime allow-list: the family's polyglot canaries refuse on the wire.
+const canaries: Array<[string, string]> = [
+  ['svg with script (the canonical XSS carrier)', 'image/svg+xml'],
+  ['html document', 'text/html'],
+  ['not an image at all', 'application/octet-stream'],
+]
+for (const [label, mime] of canaries) {
+  const ok = isAllowedImageMime(mime)
+  const built = await buildAttachment(
+    { name: 'carriers', mime, bytes: file(16) },
+    [],
+    { store: fakeStore().store },
+  )
+  check(`mime canary refused at build: ${label}`, !ok && built === null)
+}
+
+// 5. The happy path: real bytes land under a clean key with clean metadata.
+const happyStore = fakeStore()
+const happy = await buildAttachment(
+  { name: 'board\nshot.png', mime: 'image/png', bytes: file(64), width: 32, height: 32 },
+  [],
+  { store: happyStore.store },
+)
+check('a legitimate image builds and stores',
+  !!happy && happyStore.rows.size === 1
+  && happy.bytes === 64 && happy.width === 32
+  && happy.name === 'board shot.png' // control chars stripped (display only)
+)
+
+// 6. The sweep keep-set: pure, and only app ids belong in it.
+const keep = collectAttachmentIds({ t1: [{ id: 'm1', threadId: 't1', content: 'x', createdAt: 1, attachments: [{ id: 'att_9', name: 'a.png', mime: 'image/png', bytes: 4, addedAt: 0 }] }] })
+check('the sweep keep-set carries attachment ids only', keep.size === 1)
+
+
+// --- 15. The attachment byte channel — payload-external, blind, budgeted ----
+
+section('15. Attachment byte channel — /sync/attach')
+
+// The transport does what §13 forbade the payload from ever doing: bytes ride
+// their OWN route, write-auth'd like push and byte-budgeted per chain. The
+// agents here are the real ones (real crypto), the routes are the real Pages
+// Functions, and the store is the same in-memory SQLite the sync tests use.
+import { onRequestPost as attachPost } from '../functions/sync/attach'
+import { onRequestGet as attachGet } from '../functions/sync/attach'
+import { POLICIES } from '../functions/_shared/guards'
+
+routes['POST /sync/attach'] = attachPost
+routes['GET /sync/attach'] = attachGet
+
+const CHAIN_ATT = 'chain-attach-0001'
+const SECRET_ATT = newWriteSecret()
+const agentAttA = new SyncAgent({ passphrase: PASS, deviceName: 'Att A', chainId: CHAIN_ATT, writeSecret: SECRET_ATT })
+await agentAttA.init()
+await agentAttA.handshake()
+
+// 1. Uploading: the wire row is CIPHERTEXT (size = wire length > payload
+//    bytes) and attributed to device A.
+const pixels = file(64)
+await agentAttA.putAttachment('att_smoke_s1', pixels)
+const attRow = sqlite.query(
+  'SELECT size, device_id FROM attachments WHERE chain_id = ? AND att_id = ?',
+).get(CHAIN_ATT, 'att_smoke_s1') as { size: number; device_id: string } | undefined
+check('PUT stores the encrypted row under (chain, id), attributed to the uploader',
+  !!attRow && attRow.size > 64 && attRow.device_id === agentAttA.getDeviceId())
+
+// 2. A paired device on the SAME key fetches and decrypts exact bytes.
+const agentAttB = new SyncAgent({ passphrase: PASS, deviceName: 'Att B', chainId: CHAIN_ATT, writeSecret: SECRET_ATT })
+await agentAttB.init()
+await agentAttB.handshake()
+const got = await agentAttB.getAttachment('att_smoke_s1', 64)
+check('a paired device fetches the bytes intact (payload plaintext length matches)', got.byteLength === 64)
+
+// 3. The size gate: ciphertext that decrypts to a length the MERGED METADATA
+//    does not claim is refused, named, and NOT stored locally by the agent.
+let sizeRefused = false
+try { await agentAttB.getAttachment('att_smoke_s1', 63) }
+catch (err) { sizeRefused = err instanceof SyncError && String(err.message).includes('do not match') }
+check('ciphertext that disagrees with the synced size claim is named-refused', sizeRefused)
+
+// 4. The wrong key gets nothing readable: the relay is blind, so only
+//    passphrase+chainId decrypts. The refusal is NAMED, not a stack.
+const agentAttC = new SyncAgent({ passphrase: 'an entirely different phrase', deviceName: 'Att C', chainId: CHAIN_ATT })
+await agentAttC.init()
+await agentAttC.handshake()
+let wrongKeyFailed = false
+try { await agentAttC.getAttachment('att_smoke_s1', 64) }
+catch (err) { wrongKeyFailed = err instanceof SyncError && String(err.message).toLowerCase().includes('decrypt') }
+check('a device on the wrong key cannot decrypt the bytes (blind relay holds)', wrongKeyFailed)
+
+// 5. Unknown ids are an honest 404, not a null success.
+let unknown404 = false
+try { await agentAttB.getAttachment('att_never_existed', 64) }
+catch (err) { unknown404 = err instanceof SyncError && err.status === 404 }
+check('an unknown attachment id is an honest 404', unknown404)
+
+// 6. Idempotent re-upload: same id, same bytes, one row (no duplicated garbage).
+await agentAttA.putAttachment('att_smoke_s1', pixels)
+const attCount = sqlite.query(
+  'SELECT COUNT(*) AS c FROM attachments WHERE chain_id = ?',
+).get(CHAIN_ATT) as { c: number }
+check('a retried PUT replaces in place (idempotent, one row per id)', attCount.c === 1)
+
+// 7. Hostile shapes refused on the wire, before any guard bucket is written:
+//    traversal-style ids, over-long ids, and non-envelope data are 400s.
+const hostileAttBodies: Array<[string, unknown]> = [
+  ['traversal attId', { attId: '../../etc/passwd' }],
+  ['oversized attId', { attId: 'att_'.repeat(17) }],
+  ['non-envelope data', { attId: 'att_ok', data: 'plain-not-ciphertext' }],
+  ['data with two iv segments', { attId: 'att_ok', data: 'AAAA.BBBB.CCCC' }],
+]
+for (const [label, shape] of hostileAttBodies) {
+  const res = await fetch('https://local.test/sync/attach', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chainId: CHAIN_ATT, deviceId: 'att-checker', writeSecret: SECRET_ATT,
+      attId: 'att_smoke_s1', data: 'AAAA.BBBB',
+      ...(shape as Record<string, string>),
+    }),
+  })
+  check(`hostile ${label} refuses on shape (400)`, res.status === 400)
+}
+
+// 8. Wrong write secret → 403, unchanged from the push discipline.
+const wrongSecretRes = await fetch('https://local.test/sync/attach', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_ATT, deviceId: 'att-checker', attId: 'att_smoke_s1',
+    data: 'AAAA.BBBB', writeSecret: newWriteSecret(),
+  }),
+})
+check('a wrong write secret cannot store bytes (403)', wrongSecretRes.status === 403)
+
+// 9. The budgets the route charges exist and mirror the push matrix.
+check('attach byte budget mirrors push-chain-bytes (96MB/day per chain)',
+  POLICIES.attachChainBytes.limit === 96_000_000
+  && POLICIES.attachChainBytes.windowMs === 24 * 60 * 60 * 1000)
+check('attach device + chain guards are per-minute exercise shapes (120/600)',
+  POLICIES.attach.limit === 120 && POLICIES.attachChain.limit === 600)
+
+// 10. The replication helper round-trips on the REAL routes: device-local
+//     store seam kept empty, then the merge-side pass restores B's pixels
+//     the exact way the App does after a merge.
+import { replicateMissingAttachments, collectAttachmentInfo } from '../src/lib/attachments'
+const replicateStore = fakeStore()
+const repStats = await replicateMissingAttachments(
+  { t1: [{ id: 'm9', threadId: 't1', content: 'x', createdAt: 1, attachments: [{ id: 'att_smoke_s1', name: 'pixels', mime: 'image/png', bytes: 64, addedAt: 1 }] }] },
+  agentAttB,
+  { bytesOf: async (id) => replicateStore.rows.get(id) ?? null, storeOne: replicateStore.store },
+)
+check('the merge-side replication restores missing bytes over the real routes',
+  repStats.restored === 1 && repStats.failed.length === 0 && replicateStore.rows.has('att_smoke_s1'))
+check('collectAttachmentInfo records size + name for the integrity gate',
+  collectAttachmentInfo({ t1: [{ id: 'm9', threadId: 't1', content: 'x', createdAt: 1, attachments: [{ id: 'att_smoke_s1', name: 'pixels', mime: 'image/png', bytes: 64, addedAt: 1 }] }] }).get('att_smoke_s1')?.bytes === 64)
+
+// 11. Backups: bytes ride ONLY when opted in, restore through the caps.
+import { collectBackupAttachments, restoreBackupAttachments } from '../src/lib/attachments'
+const metaOnly = await collectBackupAttachments({ t1: [] }, { bytesOf: async () => null })
+check('a backup with no byte rows embeds nothing', Object.keys(metaOnly).length === 0)
+// Browserless battery: the real IndexedDB seam does not exist here, so the
+// rows come from the same fake store the replication check just filled -
+// exactly how a real page's byte rows would look at export time.
+const backupWithBytes = await collectBackupAttachments(
+  { t1: [{ id: 'm9', threadId: 't1', content: 'x', createdAt: 1, attachments: [{ id: 'att_smoke_s1', name: 'pixels', mime: 'image/png', bytes: 64, addedAt: 1 }] }] },
+  { bytesOf: async (id) => replicateStore.rows.get(id) ?? null },
+) as unknown as Record<string, { raw: string; size: number }>
+check('the (opt-in) backup carries the referenced bytes as base64 rows',
+  Object.keys(backupWithBytes).length === 1 && 'raw' in backupWithBytes['att_smoke_s1'])
+// Round-trip restore: four rows in — one good, one over the 4MB cap, one
+// hostile id, one corrupt base64. The good one comes back; the rest are
+// skipped, named by absence and the count.
+import { MAX_ATTACHMENT_BYTES as CAP } from '../src/lib/models'
+const goodRow = (backupWithBytes as Record<string, { raw: string }>)['att_smoke_s1']
+const restoreStore = fakeStore()
+const restoredCount = await restoreBackupAttachments(
+  {
+    att_smoke_s1: goodRow,
+    att_big: { raw: btoa('x'.repeat(CAP + 8)), size: CAP + 8 },
+    '../weird': { raw: btoa('y'), size: 1 },
+    att_corrupt: { raw: 'not-base64!!', size: 3 },
+  } as unknown as Parameters<typeof restoreBackupAttachments>[0],
+  { storeOne: restoreStore.store },
+)
+check('restore parses the good row, skips cap/shape/corrupt rows', restoredCount === 1 && restoreStore.rows.has('att_smoke_s1'))
+check('the oversized row never entered the local byte store (4MB cap holds on import)', !restoreStore.rows.has('att_big'))
+
+
 // --- summary -----------------------------------------------------------------
 
 console.log('')

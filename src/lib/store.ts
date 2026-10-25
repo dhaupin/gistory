@@ -8,6 +8,7 @@ import type { DeletedRegistry, SyncSettings } from '../sync/merge'
 import { mergeSettings, mergeVariables } from '../sync/merge'
 import { loadView, mergeView, viewKeyItem, type ViewState } from '../sync/view-state'
 import { normalizeVariables, type Variables } from './variables'
+import { collectBackupAttachments } from './attachments'
 
 const THREADS_KEY = 'gistory_threads'
 const MESSAGES_KEY = 'gistory_messages'
@@ -21,14 +22,28 @@ export function loadData(): {
   messages: MessagesByThread
   projects: Project[]
 } {
-  try {
-    return {
-      threads: JSON.parse(stGetString(THREADS_KEY) || '[]'),
-      messages: JSON.parse(stGetString(MESSAGES_KEY) || '{}'),
-      projects: JSON.parse(stGetString(PROJECTS_KEY) || '[]')
+  // Each row is validated as a whole, not just try/caught: a corrupted or
+  // hand-edited row ("null", a bare number) parses fine and would hand a
+  // non-Array/non-object to callers that `.map` it — a crash on EVERY boot
+  // with no recovery path short of wiping storage. Same shape guards the
+  // service worker's loadSnapshot() runs.
+  const parse = <T>(key: string, fallback: T, ok: (v: unknown) => boolean): T => {
+    try {
+      const raw = stGetString(key)
+      if (!raw) return fallback
+      const parsed: unknown = JSON.parse(raw)
+      return ok(parsed) ? (parsed as T) : fallback
+    } catch {
+      return fallback
     }
-  } catch {
-    return { threads: [], messages: {}, projects: [] }
+  }
+  return {
+    threads: parse(THREADS_KEY, [] as Thread[],
+      (v) => Array.isArray(v)),
+    messages: parse(MESSAGES_KEY, {} as MessagesByThread,
+      (v) => v !== null && typeof v === 'object' && !Array.isArray(v)),
+    projects: parse(PROJECTS_KEY, [] as Project[],
+      (v) => Array.isArray(v)),
   }
 }
 
@@ -171,12 +186,19 @@ export interface ExportData {
   settings?: SyncSettings
   /** Saved {{variables}}. Optional on import; merged per key by LWW. */
   variables?: Variables
+  /** Image BYTES, only when the backup opted into carrying them
+   *  (see collectBackupAttachments). Optional on import; rows are written
+   *  through the device-local byte store with the same caps as an upload. */
+  attachments?: Record<string, unknown>
 }
 
-// Export all data
-export function exportAll(): ExportData {
+// Export all data. `opts.withAttachments` opts the BACKUP FILE into carrying
+// the image bytes themselves (base64, capped rows, honest skips) - the
+// default stays metadata-only so a normal backup never surprises anyone with
+// tens of megabytes.
+export async function exportAll(opts: { withAttachments?: boolean } = {}): Promise<ExportData> {
   const { threads, messages, projects } = loadData()
-  return {
+  const base: ExportData = {
     version: 1,
     exportedAt: Date.now(),
     threads,
@@ -186,6 +208,10 @@ export function exportAll(): ExportData {
     settings: loadSettings(),
     variables: loadVariables()
   }
+  if (opts.withAttachments) {
+    base.attachments = await collectBackupAttachments(messages)
+  }
+  return base
 }
 
 /**
@@ -305,7 +331,11 @@ export function importData(
       const current = byId.get(msg.id)
       if (!current || timeOf(msg) >= timeOf(current)) byId.set(msg.id, msg)
     }
-    messageMap[threadId] = Array.from(byId.values()).sort((a, b) => a.createdAt - b.createdAt)
+    // `?? 0`: one malformed row without createdAt must not make the comparator
+    // NaN and silently destabilise the whole array sort.
+    messageMap[threadId] = Array.from(byId.values()).sort(
+      (a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0),
+    )
   }
 
   // Merge projects (by id), honoring tombstones.

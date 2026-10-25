@@ -653,6 +653,8 @@ function DataSettings({ onImport }: { onImport: (data: ExportData) => void }) {
   // downloaded backup is the real archive. The nudge is one-time dismissible;
   // the last-backup stamp stays visible in this tab regardless.
   const [lastExport, setLastExportState] = useState<number | null>(() => getLastExport())
+  // Opt-in image bytes: off by default so routine backups keep their size.
+  const [includeImagesInBackup, setIncludeImagesInBackup] = useState(false)
   const [nudgeDismissed, setNudgeDismissed] = useState(
     () => localStorage.getItem('gistory_backup_nudge_dismissed') === '1',
   )
@@ -674,11 +676,16 @@ function DataSettings({ onImport }: { onImport: (data: ExportData) => void }) {
     reloadLists()
   }, [])
   
-  const handleExportAll = () => {
-    const data = exportAll()
+  const handleExportAll = async () => {
+    // Opt-in bytes: images ride inside the backup only when asked-for, so a
+    // routine backup keeps its usual file size.
+    const data = await exportAll({ withAttachments: includeImagesInBackup })
     downloadJson(data, 'gistory-export-full.json')
     setLastExport()
     setLastExportState(Date.now())
+    if (includeImagesInBackup) {
+      setImportStatus(`Backup includes image bytes (${Object.keys(data.attachments || {}).length} image(s).)`)
+    }
   }
 
   const BACKUP_STALE_MS = 14 * 24 * 60 * 60 * 1000
@@ -759,6 +766,14 @@ function DataSettings({ onImport }: { onImport: (data: ExportData) => void }) {
         <button className="btn btn-primary" onClick={handleExportAll}>
           Export All Data
         </button>
+        <label className="export-toggle" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 10 }}>
+          <input
+            type="checkbox"
+            checked={includeImagesInBackup}
+            onChange={e => setIncludeImagesInBackup(e.target.checked)}
+          />
+          include images (bigger file)
+        </label>
         
         <div className="export-options">
           <select 

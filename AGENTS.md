@@ -118,7 +118,24 @@ POST /sync/handshake { chainId, deviceId, deviceName, writeSecret } → { chainI
 POST /sync/push      { chainId, deviceId, data, writeSecret }       → { seq, serverSeq }   // seq is server-assigned
 GET  /sync/pull      ?chain=X&since=Y&deviceId=Z       → { blobs[{seq,deviceId,data,createdAt}], serverSeq }
 GET  /sync/status    ?chain=X&deviceId=Z               → { chainId, serverSeq, version, devices[] }
+POST /sync/attach    { chainId, deviceId, attId, data, writeSecret } → { ok, attId, size }  // encrypted bytes (payload-external channel)
+GET  /sync/attach    ?chain=X&deviceId=Z&id=Y          → { data, size, createdAt }
 ```
+
+`/sync/attach` is the PAYLOAD-EXTERNAL byte channel for message images
+(migrations/0005_attachments.sql). Message metadata rides the sync payload
+and merges by the normal LWW rules; BYTES never do — they ride this route,
+encrypted with the chain key (same `iv.cipher` AES-GCM envelope as push),
+write-auth'd by the chain write secret, and byte-budgeted by
+`attach-chain-bytes` per chain per day, so the echo-loop class that filled
+D1 twice cannot re-run on pixels. The relay stays blind: it stores
+ciphertext, and the client refuses to store a decrypt whose length
+disagrees with the merged `bytes` claim (the size gate). Devices PUT at
+save time and GET whatever referenced ids they lack after any merge
+(`replicateMissingAttachments` in src/lib/attachments.ts); an attachment
+byte row is not pruned by age — the relay cannot see which messages still
+reference it (that lives in encrypted metadata), and growth is bounded by
+the daily byte budget instead.
 
 `writeSecret` is REQUIRED by `handshake` when that call *creates* the chain — a create without one is refused (400) before any row exists. Later devices learn the secret from the pairing token.
 
@@ -214,7 +231,7 @@ is missing (500 — a storage-integrity violation, never a legacy state), and
 
 ### 5. Guards: throttle, breaker, and WAF
 
-Three guards, all in `functions/_shared/guards.ts`, wired into all four data
+Three guards, all in `functions/_shared/guards.ts`, wired into all five data
 routes. They are a *backstop* — Cloudflare's edge rate limiting still belongs at
 the edge — but the edge cannot see what the relay can: which chain a caller is
 hammering, and what a valid write secret looks like.
@@ -229,6 +246,9 @@ hammering, and what a valid write secret looks like.
 | `push-chain-bytes` | chainId | 96MB/day | a full-state ECHO loop — requests that look ordinary on every per-minute counter while filling the database (2026-10-25: 1220 × ~415KB snapshots hit the 500MB ceiling overnight). Charged after write auth, only for admitted writes; per-chain on purpose because the ping-pong shape has TWO devices each spending ~50% |
 | `pull` | deviceId | 240/min | a pull loop starving pushes of D1 time, and `status`, which leaks the device list |
 | `handshake` | deviceId | 20/min | walking chain ids to enumerate chains |
+| `attach` | deviceId | 120/min | one device PUTting/GETting attachment bytes (a save is ≤6 PUTs; a replication pass is one GET per missing id) |
+| `attach-chain` | chainId | 600/min | a chain's devices filling the shared attachment table |
+| `attach-chain-bytes` | chainId | 96MB/day (count = units = wire bytes) | the same echo-loop economics as `push-chain-bytes`, on pixels — re-uploading the same images between two devices would pass every request counter while filling D1. Charged after write auth, only for admitted writes |
 | `write-fail` | chainId | 20/min | guessing a write secret — a MISSING or malformed secret is charged here too, so the cheapest flood (omit the field) is not free |
 | `flood` | connecting IP (CF-Connecting-IP) | 1200/min | an identity-rotating flood: every other bucket is keyed by client-supplied ids, so this is the one bucket a caller cannot walk around. Checked FIRST in `guardRoute`, on every route. The header is set by Cloudflare and stripped if inbound; `X-Forwarded-For` is deliberately ignored. Missing header (tests, `wrangler dev`) skips the bucket |
 
@@ -667,7 +687,7 @@ generate real pairs.
   means discriminated unions (`{ ok: true } | { ok: false }`) can no longer be
   narrowed on their discriminant. `guards.ts` narrows on exactly that, so
   compiling the server in the root config would demand `as` casts all over it
-  and throw away the very checking this is for. The relay is four routes plus
+  and throw away the very checking this is for. The relay is five routes plus
   two shared modules where a type error is a 500 for every user, so it gets the
   stricter pass instead of the looser one. If you add a guard helper that
   returns a discriminated union, it will typecheck in `tsconfig.functions.json`

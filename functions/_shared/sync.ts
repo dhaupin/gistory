@@ -153,6 +153,31 @@ export async function readJson(
 export const MAX_PAYLOAD_BYTES = 5_000_000
 
 /**
+ * Attachment-byte ceiling for /sync/attach, and its strict ciphertext grammar.
+ *
+ * A 4MB image ends up as base64 (~5.3MB) INSIDE the encrypted envelope, so the
+ * wire string can run ~7MB — hence 8MB here, a ceiling for the largest honest
+ * upload, not a tight budget. The grammar is stricter than push's: an
+ * attachment payload is exactly `iv.cipher` base64 (the agent's
+ * encryptPayload shape), which lets a malformed request refuse on shape before
+ * it ever reaches a guard bucket.
+ */
+export const MAX_ATTACHMENT_BLOB_BYTES = 8_000_000
+
+/** Attachment ids are app-generated (`att_` + base36 pieces): URL-safe, bounded. */
+export function isValidAttId(id: unknown): id is string {
+  return typeof id === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(id)
+}
+
+/** The ciphertext shape every attachment body must have: `iv.cipher` base64. */
+export function isValidCiphertextShape(data: unknown): data is string {
+  return (
+    typeof data === 'string' &&
+    /^[A-Za-z0-9+/=_-]+\.[A-Za-z0-9+/=_-]+$/.test(data)
+  )
+}
+
+/**
  * Ceiling on the whole request body, independent of the encrypted-payload cap.
  *
  * Generous on purpose: the largest legitimate body is a max-size push, which is

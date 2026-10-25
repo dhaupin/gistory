@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "rows": [
+    {
+      "pack": "eye-ci-gate",
+      "id": "unexplained-drift-fails-the-pass",
+      "verdict": "REFUSED",
+      "reason": "UNRECORDED"
+    },
+    {
+      "pack": "eye-ci-gate",
+      "id": "dangling-canon-fails-louder",
+      "verdict": "REFUSED",
+      "reason": "DANGLING_ROW"
+    },
+    {
+      "pack": "eye-ci-gate",
+      "id": "explained-tree-passes",
+      "verdict": "PASSED"
+    },
+    {
+      "pack": "eye-ci-gate",
+      "id": "schema-integrity-enforced",
+      "verdict": "REFUSED",
+      "reason": "LEDGER_CORRUPT"
+    },
+    {
+      "pack": "eye-ci-gate",
+      "id": "duplicate-row-ids-refused",
+      "verdict": "REFUSED",
+      "reason": "LEDGER_CORRUPT"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "unknown-command",
+      "verdict": "REFUSED",
+      "reason": "UNKNOWN_COMMAND"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "gate-no-manifest",
+      "verdict": "REFUSED",
+      "reason": "MISSING_MANIFEST"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "manifest-corrupt-pin",
+      "verdict": "REFUSED",
+      "reason": "MANIFEST_CORRUPT"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "ledger-corrupt-json",
+      "verdict": "REFUSED",
+      "reason": "LEDGER_CORRUPT"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "ledger-duplicate-ids",
+      "verdict": "REFUSED",
+      "reason": "LEDGER_CORRUPT"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "adopt-note-required",
+      "verdict": "REFUSED",
+      "reason": "ADOPT_NOTE_REQUIRED"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "adopt-control-char-note",
+      "verdict": "REFUSED",
+      "reason": "UNSAFE_TEXT"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "gate-unrecorded-artifact",
+      "verdict": "REFUSED",
+      "reason": "UNRECORDED"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "gate-dangling-row",
+      "verdict": "REFUSED",
+      "reason": "DANGLING_ROW"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "look-missing-url",
+      "verdict": "REFUSED",
+      "reason": "UNKNOWN_COMMAND"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "diff-no-baseline",
+      "verdict": "REFUSED",
+      "reason": "NO_BASELINE"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "browser-missing-refusal",
+      "verdict": "REFUSED",
+      "reason": "MISSING_PINNED_BROWSER"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "capture-skeletal-blank-frame",
+      "verdict": "BOUNDED"
+    },
+    {
+      "pack": "eye-shapes",
+      "id": "crop-target-missing",
+      "verdict": "BOUNDED"
+    },
+    {
+      "pack": "eye-text-leg",
+      "id": "control-char-note-refused-at-write",
+      "verdict": "REFUSED",
+      "reason": "UNSAFE_TEXT"
+    },
+    {
+      "pack": "eye-text-leg",
+      "id": "del-char-note-refused-at-write",
+      "verdict": "REFUSED",
+      "reason": "UNSAFE_TEXT"
+    },
+    {
+      "pack": "eye-text-leg",
+      "id": "clean-note-writes-and-round-trips",
+      "verdict": "PASSED"
+    },
+    {
+      "pack": "eye-text-leg",
+      "id": "manifest-stays-strict",
+      "verdict": "PASSED"
+    }
+  ]
+}

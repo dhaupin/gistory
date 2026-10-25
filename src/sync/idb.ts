@@ -36,8 +36,12 @@
 // only where it persists between sessions.
 
 const DB_NAME = 'gistory'
-const DB_VERSION = 1
+// v2: adds the `attachments` object store (message image bytes).
+// v1 held only the `kv` store; the v1 -> v2 upgrade path is the same
+// onupgradeneeded handler, so old databases upgrade in place on first open.
+const DB_VERSION = 2
 const STORE = 'kv'
+const ATTACHMENT_STORE = 'attachments'
 
 // --- The sync keys, and the exception list ----------------------------------
 
@@ -105,6 +109,7 @@ function openDatabase(): Promise<IDBDatabase> {
     request.onupgradeneeded = () => {
       const db = request.result
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE)
+      if (!db.objectStoreNames.contains(ATTACHMENT_STORE)) db.createObjectStore(ATTACHMENT_STORE)
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -370,6 +375,132 @@ async function writeThrough(key: string, value: string | null) {
       }
     } catch {
       /* nothing persisted; mem still holds the session */
+    }
+  }
+}
+
+// --- The attachment byte store (device-local, never synced) ----------------
+
+// Message image bytes live here: a second object store holding Blobs (or
+// ArrayBuffers under test fakes) keyed by attachment id. DELIBERATELY not
+// part of the stGetString world: bytes never ride the sync payload, never
+// get a localStorage shadow (localStorage cannot hold blobs sanely), and
+// never hydrate into the mem map. They are read on demand when a message
+// renders its images, and swept whenever the referencing messages no longer
+// exist (sweepAttachments in ./lib/attachments.ts mirrors the sweepDrafts
+// pattern).
+
+function idbPutAttachment(db: IDBDatabase, key: string, bytes: Blob | ArrayBuffer): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ATTACHMENT_STORE, 'readwrite')
+    tx.objectStore(ATTACHMENT_STORE).put(bytes, key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error || new Error('attachment transaction aborted'))
+  })
+}
+
+function idbGetAttachment(db: IDBDatabase, key: string): Promise<Blob | ArrayBuffer | null> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ATTACHMENT_STORE, 'readonly')
+    const request = tx.objectStore(ATTACHMENT_STORE).get(key)
+    tx.oncomplete = () => resolve(request.result ?? null)
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error || new Error('attachment transaction aborted'))
+  })
+}
+
+function idbDeleteAttachment(db: IDBDatabase, key: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ATTACHMENT_STORE, 'readwrite')
+    tx.objectStore(ATTACHMENT_STORE).delete(key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error || new Error('attachment transaction aborted'))
+  })
+}
+
+function idbAllAttachmentKeys(db: IDBDatabase): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ATTACHMENT_STORE, 'readonly')
+    const request = tx.objectStore(ATTACHMENT_STORE).getAllKeys()
+    tx.oncomplete = () => resolve((request.result as IDBValidKey[]).map(String))
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error || new Error('attachment transaction aborted'))
+  })
+}
+
+/** Store image bytes for one attachment id. False when no IndexedDB
+ *  (fallback smoke/envs): callers treat that as "attachment not stored" and
+ *  the message keeps its metadata with the pixels simply unavailable. */
+export async function putAttachmentBytes(id: string, bytes: Blob | ArrayBuffer): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false
+  const db = await conn()
+  if (!db) return false
+  try {
+    await idbPutAttachment(db, id, bytes)
+    return true
+  } catch {
+    dropConn()
+    const retry = await conn()
+    if (!retry) return false
+    try {
+      await idbPutAttachment(retry, id, bytes)
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+
+/** Read image bytes back, or null when missing/unavailable. */
+export async function getAttachmentBytes(id: string): Promise<Blob | ArrayBuffer | null> {
+  if (typeof indexedDB === 'undefined') return null
+  const db = await conn()
+  if (!db) return null
+  try {
+    return await idbGetAttachment(db, id)
+  } catch {
+    dropConn()
+    const retry = await conn()
+    if (!retry) return null
+    try {
+      return await idbGetAttachment(retry, id)
+    } catch {
+      return null
+    }
+  }
+}
+
+/** Drop one attachment's bytes. Idempotent. */
+export async function deleteAttachmentBytes(id: string): Promise<void> {
+  if (typeof indexedDB === 'undefined') return
+  const db = await conn()
+  if (!db) return
+  try {
+    await idbDeleteAttachment(db, id)
+  } catch {
+    dropConn()
+    const retry = await conn()
+    if (retry) await idbDeleteAttachment(retry, id).catch(() => undefined)
+  }
+}
+
+/** Every attachment id currently holding bytes (the sweep's universe). */
+export async function allAttachmentIds(): Promise<string[]> {
+  if (typeof indexedDB === 'undefined') return []
+  const db = await conn()
+  if (!db) return []
+  try {
+    return await idbAllAttachmentKeys(db)
+  } catch {
+    dropConn()
+    const retry = await conn()
+    if (!retry) return []
+    try {
+      return await idbAllAttachmentKeys(retry)
+    } catch {
+      return []
     }
   }
 }

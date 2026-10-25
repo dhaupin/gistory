@@ -173,7 +173,10 @@ function mergeMessages(
       }
     }
 
-    result[threadId] = Array.from(map.values()).sort((a, b) => a.createdAt - b.createdAt)
+    result[threadId] = Array.from(map.values())
+      // `?? 0`: a malformed row without createdAt must not make the comparator
+      // NaN and silently destabilise the whole array sort.
+      .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
   }
 
   return result

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "eye-ci-gate",
+  "description": "The crashtest-spine pack for the .eyes/ gate: verifies that a repo's eye gate behaves like a crashledger - unexplained drift fails, regressions re-baseline only through the documented adopt path, and the ledger schema is enforced, never guessed past. Reusable across every struct-leg repo that pulls the pack.",
+  "version": "0.1.0",
+  "entry": "index.js",
+  "env": {
+    "fs": {
+      "targets": [".eyes/manifest.yml", ".eyes/ledger.json", ".eyes/<route>/<view>/current.png"]
+    }
+  }
+}

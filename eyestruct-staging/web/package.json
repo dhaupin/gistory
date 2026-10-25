@@ -1,0 +1,22 @@
+{
+  "name": "flowforge-site",
+  "private": true,
+  "version": "0.9.0",
+  "type": "module",
+  "description": "flowforge site - the shell the struct family ships from (prestruct prerender + static hosting)",
+  "scripts": {
+    "dev": "vite",
+    "build": "prestruct build && node scripts/repair-404.cjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "prestruct": "^1.0.0",
+    "vite": "^5.4.0"
+  }
+}

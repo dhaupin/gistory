@@ -1,0 +1,14 @@
+/* poststruct docs theme — the fleet stone look, dark. */
+:root { --bg: #0c0f0a; --fg: #e6e8dd; --accent: #a8c000; --muted: #9aa38f; --card: #14180f; }
+body { background: var(--bg); color: var(--fg); max-width: 42rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; font: 16px/1.65 system-ui, sans-serif }
+nav a, a { color: var(--accent) }
+table { width: 100%; border-collapse: collapse }
+th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid #22281b }
+th { color: var(--muted); text-transform: uppercase; font-size: .75rem; letter-spacing: .08em }
+code, pre { background: var(--card); border-radius: 6px; font: .9em ui-monospace, monospace }
+pre { padding: .75rem 1rem; overflow-x: auto }
+footer { margin-top: 3rem; color: var(--muted); font-size: .85rem }
+header nav { margin-bottom: 2.5rem; font-size: .9rem }
+h1, h2 { letter-spacing: -0.02em }
+.crosslinks { border-top: 1px solid #22281b; margin-top: 2.5rem; padding-top: 1.25rem; color: var(--muted); font-size: .92rem }
+footer { border-top: 1px solid #22281b; padding-top: 1.25rem }

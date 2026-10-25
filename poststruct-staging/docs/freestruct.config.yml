@@ -1,0 +1,11 @@
+# Freestruct post-render SEO layer for the baked docs.
+# Runs AFTER `jekyll build`; output dir docs/_site is discovered from here.
+# Canonical math: site.url + basePath + RelSlug => https://docs.creadev.org/poststruct/<page>
+site:
+  name: poststruct docs
+  url: https://docs.creadev.org
+  description: Audit what shipped — the check catalog, pack system, and usage for the poststruct auditor.
+basePath: /poststruct
+# Spots intentionally left for the fleet house defaults when they earn them:
+# twitter: { username: "@..." }
+# og: { image: /og-default.png }

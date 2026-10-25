@@ -13,3 +13,18 @@ bun.lock
 
 # Crashtest bundle output (built before every run; see scripts/build-crashtest.mjs)
 crashtest/handlers.mjs
+
+# Eyestruct staging tree rides in this repo poststruct-style until
+# dhaupin/eyestruct opens; its own git history is NOT a submodule
+# (a bare gitlink with no .gitmodules confuses every consumer).
+eyestruct-staging/.git
+
+# Eyestruct candidates are session-burned disposables (PRD receipt 3:
+# only COMMITTED .eyes/ artifacts are the visual memory). The .eyes/
+# tree itself rides tracked - that is the memory law.
+.eyes-candidates/
+
+# Poststruct staging tree - restored beside eyestruct 2026-10-25 so both
+# legs live in one workspace (source recovered from the historical
+# 0.9.0 lock tar; history stays canonical on dhaupin/poststruct).
+poststruct-staging/.git

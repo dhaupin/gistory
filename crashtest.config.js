@@ -82,10 +82,16 @@ const one = async (sql, ...params) =>
 export default {
   baseUrl: 'https://relay.crashtest.local',
 
-  // crashtest's native fake env: one D1 binding, no secrets/vars/kv needed —
-  // the handlers read everything else from the request itself.
+  // crashtest's native fake env: one D1 binding plus one fake KV namespace.
+  // DEVICE_CACHE exists ONLY as telemetry for the storage-fill attack: the
+  // relay has no KV binding of its own, so the namespace starts empty and
+  // the honest expectation is 0 keys after N fill rounds (the WAF refuses
+  // every junk write before it could reach a store, so "nothing grew" is a
+  // VERDICT, not a missing number). Secrets/vars stay unused - the handlers
+  // read everything else from the request itself.
   env: {
     d1: { GISTRY_DB: { tables } },
+    kv: { DEVICE_CACHE: {} },
   },
 
   routes: {
@@ -93,6 +99,40 @@ export default {
     push: (ctx) => pushHandler(captureD1(ctx)),
     pull: (ctx) => pullHandler(captureD1(ctx)),
     status: (ctx) => statusHandler(captureD1(ctx)),
+  },
+
+  // Scenario-vocabulary coverage (2026-10-25, the honest-skips became real
+  // coverage). The volume library speaks enroll/kvwrite; gistory's relay
+  // neither has file uploads nor an account server, so:
+  //   enroll  -> handshake : device enrollment IS the enrollment surface.
+  //             credential-stuffing here = write-secret guessing + hand-
+  //             shake floods (the write-fail / handshake / flood budgets),
+  //             and the recursion/shape attacks hit the real WAF.
+  //   kvwrite -> push      : D1 writes are the relay's only storage write.
+  //             storage-fill here = junk-append economics against the WAF
+  //             (no `data`, junk shape) and the push budgets behind it.
+  // UPLOAD stays UNDECLARED on purpose: gistory now HAS client-side image
+  // upload fields (message attachments, 2026-10-25), but there is STILL no
+  // filename-bearing multipart HTTP surface - the relay remains blind (bytes
+  // are device-local, metadata rides encrypted). An upload->push alias would
+  // only measure "multipart refused by the WAF", not the attack class
+  // (filename-derived keys, mime polyglots). The class's honest coverage
+  // lives where the handler logic lives: tests/sync-smoke.ts section 14
+  // (hostile names never become keys, mime allow-list canaries refuse,
+  // caps refuse before storage). One target that DOES expose a real upload
+  // route + store should declare it; the skip remains recorded.
+  // ATTACH (/sync/attach, 2026-10-25) is a real new route the pack does not
+  // yet target: the blind-relay byte channel for message images (write-auth
+  // = chain write secret; WAF shape-checks the iv.cipher envelope; attach
+  // + attach-chain + attach-chain-bytes budgets mirror push's). Its DIRECT
+  // coverage lives where the class lives: sync-smoke section 15 (real
+  // two-device crypto round trip, size gate, wrong-key blindness, hostile
+  // shapes, budget knobs) + barrage C1 fuzzing rolls the route. Pack-level
+  // cover (relay-shapes' takeover/flood shapes on attId bodies) rides a
+  // later adoption - declared here by this comment, never a fake pass.
+  routeAliases: {
+    enroll: { route: 'handshake' },
+    kvwrite: { route: 'push' },
   },
 
   moduleCtx: {

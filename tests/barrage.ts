@@ -13,6 +13,8 @@ import { POLICIES } from '../functions/_shared/guards'
 import { onRequestPost as handshakePost } from '../functions/sync/handshake'
 import { onRequestPost as pushPost } from '../functions/sync/push'
 import { onRequestGet as pullGet } from '../functions/sync/pull'
+import { onRequestPost as attachPost } from '../functions/sync/attach'
+import { onRequestGet as attachGet } from '../functions/sync/attach'
 
 // --- instrumented harness ----------------------------------------------------
 
@@ -56,6 +58,8 @@ const routes: Record<string, (ctx: any) => Promise<Response>> = {
   'POST /sync/handshake': handshakePost,
   'POST /sync/push': pushPost,
   'GET /sync/pull': pullGet,
+  'POST /sync/attach': attachPost,
+  'GET /sync/attach': attachGet,
 }
 
 ;(globalThis as any).fetch = async (input: any, init?: any) => {
@@ -141,7 +145,7 @@ const hostile = [
 ]
 const shapes: unknown[] = [null, 0, -1, true, [], {}, [1, 2, 3], { nested: { deep: true } }]
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
-const fields = ['chainId', 'deviceId', 'deviceName', 'writeSecret', 'data']
+const fields = ['chainId', 'deviceId', 'deviceName', 'writeSecret', 'data', 'attId']
 
 let fuzzBad = 0
 const started = d1Runs
@@ -152,7 +156,8 @@ for (let i = 0; i < 1500; i++) {
     if (Math.random() < 0.15) body[f] = pick(shapes)
     else body[f] = pick(hostile)
   }
-  const path = Math.random() < 0.5 ? '/sync/handshake' : '/sync/push'
+  const roll = Math.random()
+  const path = roll < 0.5 ? '/sync/handshake' : roll < 0.85 ? '/sync/push' : '/sync/attach'
   const res = await post(path, body, '10.0.0.1')
   // 429 = a throttle caught the flood (expected, correct). 500/503 = an
   // uncaught throw or a storage failure — a REAL bug under this input.

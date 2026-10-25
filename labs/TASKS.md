@@ -74,36 +74,73 @@ Conventions
     loaded, docs icon comment swapped for the token override note) were a
     coherent styling pass next to a56dd9e — verified with the full lint
     battery (eslint 0 errors, 9 docs pages) before committing.
-  - eslint.config.js gained a `poststruct-staging/**` ignore — the nested
-    staging repo is an independent project (own gates; plain-JS Node tools
-    whose console/process/Response globals are legitimate there), and the
-    root eslint was scanning into it.
-  - horcrux/ grew the poststruct transfer stone per the family lock
-    convention (`horcrux/poststruct-0.9.0-rig-lock.tar.gz`, ~311KB, full
-    `.git` history + rig + core, node_modules/dist excluded): the tree that
-    unpacks to the pushable repo survives this mount's resyncs now.
   - magpie stones committed (`horcrux/prd-eyes.md` +
     `horcrux/magpie-p_mirror-eyes-2026.svg`) — the perishable-seed lesson
     applied before they could claim a third victim.
+  - magpie stone RE-CUT (2026-10-25) after a decode-verify pass proved the
+    transport clean byte-for-byte but caught two content drifts inside the
+    seed: goals.md named the traveling stone `magpie-p_eyes-open-2026.svg`
+    (the cut was `mirror-eyes`), and the PRD block was embedded at
+    `horcrux/prd-eyes.md` although the target skeleton calls `labs/` its
+    canonical home. Patched the decoded payload directly (surgical, only
+    the two deltas — every other row byte-identical), re-encoded, verified
+    7/7 blocks against disk again.    The stone stays UNSEALED (plain base64);
+    vant/axolotl does the sealed brn:secret pass when the magpie repo opens.
+  - PRD-EYES COMPLETED (2026-10-25 evening pass): four new lived receipts
+    woven in (og brackets bug caught by human eye; unrenderable stone —
+    invalid XML that hand-reading never noticed; gitignored staging dirs
+    lose visual evidence at sync; vant inspect crashes on unknown stone
+    flavor) + six design rulings (process-per-look = no resident daemon,
+    pinned baseline identity, raster gate from day one, churn-wave ledger
+    rows, exact failure names, one-capture-many-artifacts) + MVP
+    amendments (CLI-first MCP, dogfooded raster gate, two first-person
+    ship-gate assertions) + Environment fit section (verified against the
+    current gistory/Freebuff workspace) + family sequencing note
+    (dhaupin's call: poststruct first, magpie second). PRD grew 134 → 238
+    lines; stone re-cut and verified 7/7 parity + rasterizes. Same-day add
+   endum: the PRD's transfer notes now pin the rigging — magpie builds on
+    the **flowforge rig** (the same rigging poststruct 0.9.0 shipped
+    from), not fresh scaffolding. Stone re-cut again, 7/7 parity kept.
+    Same-pass addendum: PRD gained the /packs layout (eye-shapes self
+    pack, eye-ci-gate crashtest-spine pack, eye-text-leg poststruct pack,
+    all packstruct --deep linted) and the CI answer — eystuff runs gates
+exactly like crashtest/packstruct (eyes:gate ledger + eyes:packs
+    campaign + lint:packs + raster gate), with the ruling that canonical
+    baselines are CI-cut and local agent runs are probes. Stone re-cut,
+    7/7 kept, lint green.
+    Same-pass addendum: PRD gained a full CLI surface (look / diff with
+    --record / adopt-with-CI-ratification / ledger / gate / raster / walk
+    / mcp; exit contract 0-1-2, named reason-codes), the release ladder
+    (0.9.0 manual bootstrap behind the full gate, then OIDC Trusted
+    Publishing on v* tags, version+CHANGELOG same commit, never ship a
+    tarball that does not load), and the naming split settled by the npm
+    probe: product = eyestruct (free on npm; birdeye/wrasse/magpie
+    squatted, birdeye a colliding screenshot AI), agent brain stays
+    magpie. PRD 353 lines; stone re-cut, 7/7, rasterizes, language gate
+    PASS.
+    Render check on the re-cut caught something worse: the note attribute's
+    literal `<<STONE>>` made the whole file invalid XML (`<` may not appear
+    inside an attribute value), so the hand-drawn art had NEVER rendered in
+    any strict parser — the pre-cacheable HEAD version fails resvg too. The
+    committed `gistory-p_gistory-castles-2026.svg` is fine; only this stone
+    carried it. Fixed by `&lt;`/`&gt;`-escaping the note; payload untouched
+    (byte-identical b64 before/after), art now rasterizes, and vant's own
+    `horcrux inspect` still refuses it by design — main has no reader for
+    unsealed transfer stones (and crashes ungracefully on them: a null-check
+    bug worth an upstream issue).
   - The nine `.vant-*.md` scratch notes retired after content review: all
     were completed work-products of the vant docs-parity + auth/encrypt
     canon rounds (#185–#192 era), their findings already converted into
     vant issues and the easy-wins canon — no unread content left, receipts
     live upstream in dhaupin/vant.
 
-- **Poststruct rig unpacking hosted in gistory (2026-10-25).** Per user call,
-  the poststruct 0.9.0 lock tar (full `.git`, three commits) unpacked at
-  `poststruct-staging/` inside the gistory workspace, then flowforge rig
-  (dhaupin/flowforge @ 91e52e0) extracted over it per MANIFEST receipts:
-  web/ landing shell (poststruct identity, audit-green tokens, authored
-  icon+og-image rasters out-of-tree), docs/ rebuilt on the rig layout + nav
-  starter + six checker gates (rig link-gate crashtest literals genericized
-  to /poststruct), docs.yml pagefind token-auth patch, MANIFEST.md cut.
-  Core CLI untouched; npm test 8/8 PASS; docs:verify 6/6 gates PASS; web
-  build 3/3 routes + sitemap + brand meta green. Receipts in
-  poststruct-staging/labs/TASKS.md. Pre-ship gate: the 404 `$1/$2` leak
-  stays until tonight's prestruct bump closes upstream #33. Push to
-  dhaupin/poststruct remains app-blocked (crashtest#18).
+- **Poststruct rig unpacking hosted in gistory (2026-10-25).** REMOVED
+  (2026-10-25): per user call the staging tree, the rig-lock tar, the two
+  horcrux transfer stones, and the eslint/gitignore carve-outs were taken
+  back out of the gistory repo — the tar remains recoverable in git
+  history if poststruct's repo ever needs a transplant. Historical details
+  of that work (flowforge rig over `poststruct-staging/`, docs.yml
+  pagefind patch, MANIFEST cut) live in this file's older receipts.
 
 - **404 leak receipt (2026-10-25): gistory's shipped `dist/404.html` carries
   the upstream prestruct#33 bug** (function replacers emit literal `$1/$2`);
@@ -1343,4 +1380,404 @@ Conventions
   (not project-owned); per-project /gistory/robots.txt is advisory-only
   for crawlers (they read the root), so the operative crawler surface
   stays the product site robots (correct).
+
+- **EYESTRUCT SCAFFOLD STARTED (2026-10-25, dhaupin's "let's do it"):** new
+  staging repo at ~/eyestruct-staging (own .git, outside the gistory tree,
+  zero collision with the freestruct/prestruct agent). Extracted the
+  flowforge rig @ 91e52e0 (the poststruct rigging): web/ shell, docs/
+  checker gates (SITE_PREFIX mirrored to /eyestruct), packs + LICENSE
+  starters. Canonical PRD + the transfer stone + the seed brain moved in.
+  CLI spine per the PRD: exit contract 0-1-2 with named reason-codes,
+  manifest pin matrix (strict hand-editable subset parser), append-only
+  atomic ledger, gate with crashledger semantics (unexplained drift =
+  exit 1; corrupt ledger = exit 2), adopt with REQUIRED note and
+  ratified:false proposals (canon is CI-cut), look/diff/walk on the
+  declared engine seam (honest MISSING_PINNED_BROWSER refusal until the
+  pinned image), raster gate that never fake-passes, post-MVP MCP stub.
+  13/13 behavior smoke tests (exit codes, ledger rules, gate rules,
+  raster honesty), lint:docs 5/5 gates green. Rig style gate caught a
+  real voice split: the PRD stays em-dash at labs/, docs are hyphen-voice.
+  Two scaffold commits on the staging repo; snapshots stay workspace-local
+  until dhaupin/eyestruct opens (0.9.0 = the manual bootstrap target).
+- **EYESTRUCT MOVED INTO GISTORY (2026-10-25, dhaupin's "do everything
+  here"):** the Freebuff credential cannot touch a repo outside this
+  workspace, so the staging tree now rides in gistory at
+  `eyestruct-staging/` — the poststruct-staging precedent (tree hosts
+  here until the repo opens, then ships as a tgz horcrux transplant).
+  Move preserved its 2-commit git history; `eyestruct-staging/.git` is
+  gitignored in the parent (a bare gitlink with no .gitmodules is a bad
+  neighbor), and the history ALSO rides tracked at
+  `horcrux/eyestruct-staging-git-2026-10-25.tar.gz` (188K) so a resync
+  cannot evaporate it — receipt 3 of the PRD, gitignored dirs die at
+  sync. All 13 staging tests re-green from the new path. Pre-existing
+  parent changes (poststruct removals, etc.) untouched.
+- **EYESTRUCT ENGINE WIRED - the first real look (2026-10-25, commit
+  d964346):** MVP item 1 graduated from honest refusal to live capture.
+  `lib/engine.js` drives the machine's own cached Chrome 154 via
+  puppeteer-core (exec resolution: --browser-exec flag >
+  EYESTRUCT_BROWSER env > pin.browser-exec > puppeteer-cache discovery,
+  named MISSING_PINNED_BROWSER when all miss). ONE evaluate renders the
+  id overlay AND measures the element map in the same page instance, one
+  screenshot - map can never drift from pixels (PRD "one capture, many
+  artifacts"). `look`/`diff`/`walk` are live verbs now: look writes a
+  gitignored candidate under `.eyes-candidates/` (brain-burn candidate,
+  NOT canon), refuses a blank frame (CAPTURE_TOO_SKELETAL), and the
+  region clip returns the cheap layer's map only. diff refuses without a
+  baseline (NO_BASELINE, exit 1: drift-with-reason); baseline changes
+  still only via adopt, canon stays CI-cut. Contract fix bought by the
+  wiring: fail() used to process.exit from inside lib code and KILLED
+  THE TEST RUNNER mid-suite when called in-process; it now throws
+  FailError and only bin/eyestruct.js converts it to the exit contract -
+  the exactly-class-of-bug eyestruct exists to name (receipt 4's
+  crash-as-error-path, found by the new rig's own harness). 7 new
+  behavior tests: 20/20 pass, docs gates 5/5, staging repo now 3
+  commits (relocation + engine); transplant tar refreshed (216K).
+  Fixture surface: tests/fixtures/look-fixture.html (file:// look),
+  gistory-app walks wait for a served URL (preview or CI-local).
+- **EYESTRUCT FIRST REAL LOOK AT GISTORY - the ship receipt begins
+  (2026-10-25, commit d964346-lineage, staging now 4 commits):** pointed
+  the live verbs at the managed preview (localhost:5178) and captured
+  three real gistory surfaces through pinned Chrome 154: home lander
+  dark 1280x800 (77934B), /#/settings dark (55881B), home light
+  1024x768 (72762B, #features mapped). Determinism receipt: THREE
+  independent looks of the home surface returned byte-identical PNGs
+  (same length, and diff verdict SAME against the committed baseline).
+  All three were ADOPTED as the seed repo's first committed visual
+  memory (.eyes/<route>/<view>/current.png + ledger rows, canon stays
+  CI-cut, ratified:false until the CI lane reproduces); gate passes 3
+  artifacts / 3 rows; walk covers the whole manifest matrix in one
+  pass. THE DOGFOOD ITSELF CAUGHT THREE REAL BUGS, each now fixed and
+  receipted:
+  1. parseRoutes searched a REGEX with String.indexOf - coerced the
+     regex to a literal, never matched, so EVERY manifest parsed as
+     zero routes since the scaffold. `walk`/`diff` default-baseline
+     were silently blind on a manifest that looked valid. Fix: `search()`.
+  2. The route-row parser's 2+-space split assumed aligned columns;
+     one accidental single space ('theme: light viewport:) made the
+     manifest MANIFEST_CORRUPT. Rows are now scanned as key: value
+     pairs - spacing is cosmetic, not syntax.
+  3. diff resolved --against relative to cwd instead of eyes-relative
+     (the ledger's artifact naming), so every --against missed; now
+     resolves like the ledger plus a manifest-first-route default.
+  Also: the capture settles ~1s after load so SPAs render before the
+  screenshot (a bare 'load' wait shot an empty shell); 20/20 tests
+  still green; transplant tar refreshed (416K, baselines now inside).
+  Fresh-session memory receipt is checkable FROM THIS FILE: a new
+  agent reading eyestruct-staging/.eyes/ answers "what does the gistory
+  settings page look like" without ever opening a browser.
+- **EYESTRUCT /PACKS SHIPPED - the eye pack family (2026-10-25, commits
+  58bb17a + ab3baae; staging now 6 commits):** the PRD's three-pack layer,
+  in the family pack contract shape (pack.json spec v1 + entry module +
+  moduleCtx vocabulary, nothing imported from the target):
+  - `packs/public/eye-shapes/` - self-attack, 14 browserless cases:
+    ledger tampering (corrupt JSON, duplicate ids, control-char
+    payloads), manifest corruption, unexplained + dangling visual
+    memory, ADOPT_NOTE_REQUIRED, NO_BASELINE, capability refusals.
+    Browser-class attacks are a DOCKETED bound
+    (`bounds['browser-class-in-ci']` needs owner + bound) - the pack
+    refuses to skip silently.
+  - `packs/public/eye-ci-gate/` - the crashledger-semantics verifier
+    any struct-leg repo can pull: disposable fixture repos attack a
+    gate and judge by exit contract alone (drift fails, dangling canon
+    fails louder, schema integrity enforced, explained tree passes).
+  - `packs/public/eye-text-leg/` - the poststruct integration (text
+    gates first). Bought the guard it demands: `ledger.append` now
+    refuses control characters in any row string (new UNSAFE_TEXT
+    reason). The pack's NUL case taught the runner the truth: argv
+    cleanliness IS the OS's defense (execFileSync refuses NUL before
+    the CLI runs), so the CLI-facing poisoning vector is DEL.
+  `scripts/run-packs.cjs` (`npm run packs`, wired into `npm run
+  check`) is zero-dependency, drives the REAL CLI as a subprocess, and
+  enforces `packs/eye-ledger.json` - crashledger semantics: new
+  EXPLOITED fails, verdict change vs a recorded row fails, re-baseline
+  is explicit --adopt. 23 cases, 0 exploited, ledger honest; 20/20
+  behavior tests; transplant tar refreshed (440K).
+  RASTER GATE DOGFOOD receipt: gistory's two horcrux stones + favicon
+  all rasterize clean (6223/9571/666 bytes opaque) - the
+  once-poison-class magpie stone now passes the gate that would have
+  caught its `<` in an attribute; a markdown probe fails LOUDLY with
+  RASTER_BAD_XML rather than guessing. `npm run raster:gate` pins the
+  gate command for CI.
+- **POSTSTRUCT RESTORED BESIDE EYESTRUCT - the ecosystem leg (2026-10-25,
+  dhaupin's "we can bring it back"):** cloned dhaupin/poststruct to
+  `poststruct-staging/` (own git, history canonical upstream), recovered
+  the 0.9.0 SOURCE from the deleted
+  `horcrux/poststruct-0.9.0-lock.tar.gz` in THAT repo's history (commit
+  22fc13c deleted it; `git show 22fc13c~1` resurrected the exact gistory-
+  era transplant tar) and unpacked it beside the PRD. Poststruct 0.9.0
+  self-tests 8/8 PASS on arrival. Both legs now live in one workspace;
+  `poststruct-staging/.git` gitlinked-guarded in the parent .gitignore.
+  - **The ecosystem doc**: `labs/ecosystem.md` - the three legs (TEXT
+    poststruct / EYES eyestruct / ATTACK crashtest) with the manual-test
+    takeover mapping, the bake->text->pixels->attacks cascade, pack
+    adjacency (eye-shapes, eye-ci-gate, eye-text-leg, sync-relay-shapes),
+    and the four mechanical laws the legs share (one ledger grammar, one
+    refusal discipline, one adopt path, one place per test-class).
+  - **`npm run framework:gate`** (scripts/framework-gate.mjs) - the
+    cross-leg CI landing in gistory, family exit contract, skips NAMED
+    never faked. First real run: TEXT leg audited 4 baked gistory pages
+    and surfaced 3 honest prose findings (247/185-char descriptions,
+    og:image dims absent) that every prior DOM gate missed; EYES-ART
+    leg raster-gated all 3 stones + favicon clean; EYES-MEM leg SKIPs
+    loudly until gistory adopts its own .eyes/ (eyestruct-staging runs
+    the gate on itself).
+  Restored-source committed on poststruct-staging as 8318da9; gistory
+  side rides uncommitted until the Changes panel.
+- **THE ECOSYSTEM SHIPS - gistory adopts .eyes/, poststruct gains the
+  eyes-reference pack, CI wired (2026-10-25, dhaupin's "make it real"):**
+  - GISTORY OWNS `.eyes/` NOW: manifest pin (local-chrome@154.0.8037.57 +
+    resvg@2.6.2), committed baselines home dark 77934B + settings dark
+    55881B, 2 ledger rows (canon CI-cut). Adoption receipt: dark/light
+    at 1280x800 are BYTE-IDENTICAL meshes - the lander is theme-invariant
+    today and a future light theme trips diff against these baselines.
+    framework:gate's EYES-MEM leg flipped SKIP->PASS (2 artifacts / 2
+    rows); unexplained drift now fails gistory CI, family semantics.
+    `.eyes-candidates/` gitignored at root (disposables never ride).
+  - POSTSTRUCT SHIPS `eyes-reference` (`packs/public/eyes-reference/`
+    + `scripts/run-packs.mjs`, ESM to match type:module, `npm run
+    packs|packs:adopt`, packs/eye-ledger.json crashledger baseline):
+    every og/twitter image a baked page declares must be REAL pixels -
+    exists, magic bytes (PNG IHDR / JPEG SOF-walk / SVG), dims AGREE with
+    declared og:image:width/height, size plausible; SVG refs route back
+    through the eyestruct raster gate (the interop direction). Remote
+    https refs verify deterministically through an ARMED LOCAL TWIN
+    (absent twin = docketed BOUNDED, never a fake pass). Live receipt:
+    the production og-image.png verified 1200x630 / 127506B via
+    public/og-image.png.
+  - CI WIRED: ci.yml gained "Framework gate (poststruct x eyestruct
+    legs)" right after the prestruct prerender, next to the crashtest
+    campaign - bake -> text -> text-ref -> rasters -> memory, the full
+    family cascade on every push. Missing optional resvg in a clean
+    checkout is a NAMED capability skip (family law: silent pass is
+    poison; named skip is honest).
+  - Punch-list (parked, per dhaupin's remaining list): packstruct Part 2
+    when its lane is usable for this repo; eyestruct mcp + MCP surface;
+    CI-cut ratification of the ratified:false rows once a CI lane can
+    reproduce captures (the pinned-image story).
+- **EYESTRUCT MCP + RATIFY THE CI CUT (2026-10-25, dhaupin's "build
+  mcp + MCP surface, and CI-cut ratification"):**
+  - **The packstruct question answered by DOING, not waiting**: packstruct
+    v1.0.0's lint lane runs on both staging pack trees today (the
+    "usable" blocker was never real for this repo - root node_modules
+    resolves from both staging dirs). Lint found a REAL SPEC violation on
+    first contact: poststruct's brand-new eyes-reference entry had NO
+    DEFAULT EXPORT (SPEC section 3 - the loader loads the default;
+    named exports are the census surface). Fixed, both lanes now
+    `packstruct lint packs --deep` clean, `npm run lint:packs` wired in
+    both staging packages.
+  - **`eyestruct ratify`** (lib/ratify.js): canon cut. Re-captures every
+    manifested route in the pinned env; byte-identical slots ride
+    APPEND-ONLY ratify rows (type ratify, verified:true) - the ledger is
+    never edited, only extended. Drift is named per slot (NO_BASELINE /
+    DIFFERS) and exits 1 WITHOUT touching the ledger. Ran LIVE on
+    gistory via the managed preview: BOTH slots reproduced byte-identical
+    (row-0003 home, row-0004 settings) - the ratified:false rows now have
+    proof-of-reproduction right behind them. Found + fixed building it:
+    capture buffers arrive as generic typed arrays, so byte-equality
+    needs Buffer.from first (cap.png.equals crashed - the same shape the
+    earlier PNG-magic test uncovered, now fixed at the ratify surface).
+  - **`eyestruct mcp` is a REAL stdio MCP server** (lib/mcp.js, zero
+    deps): JSON-RPC 2.0 newline-delimited over stdio; initialize ping
+    notifications/initialized (intentionally un-answered, per JSON-RPC);
+    tools/list census of NINE tools (look, diff, adopt, ratify,
+    ledger_list, ledger_show, gate, raster, walk); tools/call decodes the
+    SAME library verbs (one writer of truth per store, no subprocess
+    copies), maps FailError to tool isError with the named reason, and
+    never process-exits inside a serving request. Perception follows the
+    core law: look returns map + meta by DEFAULT, pixels ride image
+    content only on include_image. Two transport lessons bought en route:
+    (1) bin used to process.exit right after spawning the server - the
+    server now owns transport EOF (startServer resolves a promise; the
+    bin applies the exit contract to it); (2) CLI verbs print to stdout,
+    and inside a JSON-RPC tunnel that stdout IS framing - a
+    captureStdoutQuietly seam buffers gate/raster output into the tool
+    result instead (a stray print would arrive client-side as a JSON-RPC
+    parse error). 3 new behavior tests incl. transport-framing capture:
+    staging now 23/23.
+  - **CI-cut lane**: `.github/workflows/eyes-ratify.yml` (manual
+    dispatch, contents:write scoped) - npm ci root + staging, on-demand
+    chromium (npx @puppeteer/browsers install chrome@stable, landing in
+    ~/.cache/puppeteer where the engine's discovery looks), prestruct
+    bake, static http-server of dist, `eyestruct ratify`, and a commit
+    of ONLY .eyes/ledger.json iff changed. Honest expectation recorded:
+    a clean CI checkout may FIRST fail byte-identity (OS font/antialias
+    drift vs the local staging capture) - ratify will NAMED-fail without
+    touching the ledger; the path is adopt-by-re-run inside the CI
+    environment and re-dispatch. That is the pinned-image story by
+    extension: the pin is the chromium channel + resvg + OS class,
+    recorded by the ledger rows it cuts.
+  - Verifications this pass: eyestruct 23/23 + packs 23 cases 0 exploited
+    + 3 packs packstruct-clean; poststruct self-test 8/8 + eyes-reference
+    PASSED + 1 pack packstruct-clean; framework gate 4/4 legs PASS.
+    Working trees left UNCOMMITTED (both staging repos + gistory side:
+    ratify verb, mcp server, tests, workflow, receipts) - commit waits
+    for dhaupin's go, Changes panel owns the gistory side.
+- **CRASHTEST COVERAGE MAPPED ONTO REAL SURFACES (2026-10-25, dhaupin's
+  "we should prob build these"):** the honest skips became REAL coverage
+  via `routeAliases` in the run root: `enroll` -> `handshake` (device
+  enrollment IS the enrollment surface - credential-stuffing, taxonomy
+  abuse-shapes, recursion now hit the REAL WAF + handshake/write-fail/
+  flood budgets) and `kvwrite` -> `push` (storage-fill drives junk
+  appends at the only D1-backed write; cost-amplification held the bound
+  at 1 ops/request over 40 replays). UPLOAD stays deliberately
+  undeclared: gistory has no filename-bearing surface, an upload->push
+  alias would fake refusals for wrong reasons - recorded- **UPLOAD DISCIPLINE HOOKED UP (2026-10-25, dhaupin's "now we can hook up
+  the upload fields stuff"):** read the crashtest upload family precisely
+  first - its verdicts are STORE-DECIDED (multipart POST, then read the
+  fake-KV store: EXPLOITED only when the handler DERIVES and STORES an
+  unsafe key or a lying mime). Which kept the ruling: an upload->push
+  alias would only prove "multipart refused by the WAF", not the attack
+  class. But the family's LAW now applies to the NEW client-side upload
+  fields, and its coverage moved to the harness where the handler logic
+  lives - sync-smoke section 14, built on the same two laws:
+  1. KEY-DERIVATION: the byte-store key is ALWAYS the app-derived `att_*`
+     id; the client filename is display metadata only. Four hostile
+     shapes (unix traversal, double extension, absolute path, dotfile)
+     build normally and EVERY stored key passes the family's safe-key
+     grammar - the store-derived key can't escape by construction.
+  2. MIME ALLOW-LIST (the polyglot canaries refused at build): svg+xml
+     with script and text/html refuse BEFORE storage (the family's
+     canonical XSS carriers - `<img>` script inertness is NOT the
+     defense, the allow-list is). IMAGE_MIME_ALLOWLIST = png/jpeg/webp/
+     gif, exported for consumers. Plus both caps refuse before storage
+     (4MB, 6-per-message) and the sweep keep-set stays app-id-only.
+  buildAttachment gained a `store` seam so the browserless battery runs
+  the full pipeline with an in-memory store (the default remains the real
+  IndexedDB seam). The canary read also caught a product nuance:
+  sanitizeName now collapses control chars to SPACES (a getline name
+  reads like a name, not soup) instead of deleting them; the deliberate
+  control-char regex mirrors gistory's own WAF pattern (same scoped
+  eslint carve-out, same why). Campaign re-run: unchanged (62 total / 0
+  EXPLOITED / 0 new / 0 regressed) - the relay surface is untouched by
+  the client work, exactly as designed. sync-smoke now 392/392 (12 new
+  upload-discipline checks).
+  The crashtest.config.js upload note got the fuller story: fields exist
+  (client), the relay stays blind, the skip stays recorded with where the
+  coverage actually lives - declaring an fake surface is exactly what
+  both lights refuse.
+
+- **STORAGE-FILL TELEMETRY POPULATED (2026-10-25, dhaupin's "yes add
+  the fake KV"):** `DEVICE_CACHE` fake KV added to the run root's env
+  plan (crashtest's native FakeKV). The namespace is never WRITTEN by
+  the relay - gistory has no KV binding - so after 30 fill rounds the
+  growth telemetry now reads a VERDICT: `storage 0 keys after 30
+  rounds`, i.e. the WAF refuses every junk write BEFORE anything
+  reaches a store. The KV ops also count in the campaign cost now
+  (1980 -> 2010 ops across the run). Campaign still green: 62 total /
+  0 EXPLOITED / 0 new / 0 regressed; hardening.md + crashledger.json
+  cut by the run.
+- **MESSAGE IMAGES - THE GROUNDWORK (2026-10-25, dhaupin's "set it up
+  now while we are here"):** images on thread messages are a SYNC-SAFETY
+  problem first (full-state sync replaying blobs is the cost class that
+  filled the chain budget twice), so this pass lays the rails without
+  the UI:
+  - MODEL: `Message.attachments?: MessageAttachment[]` (models.ts) -
+    METADATA ONLY (id/name/mime/bytes/width/height/addedAt) + caps
+    `MAX_ATTACHMENTS_PER_MESSAGE` (6) and `MAX_ATTACHMENT_BYTES` (4MB).
+    Optional field, so payloads saved before this existed still merge
+    (the house rule, proven by smoke check).
+  - TRANSPORT LAW ENFORCED BY TYPE: bytes NEVER ride the payload -
+    sync/metadata rides; pixels stay device-local in a NEW IndexedDB
+    object store (`attachments`, DB v2 upgrade handled in-place) via
+    `put/get/deleteAttachmentBytes/allAttachmentIds` (idb.ts). Bytes
+    never hydrate into the mem map, never get a localStorage shadow.
+    Their line: this is the family's "smallest artifact + deterministic
+    ledger" law applied to perception.
+  - APP SEAM: `src/lib/attachments.ts` - buildAttachment (caps + a named
+    refusal when storage is unavailable), collectAttachmentIds,
+    sweepAttachmentBytes (the sweepDrafts pattern), attachmentUrl for
+    the future renderer. ALL 3 sweepDrafts sites now run the byte sweep
+    (boot parses the stored messages first since the merge sweep may not
+    have run; post-merge + on local delete) - the receipt's reason:
+    remote deletes orphan device-local pixels exactly like drafts.
+  - TYPE-LEVEL MERGE HONESTY: mergeMessages replaces whole items by
+    LWW, so attachments inherit merge for free - no new rule (adding
+    one would be a second writer of truth). Smoke section 13 pins the
+    money rules: whole-item add/remove, old-payload compatibility,
+    small serialization (no bytes can be smuggled in), lossless round
+    trip. `bun tsc -b` green; sync-smoke 380/380 with the 5 new checks.
+  - THE DELIBERATE HOLES (for the UI pass): per-device pixels land
+    where uploaded - REPLICATING BYTES between devices is a later
+    transport decision (a payload-external channel or metadata-agreed
+    fetch; brainit through the full-state push is the trap); export
+    backups carry metadata only today; a renderer shows an honest
+    "missing" state when a local byte row is absent. Store exports
+    (idb + attachments helpers) ride src/index.ts from now.
+- **MESSAGE IMAGES - THE UI (2026-10-25, dhaupin's "just finish it"):**
+  the loop the groundwork left open is now closed end to end:
+  - COMPOSER: hidden file input (accept image/*, multiple, slots enforced
+    by buildAttachment's caps), an attach button beside Clear/Copy/Save,
+    and a thumbnail strip with per-image remove (removes the bytes too -
+    a composer removal is a real cancel). Bytes store on PICK, metadata
+    joins on SAVE - buildAttachment never bumps updatedAt; addMessage
+    stamps createdAt and the attachments join the message in one write,
+    images-only messages allowed when text is empty.
+  - BUBBLE RENDER: MessageImages (local component) reads each id ONCE
+    per mount from the device-local store (never per paint), renders the
+    <img> with a revoked-on-unmount object URL, and the honest-missing
+    fallback is a named boring line: "image is on the device that added
+    it" - no fake placeholder image, per the receipts. Collapsed previews
+    truthfully count images; expanded shows the strip under the body
+    (which can be empty for image-only messages).
+  - CAPS refusal states: over-4MB / over-6 / no-local-storage all land as
+    a single named note - not windows.confirm, not a silent noop. All
+    object URLs revoked on unmount/clear/save (no leaks).
+  - VERIFIED: tsc -b clean; sync-smoke 380/380 (the §13 metadata-rule
+    checks stay the transport wall while the UI no longer needs an excuse to trust it); eslint clean on the touched files (it caught
+    one unused import the first    pass); eyestruct look on the app home is
+    BYTE-IDENTICAL (77934B) to the pre-change baseline - the lander's
+    pixels did not move, which is exactly what the grounded SDK should
+    answer and the visual gate the family never had before today.
+- **BYTE REPLICATION + BACKUPS (2026-10-25, dhaupin's "this we need
+  prob"):** the images groundwork's remaining deliberate holes close on
+  the SAME transport logic the groundwork set up:
+  - THE ROUTE: `/sync/attach` (functions/sync/attach.ts +
+    migrations/0005_attachments.sql + flattened schema.sql). Message
+    metadata still rides the sync payload (merge law untouched); BYTES get
+    their own channel - a chain write-secret'ed upload, WAF shape-checked
+    (`iv.cipher` envelope, the SAME AES-GCM one push carries), guarded by
+    attach/attach-chain/attach-chain-byte budgets mirroring push's, and a
+    `attachments (chain_id, att_id)` PK table. The relay stays blind:
+    ciphertext in, ciphertext out, no plaintext pixels ever stored.
+  - THE CLIENT: agent.putAttachment/getAttachment (encrypt/decrypt with
+    the chain key; the GET refuses to return ciphertext that decrypts to a
+    length the merged `bytes` metadata does not claim - the size gate).
+    App wiring: PUT at save (addMessage, fire-and-forget per id), GET
+    after ANY merge that changed content (replicateMissingAttachments,
+    bounded at 64 ids/pass honest-budget language; the honest-missing
+    render fallback stays the UI truth when a fetch fails).
+  - BACKUPS: exportAll({withAttachments:true)) embeds a capped base64
+    `attachments` block (Settings checkbox "include images"); import
+    restores via restoreBackupAttachments - 4MB cap, row id grammar,
+    size-agreement checks; corrupt/oversized rows skip named, never
+    trusted raw.
+- **PACKSTRUCT PART 2, UNPARKED (2026-10-25, dhaupin's "unpark and add
+  what we need"):** the "Part 2" the punch-list parked was the SECOND half
+  of packstruct conformance (`audit-conformance`, SPEC section 7). Both
+  staging loaders now HONOR it rather than the audit being written around
+  them:
+  - eyestruct run-packs.cjs: 1/8 -> **8/8**. Loader now enforces the
+    SECTION 2 grammar AT LOAD (kebab name + dir match + collision,
+    schemaVersion, dotted version, description, relative entry), accepts
+    ESM-default entries (the spec's clean fixture is inert on purpose:
+    run(ctx) is a campaign concern, not a load concern), and the real
+    campaign is untouched (23 cases, 0 exploited).
+  - poststruct run-packs.mjs: single-pack hard-wire -> multi-pack
+    discovery with the same grammar + fixture mode. **8/8**, real pack
+    verdicts byte-for-byte identical, self-test 8/8.
+  - BOTH hosts gain the packstruct 1.0.0 EXACT devDependency pin (the
+    crashtest convention: same commit -> same findings applies to the
+    linter), `lint:packs` + `conform:packs`, and `npm run check` runs the
+    whole chain (docs -> packs -> lint -> conformance) - poststruct gains
+    a `check` script for the first time.
+  - ecosystem.md/Crashtest conformance note updated; gistory AGENTS.md
+    gains the /sync/attach route + the attach budget rows in the guard
+    table (now "all five data routes").
+- Verified this pass: bun tsc clean (root + functions strict + tests
+  strict); sync-smoke **411/411** (19 new §15 checks); barrage C1 now
+  fuzzes /sync/attach too (0 BAD, guards held); crashtest campaign
+  unchanged (62/0/0); db:migrate:check + db:maintain:check green on the
+  new table; ESLint 0 errors (the staging repos join the config IGNORES -
+  they are independent repos with their own lanes, and were only being
+  swept from the wrong tree). 
 

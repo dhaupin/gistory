@@ -28,13 +28,15 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**', 'node_modules/**', '.wrangler/**', '.ui-audit/**', 'labs/**',
+      // The struct-family staging clones live in this repo during the
+      // ecosystem build-out, but they are INDEPENDENT repos with their own
+      // conventions (plain CJS/ESM node, their own lint lanes). Gistory's
+      // ESLint passes are TS/React-shaped and would drown their whole trees
+      // in no-undef/no-require noise they neither need nor read.
+      'eyestruct-staging/**', 'poststruct-staging/**',
       // Crashtest build output (generated before every run by
       // scripts/build-crashtest.mjs) — lint the entry + fixture, not the bundle.
       'crashtest/handlers.mjs',
-      // The poststruct staging tree is an independent repo (own .git, own
-      // gates, its own push target) — it carries zero-dep plain-JS tools whose
-      // Node globals (process/console/Response) are legitimate there.
-      'poststruct-staging/**',
     ],
   },
   js.configs.recommended,

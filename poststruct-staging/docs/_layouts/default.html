@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title | default: site.title }}</title>
+  <!-- Freestruct completes canonical/OG/Twitter/JSON-LD post-render; the head stays honest upstream -->
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+</head>
+<body>
+  <header>
+    <button class="burger" aria-label="Toggle menu" aria-expanded="false">☰</button>
+    <nav class="nav-list">
+      <a href="{{ '/' | relative_url }}">home</a> ·
+      <a href="{{ '/checks' | relative_url }}">check catalog</a> ·
+      <a href="{{ '/packs' | relative_url }}">packs</a> ·
+      <a href="{{ '/search' | relative_url }}">search</a>
+    </nav>
+  </header>
+  <main>
+    {{ content }}
+  </main>
+  <footer>
+    <p>© 2026 Creadev.org · poststruct - audit what shipped · \1 · <a href="https://poststruct.creadev.org/terms">Terms</a> · <a href="https://poststruct.creadev.org/privacy">Privacy</a> · part of the struct family</p>
+  </footer>
+<script>document.querySelector('.burger').addEventListener('click',()=>{const n=document.querySelector('.nav-list');n.classList.toggle('open');document.querySelector('.burger').setAttribute('aria-expanded',n.classList.contains('open'))})</script>
+</body>
+</html>

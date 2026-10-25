@@ -95,9 +95,7 @@ jobs:
       # (plus sitemap.xml and 404.html). The CLI fails the build when a route
       # fails to render, so this gate proves the whole pipeline ran.
       - name: Production build (prestruct pipeline)
-        run: npx prestruct build
-
-      - name: Prerendered pages exist
+        run: npx prestruct build      - name: Prerendered pages exist
         run: |
           test -f dist/index.html
           test -f dist/terms/index.html
@@ -106,3 +104,14 @@ jobs:
           test -f dist/404.html
           grep -q 'data-server-rendered="true"' dist/index.html
           echo "Prerendered pages verified."
+
+      # The struct-family framework gate, gistory as integration host: the
+      # TEXT leg (poststruct audits the baked HTML that just prerendered),
+      # EYES-ART (eyestruct raster-gates the horcrux stones + favicon),
+      # TEXT-REF (poststruct's eyes-reference pack: og:image must be REAL
+      # pixels - exact dims vs declared, magic bytes, and SVG refs route
+      # back through the eyestruct raster gate), and EYES-MEM (the
+      # committed .eyes/ ledger: 0 unexplained drift, all rows explained).
+      # Family exit contract; skips are NAMED, never fake passes.
+      - name: Framework gate (poststruct x eyestruct legs)
+        run: node scripts/framework-gate.mjs

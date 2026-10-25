@@ -58,3 +58,18 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 
 CREATE INDEX IF NOT EXISTS idx_rate_limits_window ON rate_limits (window_start);
+
+-- Attachment byte storage for /sync/attach (migrations/0005_attachments.sql).
+-- `data` is AES-GCM ciphertext (iv.cipher, base64) — the relay stays blind.
+CREATE TABLE IF NOT EXISTS attachments (
+  chain_id   TEXT NOT NULL,
+  att_id     TEXT NOT NULL,
+  device_id  TEXT NOT NULL,
+  data       TEXT NOT NULL,
+  size       INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (chain_id, att_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_attachments_chain_created
+  ON attachments (chain_id, created_at);

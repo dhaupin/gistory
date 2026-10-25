@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "eye-text-leg",
+  "description": "The poststruct integration pack: text is the cheaper diff so it gates first before pixels are compared. Verifies the .eyes/ text surfaces (manifest, ledger rows, notes) survive the family's text rules - no control characters, strict parseable JSON/YAML, round-trip integrity through the CLI's own readers.",
+  "version": "0.1.0",
+  "entry": "index.js",
+  "env": {
+    "fs": {
+      "targets": [".eyes/manifest.yml", ".eyes/ledger.json"]
+    }
+  }
+}

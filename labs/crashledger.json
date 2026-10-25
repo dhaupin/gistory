@@ -84,7 +84,7 @@
     {
       "id": "guards/hygiene-no-store",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - attack skipped (declare it for coverage)"
+      "detail": "write to \"enroll\" refused (400) - hygiene not yet on the wire"
     },
     {
       "id": "guards/burst-wall",
@@ -94,17 +94,17 @@
     {
       "id": "input/proto-pollution-body",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - attack skipped (declare it for coverage)"
+      "detail": "payload to \"enroll\" did not pollute state (status 400)"
     },
     {
       "id": "input/never-fail-mutations",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - attack skipped (declare it for coverage)"
+      "detail": "64 hostile bodies all under the floor on \"enroll\" (seed 3650991062)"
     },
     {
       "id": "input/oversized-field",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - attack skipped (declare it for coverage)"
+      "detail": "oversized body handled on \"enroll\" (status 400)"
     },
     {
       "id": "memory/drift-silent-overwrite",
@@ -154,12 +154,12 @@
     {
       "id": "proto-hygiene/head-get-parity",
       "verdict": "REFUSED",
-      "detail": "4 route(s): HEAD mirrors GET (no throws, no status drift beyond honest 405) + 4 info note(s)"
+      "detail": "6 route(s): HEAD mirrors GET (no throws, no status drift beyond honest 405) + 6 info note(s)"
     },
     {
       "id": "proto-hygiene/request-shape-flood",
       "verdict": "REFUSED",
-      "detail": "4 route(s) x 18 bare shapes (query chaos, path shapes, header casings) all landed 4xx-or-cleaner with case-parity intact"
+      "detail": "6 route(s) x 18 bare shapes (query chaos, path shapes, header casings) all landed 4xx-or-cleaner with case-parity intact"
     },
     {
       "id": "race/double-submit-idempotency",
@@ -174,7 +174,7 @@
     {
       "id": "recursion/deep-nest-stack-overflow",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - recursion skipped (declare it for coverage)"
+      "detail": "deep-nested body (12000 levels) answered honestly on \"enroll\" (400) - a depth guard or flat processing refused it"
     },
     {
       "id": "recursion/redos-catastrophic-pattern",
@@ -209,7 +209,7 @@
     {
       "id": "state/id-collision-alias",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - alias check skipped"
+      "detail": "no DB binding declared on this target (env.DB.snapshot missing) - alias check skipped (declare env.DB for coverage)"
     },
     {
       "id": "sync-relay-shapes/takeover-by-own-secret",
@@ -291,12 +291,12 @@
     {
       "id": "taxonomy/abuse-not-5xx",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - taxonomy skipped (declare it for coverage)"
+      "detail": "10 abuse shapes answered honestly on \"enroll\" (statuses: 400)"
     },
     {
       "id": "taxonomy/errors-stay-impersonal",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - taxonomy skipped (declare it for coverage)"
+      "detail": "10 abuse shapes answered impersonally on \"enroll\" - no canary echo, no stack frames"
     },
     {
       "id": "upload/filename-traversal-family",
@@ -311,17 +311,18 @@
     {
       "id": "volume/credential-stuffing",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - stuffing skipped (declare it for coverage)"
+      "detail": "enroll held 60 stuffing attempts (0 admitted, 60 refused) / 60 ops total / ~60 ops/request"
     },
     {
       "id": "volume/storage-fill",
       "verdict": "REFUSED",
-      "detail": "route \"kvwrite\" not declared on this target - fill check skipped (declare a KV-writing route)"
+      "detail": "fill held on \"kvwrite\" (0 admitted) / 60 ops total / storage 0 keys after 30 rounds"
     },
     {
       "id": "volume/cost-amplification",
       "verdict": "REFUSED",
-      "detail": "route \"enroll\" not declared on this target - amplification skipped (declare it for coverage)"
+      "detail": "\"enroll\" held the amplification bound: 1 ops/request over 40 identical replays (bound 12)",
+      "bound": 12
     }
   ],
   "acceptedRisks": [

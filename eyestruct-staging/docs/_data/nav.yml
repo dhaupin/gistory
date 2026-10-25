@@ -1,0 +1,12 @@
+# eyestruct docs nav (single nav source; the layout reads site.data.nav)
+# URLs are deployment paths (baseurl-prefixed), matched 1:1 against each
+# page's frontmatter permalink - scripts/check-docs-*.cjs hold this honest.
+
+- title: Start
+  items:
+    - title: Home
+      url: /eyestruct/
+- title: Reference
+  items:
+    - title: PRD
+      url: /eyestruct/labs/prd-eyes

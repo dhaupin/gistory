@@ -243,11 +243,13 @@ export function chainIdFromToken(token: string): PairingToken | null {
 /** A human-friendly default device name, e.g. "Chrome · macOS". */
 export function suggestDeviceName(): string {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  // iOS user agents contain "like Mac OS X", so the iOS check MUST come
+  // before the Mac one or an iPhone reads as macOS.
   const platform =
-    /Mac/i.test(ua) ? 'macOS'
+    /iPhone|iPad|iPod/i.test(ua) ? 'iOS'
+    : /Mac/i.test(ua) ? 'macOS'
     : /Windows/i.test(ua) ? 'Windows'
     : /Android/i.test(ua) ? 'Android'
-    : /iPhone|iPad|iPod/i.test(ua) ? 'iOS'
     : /Linux/i.test(ua) ? 'Linux'
     : 'Device'
   const browser =
@@ -528,6 +530,63 @@ export class SyncAgent {
     this.lastSeq = Math.max(this.lastSeq, since)
     this.persistSeq()
     return { blobs: out, serverSeq, failures, decryptFailuresByDevice, decryptOkByDevice }
+  }
+
+  // --- Attachment byte channel (payload-external, /sync/attach) ---
+  //
+  // Bytes NEVER ride the sync payload - full-state replay is exactly the cost
+  // class that filled the chain budget twice - so attachments get their own
+  // write-auth'd, byte-budgeted channel. The ciphertext grammar is the same
+  // iv.cipher envelope as push; the relay stays blind to pixels.
+
+  /**
+   * PUT the encrypted bytes for an attachment. Idempotent on the server
+   * (same id replaces), so a retried upload after a dropped connection is a
+   * plain re-PUT, not an error.
+   */
+  async putAttachment(attId: string, bytes: ArrayBuffer | Blob): Promise<boolean> {
+    this.assertReady()
+    const raw = bytes instanceof Blob ? await bytes.arrayBuffer() : bytes
+    const data = await encryptPayload({ v: 1, raw: buf2base64(raw) }, this.key!)
+    await this.request('/sync/attach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chainId: this.config.chainId,
+        deviceId: this.deviceId,
+        attId,
+        data,
+        writeSecret: this.config.writeSecret,
+      }),
+    })
+    return true
+  }
+
+  /**
+   * GET + decrypt the bytes for an attachment. The synced `bytes` size claim
+   * doubles as the integrity gate: ciphertext that decrypts to a different
+   * length than the metadata EVERY device merged is refused rather than
+   * stored (AES-GCM fails obvious tampering; the size check catches a
+   * decrypt of the wrong envelope - a stale/rogue id reuse) .
+   */
+  async getAttachment(attId: string, size: number): Promise<ArrayBuffer> {
+    this.assertReady()
+    const res = await this.request<{ data: string; size: number }>(
+      `/sync/attach?chain=${encodeURIComponent(this.config.chainId)}` +
+        `&deviceId=${encodeURIComponent(this.deviceId)}` +
+        `&id=${encodeURIComponent(attId)}`,
+    )
+    let envelope: { raw: string }
+    try {
+      envelope = await decryptPayload<{ v: number; raw: string }>(res.data, this.key!)
+    } catch {
+      throw new SyncError('Attachment bytes could not be decrypted', 422)
+    }
+    const decoded = base642buf(envelope.raw)
+    if (size > 0 && decoded.byteLength !== size) {
+      throw new SyncError('Attachment bytes do not match the synced metadata', 422)
+    }
+    return decoded.buffer.slice(decoded.byteOffset, decoded.byteOffset + decoded.byteLength) as ArrayBuffer
   }
 
   // Chain health: head sequence + known devices.

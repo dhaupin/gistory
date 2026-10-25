@@ -65,6 +65,38 @@ export interface Message {
   pinned?: boolean
   /** When the message was pinned (unpinned messages clear it). */
   pinnedAt?: number
+  /** Uploaded images, METADATA ONLY. The bytes live in a device-local
+   *  store (`src/lib/attachments.ts` over the IndexedDB `attachments`
+   *  store) and never ride the sync payload: messages sync as FULL state,
+   *  and replaying base64-able blobs on every push is the cost class that
+   *  filled the chain budget before. `attachments` is optional and merged
+   *  whole-item by LWW like every other field, so payloads saved before
+   *  this field existed stay mergeable (the house rule).
+   */
+  attachments?: MessageAttachment[]
 }
+
+/** Metadata for one uploaded image on a message. BYTES NEVER RIDE HERE —
+ *  sync payloads carry this record only; the pixels stay in the local
+ *  byte store keyed by id. */
+export interface MessageAttachment {
+  id: string
+  name: string
+  mime: string
+  /** Byte size of the stored image (informational + budget checks). */
+  bytes: number
+  width?: number
+  height?: number
+  addedAt: number
+}
+
+/** How many images a single message may carry. Deliberately small: the
+ *  metadata rides every sync push, so a message's worst-case payload cost
+ *  is (attachments × ~120 bytes) — capped here. */
+export const MAX_ATTACHMENTS_PER_MESSAGE = 6
+
+/** Upload cap for one image, bytes (pre-resize). UI must compress before
+ *  calling the byte store; the store refuses anything larger. */
+export const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024
 
 export type MessagesByThread = Record<string, Message[]>

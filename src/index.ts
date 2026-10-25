@@ -67,11 +67,25 @@ export {
 } from './sync/view-state'
 export {
   SYNC_KEYS,
+  allAttachmentIds,
+  deleteAttachmentBytes,
   ensureStorageReady,
+  getAttachmentBytes,
   isSyncKey,
+  putAttachmentBytes,
   resetStorageSync,
   storageMode,
   stGetString,
   stKeyList,
   stSetString,
 } from './sync/idb'
+export {
+  IMAGE_MIME_ALLOWLIST,
+  attachmentUrl,
+  buildAttachment,
+  collectAttachmentIds,
+  isAllowedImageMime,
+  isImageMime,
+  newAttachmentId,
+  sweepAttachmentBytes,
+} from './lib/attachments'

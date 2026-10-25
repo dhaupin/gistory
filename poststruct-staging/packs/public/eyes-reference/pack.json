@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "eyes-reference",
+  "description": "The eye companion pack, poststruct side: every image referenced by a baked page's social markup (og:image, twitter:image) must be a REAL image the reviewers and scrapers see - file exists, magic bytes parse as PNG/JPEG/SVG, PNG dimensions from the IHDR header agree with declared og:image:width/height, byte-size plausible, and SVG references rasterize clean through the eyestruct raster gate (the interop direction). The og-image escape-soup receipt, turned into a pack.",
+  "version": "0.1.0",
+  "entry": "index.mjs",
+  "env": {
+    "fs": {
+      "targets": ["dist/**/*.html", "og-image.png", "favicon.svg"]
+    }
+  }
+}

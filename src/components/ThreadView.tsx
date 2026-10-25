@@ -1,9 +1,11 @@
 // ThreadView - displays messages in a thread
 
 import { useState, useEffect, useRef } from 'react'
-import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork, Star, Archive, ArchiveRestore, Check, PencilLine, Eraser, Braces, ListChecks } from 'lucide-react'
-import type { Message, Thread, Project, ThreadStatus } from '../lib/models'
+import { Copy, Edit, Trash2, Save, Pin, PinOff, ChevronDown, ChevronRight, Tag, X, GitFork, Star, Archive, ArchiveRestore, Check, PencilLine, Eraser, Braces, ListChecks, ImagePlus } from 'lucide-react'
+import type { Message, MessageAttachment, Thread, Project, ThreadStatus } from '../lib/models'
 import { lookupVariable, type Variables } from '../lib/variables'
+import { attachmentUrl, buildAttachment } from '../lib/attachments'
+import { getAttachmentBytes } from '../sync/idb'
 import { loadDraft, saveDraft, clearDraft } from '../lib/store'
 import { sortMessages, sortStateFromValue, MESSAGE_SORT_OPTIONS, type SortState } from '../ui/sort'
 import { createdEditedStamp, stampTitle } from '../ui/relative-time'
@@ -19,7 +21,9 @@ interface ThreadViewProps {
   projects: Project[]
   sort?: SortState
   onSortChange?: (sort: SortState) => void
-  onAddMessage: (content: string) => void
+  /** Add a message (attachments = built IMAGE metadata; bytes already stored
+   *  device-local by the caller via buildAttachment). */
+  onAddMessage: (content: string, attachments?: MessageAttachment[]) => void
   onUpdateMessage: (msgId: string, content: string) => void
   onDeleteMessage: (msgId: string) => void
   onRenameThread?: (id: string, name: string) => void
@@ -50,6 +54,61 @@ interface ThreadViewProps {
   onSetMessagesPinned?: (ids: string[], pinned: boolean) => void
 }
 
+/**
+ * One message's image strip. Bytes are DEVICE-LOCAL (metadata is what syncs),
+ * so the render has three honest states per attachment:
+ *   pixels  -> the img (object URL revoked on unmount)
+ *   missing -> a named, boring line: the image lives on the device that
+ *              added it, nothing pretends otherwise
+ *   loading -> the byte read is in flight (one read per id, never per paint)
+ */
+function MessageImages({ attachments }: { attachments: MessageAttachment[] }) {
+  const [urls, setUrls] = useState<Record<string, string>>({})
+  const [missing, setMissing] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    let alive = true
+    const toRevoke: string[] = []
+    for (const att of attachments) {
+      void getAttachmentBytes(att.id).then(bytes => {
+        if (!alive) return
+        if (!bytes) {
+          setMissing(prev => ({ ...prev, [att.id]: true }))
+          return
+        }
+        const url = attachmentUrl(bytes)
+        if (url) {
+          toRevoke.push(url)
+          setUrls(prev => ({ ...prev, [att.id]: url }))
+        } else {
+          setMissing(prev => ({ ...prev, [att.id]: true }))
+        }
+      })
+    }
+    return () => {
+      alive = false
+      for (const url of toRevoke) {
+        try { URL.revokeObjectURL(url) } catch { /* already gone */ }
+      }
+    }
+  }, [attachments])
+
+  return (
+    <div className="att-strip">
+      {attachments.map(att =>
+        urls[att.id] ? (
+          <img key={att.id} className="att-img" src={urls[att.id]} alt={att.name} loading="lazy" />
+        ) : missing[att.id] ? (
+          <span key={att.id} className="att-missing" role="img" aria-label={`${att.name} - stored on the device that added it`} title={att.name}>
+            {att.name} · image is on the device that added it
+          </span>
+        ) : (
+          <span key={att.id} className="att-missing" aria-busy="true">loading…</span>
+        ),
+      )}
+    </div>
+  )
+}
 /**
  * One-line summary shown when a message is collapsed: the first few words of
  * its first non-empty line, ellipsised.
@@ -156,6 +215,12 @@ export default function ThreadView({
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [bulkConfirm, setBulkConfirm] = useState(false)
+  // Composing images: built metadata + one session-live preview URL each.
+  // The bytes are ALREADY device-local (buildAttachment stored them); the
+  // metadata joins the message on Save, which is what rides the sync payload.
+  const [pendingImgs, setPendingImgs] = useState<{ meta: MessageAttachment; url: string }[]>([])
+  const [attachNote, setAttachNote] = useState<string | null>(null)
+  const imgInputRef = useRef<HTMLInputElement>(null)
   const { view, isCollapsed, toggleCollapse, reorder } = useViewState()
 
   const toggleSelected = (id: string) => {
@@ -202,10 +267,64 @@ export default function ThreadView({
 
   // Clear draft when message is added
   const handleAdd = () => {
-    if (!input.trim()) return
-    onAddMessage(input.trim())
+    if (!input.trim() && pendingImgs.length === 0) return
+    onAddMessage(input.trim(), pendingImgs.map(p => p.meta))
     setInput('')
+    for (const p of pendingImgs) {
+      try { URL.revokeObjectURL(p.url) } catch { /* already gone */ }
+    }
+    setPendingImgs([])
     clearDraft(thread.id)
+  }
+
+  /** Pick + build image attachments (the byte store runs here; the message
+   *  edit and its updatedAt bump stay the caller's job, same as pins). */
+  const handlePickImages = async (files: FileList | null) => {
+    if (!files || !files.length) return
+    const opened: { meta: MessageAttachment; url: string }[] = []
+    let refused = 0
+    for (const file of Array.from(files)) {
+      let dims: { width?: number; height?: number } = {}
+      try {
+        const bitmap = await createImageBitmap(file)
+        dims = { width: bitmap.width, height: bitmap.height }
+        bitmap.close()
+      } catch {
+        /* no dims is fine - metadata still records the size */
+      }
+      const meta = await buildAttachment(
+        { name: file.name, mime: file.type || 'image/png', bytes: file, ...dims },
+        pendingImgs.map(p => p.meta).concat(opened.map(o => o.meta)),
+      )
+      if (!meta) {
+        refused++
+        continue
+      }
+      const preview = attachmentUrl(file)
+      opened.push({ meta, url: preview ?? '' })
+    }
+    if (opened.length) {
+      setAttachNote(null)
+      setPendingImgs(prev => [...prev, ...opened])
+    }
+    if (refused) {
+      setAttachNote(refused === files.length && !opened.length
+        ? 'This device could not store that image (over 4 MB, over 6 on one message, or no local storage).'
+        : `${refused} image${refused === 1 ? '' : 's'} could not be stored here (over 4 MB, over 6 on one message, or no local storage).`)
+    }
+  }
+
+  const removePendingImg = (id: string) => {
+    setPendingImgs(prev => {
+      const gone = prev.find(p => p.meta.id === id)
+      if (gone) {
+        try { URL.revokeObjectURL(gone.url) } catch { /* already gone */ }
+        // The bytes were stored when built; a composer removal is a real
+        // cancel, so drop them now (deleteAttachmentBytes is idempotent).
+        void import('../sync/idb').then(m => m.deleteAttachmentBytes(id))
+      }
+      return prev.filter(p => p.meta.id !== id)
+    })
   }
 
   const handleCopy = (content: string) => {
@@ -502,6 +621,16 @@ export default function ThreadView({
       </div>
 
       <div className="input-card">
+        {/* Image picker: bytes are stored device-local ON PICK (buildAttachment),
+            the metadata rides the message on Save, and only the metadata syncs. */}
+        <input
+          ref={imgInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: 'none' }}
+          onChange={e => { void handlePickImages(e.target.files); e.currentTarget.value = '' }}
+        />
         <textarea
           className="input-area"
           placeholder="Write your prompt here..."
@@ -509,7 +638,32 @@ export default function ThreadView({
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && e.ctrlKey && handleAdd()}
         />
+        {pendingImgs.length > 0 && (
+          <div className="att-strip att-strip-composer">
+            {pendingImgs.map(p => (
+              <figure key={p.meta.id} className="att-thumb">
+                <img src={p.url} alt={p.meta.name} title={`${p.meta.name} (${Math.round(p.meta.bytes / 1024)} KB)`} />
+                <button
+                  className="att-remove"
+                  onClick={() => removePendingImg(p.meta.id)}
+                  aria-label={`Remove image ${p.meta.name} from this message`}
+                  title="Remove image"
+                >
+                  <X size={12} />
+                </button>
+              </figure>
+            ))}
+          </div>
+        )}
         <div className="input-actions">
+          <button
+            className="btn btn-ghost btn-small"
+            onClick={() => imgInputRef.current?.click()}
+            aria-label="Attach images"
+            title="Attach images (stored on this device; the metadata syncs)"
+          >
+            <ImagePlus size={14} />
+          </button>
           {/* Icon-only, ghost, in the same order as every message row:
               Clear · Copy · Save. A message row's fourth slot (Delete) has no
               composer counterpart — the composer's destructive is Clear. */}
@@ -534,6 +688,9 @@ export default function ThreadView({
             <Save size={14} /> Save
           </button>
         </div>
+        {attachNote && (
+          <p className="composer-hint att-note" role="status">{attachNote}</p>
+        )}
         {/* Variables have no dedicated button by design — they are typed inline
             as {{name}} and the fill-in form appears on Copy. That is invisible
             until someone types one, so the empty/blank composer whispers how. */}
@@ -698,9 +855,15 @@ export default function ThreadView({
                     </div>
                   </div>
                   {collapsedMsg ? (
-                    <p className="message-preview">{previewOf(msg.content)}</p>
+                    <p className="message-preview">
+                      {previewOf(msg.content)}
+                      {!!msg.attachments?.length && ` + ${msg.attachments.length} image${msg.attachments.length === 1 ? '' : 's'}`}
+                    </p>
                   ) : (
-                    <pre>{msg.content}</pre>
+                    <>
+                      {msg.content && <pre>{msg.content}</pre>}
+                      {!!msg.attachments?.length && <MessageImages attachments={msg.attachments} />}
+                    </>
                   )}
                 </div>
               )}

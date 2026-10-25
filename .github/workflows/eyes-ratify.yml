@@ -1,0 +1,79 @@
+# CI-cut canon: the .eyes/ ratified:false rows become canon only when the
+# pinned environment reproduces the capture byte-identically. Local agents
+# (and this dev workspace) PROPOSE baselines; this workflow cuts them.
+#
+# Manual dispatch only (workflow_dispatch) - not a push gate, on purpose:
+# pixel canon changes are deliberate events, and a red gate cannot adopt,
+# it can only refuse. If ratify finds DRIFT (baseline not reproducible),
+# it fails WITHOUT touching the ledger; the fix path is look -> fix the
+# real change -> adopt -> re-dispatch this. The ledger is append-only, so
+# every ratify run leaves its own proof rows - verify with
+# `eyestruct ledger list`.
+#
+# What it does: fresh chromium (family ui:browsers pattern, on-demand
+# download) + the prestruct bake + a static serve of dist/ + eyestruct
+# ratify against the manifest pin. Environment drift across OS/GPU cannot
+# be argued around - only reproducibility inside the pin counts as canon.
+
+name: Eyes ratify (CI-cut canon)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: eyes-ratify
+  cancel-in-progress: false
+
+jobs:
+  ratify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the cut: appends its own proof rows to .eyes/ledger.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install (root + eyestruct staging)
+        run: |
+          npm ci
+          npm ci --prefix eyestruct-staging
+
+      # On-demand chromium, the ui:browsers pattern: skipped in install,
+      # fetched per machine. Lands in ~/.cache/puppeteer where
+      # eyestruct's exec discovery looks first.
+      - name: Provision the pinned browser
+        run: npx --yes @puppeteer/browsers install chrome@stable
+
+      # The full prerender pipeline (same gate production used): the ratify
+      # captures must shoot what actually ships, not a dev server.
+      - name: Bake the site
+        run: npx prestruct build
+
+      # Static serve of the baked tree (the app is hash-routed; /#/settings
+      # resolves from the same index.html).
+      - name: Serve dist
+        run: |
+          npx --yes http-server dist -p 4173 --silent &
+          sleep 3
+          curl -sf http://localhost:4173/ >/dev/null || (echo "dev server did not come up" && exit 2)
+
+      # THE CUT: byte-identical reproduction -> append-only ratify rows.
+      # Drift exits 1 with a named reason and changes nothing.
+      - name: Ratify the manifest routes
+        run: node eyestruct-staging/bin/eyestruct.js ratify http://localhost:4173/
+
+      - name: Commit the proof rows
+        if: success()
+        run: |
+          if git diff --quiet -- .eyes/ledger.json; then
+            echo "No ledger change - canon was already reproducible."
+            exit 0
+          fi
+          git config user.name "eyestruct ratify"
+          git config user.email "actions@users.noreply.github.com"
+          git add .eyes/ledger.json
+          git commit -m "ratify: canon cut in the pinned environment (append-only proof rows)"
+          git push

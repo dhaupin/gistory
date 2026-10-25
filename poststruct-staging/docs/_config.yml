@@ -1,0 +1,36 @@
+# Jekyll config - docs.creadev.org path-scoped docs, fleet-shaped after the
+# live dhaupin/prestruct docs (same host, baseurl /<repo>, no theme gem -
+# presentation lives in _layouts/default.html, kramdown GFM + rouge,
+# permalink pretty; freestruct generates the sitemap post-build).
+title: poststruct docs
+description: Audit what shipped - check catalog, packs, and usage for the poststruct auditor.
+url: https://docs.creadev.org
+baseurl: /poststruct
+
+show_downloads: false
+
+markdown: kramdown
+highlighter: rouge
+
+permalink: pretty
+
+exclude:
+  - README.md
+  - freestruct.config.yml
+  - Gemfile
+  - Gemfile.lock
+  - _site
+  - pagefind
+  - pagefind-*.tar.gz
+
+keep_files: ["pagefind", "assets"]
+
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    default_lang: plaintext
+    css_class: 'highlight'
+  toc_levels: [1, 2, 3, 4, 5, 6]
+  auto_ids: true
+  auto_id_prefix: ''

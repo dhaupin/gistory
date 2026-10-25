@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData,  loadSettings, saveSettings, loadVariables, saveVariables, sweepDrafts } from './lib/store'
+import { sweepAttachmentBytes } from './lib/attachments'
 import { varKey, tombstoneDeadScopes, type Variables } from './lib/variables'
-import type { Thread, Project, Message, MessagesByThread } from './lib/models'
+import type { Thread, Project, Message, MessageAttachment, MessagesByThread } from './lib/models'
 import { parseRoute, onRouteChange, initRouter, navigate } from './lib/router'
 import {
   SyncAgent,
@@ -15,6 +16,7 @@ import {
   type RemoteDevice,
 } from './sync/agent'
 import { emptyDeleted, mergePayload, normalizeDeleted, syncFingerprint, type DeletedRegistry, type SyncData, type SyncPayload, type SyncSettings } from './sync/merge'
+import { replicateMissingAttachments, uploadAttachmentBytes, restoreBackupAttachments, type BackupAttachmentRow } from './lib/attachments'
 import { describeDecryptFailures } from './sync/errors'
 import { errorMessage } from './sync/errors'
 import { SyncError } from './sync/agent'
@@ -203,6 +205,10 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     // device-local composer draft behind, because sweeps on THIS device only
     // fire on a local delete. Sweep against the merged (post-tombstone) list.
     sweepDrafts(data.threads)
+    // And for attachment bytes: a remote delete of a message/thread that
+    // carried images orphans the device-local pixels here too — same sweep
+    // moment, same keep-set logic (sweepAttachmentBytes derives it itself).
+    void sweepAttachmentBytes(data.messages)
     threadsRef.current = data.threads
     messagesRef.current = data.messages
     projectsRef.current = data.projects
@@ -330,6 +336,14 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
           data = mergePayload(data, blob as SyncPayload, myDeviceId)
         }
         applyMerged(data)
+        // Attachment replication: kick off a fetch pass for any referenced
+        // attachment whose bytes this device lacks. Never
+        // awaited (a replication pass must not stall the merge or the push
+        // behind it); the honest-missing render fallback already covers a
+        // pass that fails, and the next merge retries them.
+        void replicateMissingAttachments(data.messages, agent)
+          .then(stats => { if (stats.failed.length) console.warn('[attachments] replication pass had failures:', stats.failed) })
+          .catch(err => console.warn('[attachments] replication pass failed:', err))
       }
 
       if (opts.push !== false) {
@@ -492,6 +506,16 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
   // between reloads; this one bounds the rest.
   useEffect(() => {
     sweepDrafts(threadsRef.current)
+    // Attachment bytes need the whole live message set as their keep-set; at
+    // boot the merge sweep may not have run yet, so read what is stored.
+    // (A malformed stored row is the loaded state's problem, never a crash.)
+    try {
+      const stored = stGetString('gistory_messages')
+      const parsed: MessagesByThread | null = stored ? JSON.parse(stored) : null
+      if (parsed && Object.keys(parsed).length) void sweepAttachmentBytes(parsed)
+    } catch {
+      /* boot sweep is best-effort; the post-merge sweep runs regardless */
+    }
   }, [])
 
   // Restore the agent on load when sync was previously enabled.
@@ -591,8 +615,17 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
 
   // Merge an imported export file into live state. The persistence effects
   // below write it out, so no page reload is needed to see the result.
+  // When the backup carried image bytes (the opt-in export), restore them
+  // through the device-local byte store first so the merged messages find
+  // their pixels - capped and skipped rows, never trusted raw.
   const handleImportData = useCallback((data: Parameters<typeof importData>[0]) => {
     const merged = importData(data, deletedRef.current)
+    const backupRows = (data as { attachments?: Record<string, unknown> }).attachments
+    if (backupRows && typeof backupRows === 'object') {
+      void restoreBackupAttachments(backupRows as Record<string, BackupAttachmentRow>)
+        .then(n => { if (n) console.log(`[attachments] restored ${n} image row(s) from the backup`) })
+        .catch(err => console.warn('[attachments] backup image restore failed:', err))
+    }
     threadsRef.current = merged.threads
     messagesRef.current = merged.messages
     projectsRef.current = merged.projects
@@ -980,6 +1013,10 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     // The thread's saved composer draft is device-local scratch with no other
     // owner — drop it with the thread instead of letting it persist forever.
     sweepDrafts(threadsRef.current.filter(t => t.id !== id))
+    // The thread's image bytes are device-local too: everything its messages
+    // referenced is orphaned the moment the tombstones land.
+    const survivingMessages: MessagesByThread = { ...messagesRef.current, [id]: [] }
+    void sweepAttachmentBytes(survivingMessages)
     // Same story for its saved {{variables}} pool: tombstone the entries so
     // the deletion syncs instead of leaving a "Deleted thread" pool forever.
     const aliveAfter = new Set(threadsRef.current.filter(t => t.id !== id).map(t => t.id))
@@ -997,12 +1034,33 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     }
   }, [currentThreadId, threads, tombstone, forgetView])
 
-  const addMessage = useCallback((threadId: string, content: string) => {
-    const msg: Message = { id: generateId('m'), threadId, content, createdAt: Date.now() }
+  /** New message; attachments are BUILT METADATA (bytes already device-local
+   *  via buildAttachment) — the metadata rides the sync payload, never bytes. */
+  const addMessage = useCallback((threadId: string, content: string, attachments?: MessageAttachment[]) => {
+    const msg: Message = {
+      id: generateId('m'),
+      threadId,
+      content,
+      createdAt: Date.now(),
+      ...(attachments?.length ? { attachments } : {}),
+    }
     setMessages(prev => ({
       ...prev,
       [threadId]: [...(prev[threadId] || []), msg]
     }))
+    // Upload-side replication: each attachment's LOCAL bytes ride to the
+    // relay once, at save (the metadata just joined the payload and will
+    // sync on this device's next push). Fire-and-forget by contract - the
+    // merge-side getter already renders its honest "missing" state when a
+    // fetch never lands, so a failed upload is a warned gap, not a crash.
+    if (attachments?.length && syncAgentRef.current) {
+      const agent = syncAgentRef.current
+      for (const att of attachments) {
+        void uploadAttachmentBytes(agent, att.id)
+          .then(ok => { if (!ok) console.warn(`[attachments] no local bytes to upload for ${att.id}`) })
+          .catch(err => console.warn(`[attachments] upload failed for ${att.id}:`, err))
+      }
+    }
   }, [])
 
   const updateMessage = useCallback((msgId: string, content: string) => {
@@ -1190,7 +1248,7 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
           projects={projects}
           sort={sort}
           onSortChange={setSort}
-          onAddMessage={content => addMessage(currentThreadId, content)}
+          onAddMessage={(content, attachments) => addMessage(currentThreadId, content, attachments)}
           onUpdateMessage={updateMessage}
           onDeleteMessage={deleteMessage}
           onRenameThread={renameThread}

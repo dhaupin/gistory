@@ -91,6 +91,30 @@ export const POLICIES = {
    */
   writeFailures: { limit: 20, windowMs: 60_000 },
   /**
+   * One device writing attachment bytes (/sync/attach) or reading them.
+   *
+   * A save with images is at most 6 PUTs (MAX_ATTACHMENTS_PER_MESSAGE), and a
+   * replication pass on boot is one GET per referenced-but-missing id — a few
+   * dozen in a busy library. 120/min keeps an ordinary client throttle-free;
+   * a loops hits it in under a minute of round-trips.
+   */
+  attach: { limit: 120, windowMs: 60_000 },
+  /**
+   * A whole chain talking attachment bytes, summed across devices. Same shape
+   * as pushChain: protects the resource every device in the chain shares
+   * (this table's rows) from one identity being throttled for the sins of
+   * another.
+   */
+  attachChain: { limit: 600, windowMs: 60_000 },
+  /**
+   * Per-chain BYTE budget for attachment storage, per day. The same echo-loop
+   * class push-chain-bytes exists for: two devices re-uploading the same
+   * attachments at each other would pass every request counter while filling
+   * D1 with pixels. 96MB/day mirrors the push budget; legitimate uploads are
+   * a few MB at most. Charged after write auth, only for admitted writes.
+   */
+  attachChainBytes: { limit: 96_000_000, windowMs: 24 * 60 * 60_000 },
+  /**
    * Wake fan-out per chain (background-sync step 4, labs/prd-sync.md).
    *
    * Every successful push triggers at most one wake per subscribed device;

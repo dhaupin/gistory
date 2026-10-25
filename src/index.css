@@ -3339,3 +3339,97 @@ textarea::placeholder {
   flex-direction: column;
   gap: 0.5rem;
 }
+
+/* --- Message image attachments (2026-10-25) --------------------------------
+   Bytes are device-local; the strip renders the three honest states from
+   ThreadView's MessageImages (pixels / missing / loading). Composer strip
+   holds them until Save removes them from the message. */
+
+.att-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 2px;
+}
+
+.att-strip-composer {
+  margin: 10px 2px 0;
+}
+
+.att-thumb {
+  position: relative;
+  margin: 0;
+}
+
+.att-thumb img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.att-remove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.att-remove:hover {
+  background: var(--surface);
+  color: var(--danger, #c2410c);
+}
+
+.att-img {
+  display: block;
+  max-width: min(320px, 100%);
+  max-height: 240px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.att-missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(320px, 100%);
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  opacity: 0.72;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.att-note {
+  color: var(--text);
+  opacity: 0.75;
+}
+
+@media (max-width: 640px) {
+  .att-img {
+    max-height: 180px;
+  }
+
+  .att-missing {
+    white-space: normal;
+  }
+}

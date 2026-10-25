@@ -1,0 +1,44 @@
+[
+  {
+    "type": "adopt",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "home/desktop-1280-dark/current.png",
+    "note": "gistory adopts .eyes/: home lander, dark, pinned chrome 154 via managed preview; byte-identical dark/light at 1280x800 so the lander is theme-invariant today - a future light theme will trip diff against this",
+    "ratified": false,
+    "id": "row-0001",
+    "ts": 1792956625864
+  },
+  {
+    "type": "adopt",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "settings/desktop-1280-dark/current.png",
+    "note": "gistory adopts .eyes/: settings hash route, dark, pinned chrome 154 (55881B)",
+    "ratified": false,
+    "id": "row-0002",
+    "ts": 1792956625894
+  },
+  {
+    "type": "ratify",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "home/desktop-1280-dark/current.png",
+    "note": "reproduced byte-identical (77934B) in the pinned environment via http://localhost:5178",
+    "pin": "local-chrome@154.0.8037.57",
+    "verified": true,
+    "id": "row-0003",
+    "ts": 1792957609113
+  },
+  {
+    "type": "ratify",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "settings/desktop-1280-dark/current.png",
+    "note": "reproduced byte-identical (55881B) in the pinned environment via http://localhost:5178",
+    "pin": "local-chrome@154.0.8037.57",
+    "verified": true,
+    "id": "row-0004",
+    "ts": 1792957612364
+  }
+]

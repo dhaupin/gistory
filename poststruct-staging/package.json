@@ -1,0 +1,54 @@
+{
+  "name": "poststruct",
+  "version": "0.9.0",
+  "description": "Audit what shipped. A zero-dependency CLI that walks baked HTML and verifies head, links, and site hygiene against a contract - FAIL findings exit non-zero so CI gates regressions.",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "bin": {
+    "poststruct": "bin/cli.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/run.mjs",
+    "packs": "node scripts/run-packs.mjs",
+    "packs:adopt": "node scripts/run-packs.mjs --adopt",
+    "lint:packs": "packstruct lint packs --deep",
+    "conform:packs": "packstruct audit-conformance . --loader \"node scripts/run-packs.mjs {packs}\"",
+    "check": "npm run test && npm run lint:packs && npm run conform:packs"
+  },
+  "devDependencies": {
+    "packstruct": "1.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "seo",
+    "audit",
+    "ci",
+    "open-graph",
+    "json-ld",
+    "sitemap",
+    "robots",
+    "static-site",
+    "prestruct",
+    "freestruct",
+    "prerender"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dhaupin/poststruct.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dhaupin/poststruct/issues"
+  },
+  "homepage": "https://github.com/dhaupin/poststruct#readme"
+}

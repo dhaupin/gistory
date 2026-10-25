@@ -1,0 +1,32 @@
+[
+  {
+    "type": "adopt",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "home/desktop-1280-dark/current.png",
+    "note": "first committed baseline: gistory home lander, dark, pinned chrome 154 via localhost preview (deterministic byte-identical 77934B across two looks)",
+    "ratified": false,
+    "id": "row-0001",
+    "ts": 1792955330979
+  },
+  {
+    "type": "adopt",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "settings/desktop-1280-dark/current.png",
+    "note": "first committed baseline: gistory settings hash route, dark, pinned chrome 154 (55881B)",
+    "ratified": false,
+    "id": "row-0002",
+    "ts": 1792955331020
+  },
+  {
+    "type": "adopt",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "home/tablet-1024-light/current.png",
+    "note": "first committed baseline: gistory home lander, light, 1024x768 viewport (72762B, #features mapped)",
+    "ratified": false,
+    "id": "row-0003",
+    "ts": 1792955331050
+  }
+]

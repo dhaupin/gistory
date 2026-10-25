@@ -1,0 +1,11 @@
+# Cloudflare Pages — poststruct landing (poststruct.creadev.org)
+# Deploy: CF Pages Git integration on this repo, or `npx wrangler pages deploy dist`
+name = "poststruct"
+compatibility_date = "2026-10-23"
+pages_build_output_dir = "dist"
+
+[vars]
+SITE_NAME = "poststruct"
+
+# Functions live in functions/ (Pages Functions = Workers under the hood).
+# functions/api/health.js is the living proof; add more only when a real need shows.

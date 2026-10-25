@@ -1,0 +1,25 @@
+# release.yml - GitHub Release from v*.*.* tags. The tag is the machine
+# source of truth; CHANGELOG.md is the human source.
+name: Release
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract release notes from CHANGELOG
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          awk -v v="$V" '
+            /^## /{ if ($2 == v) seen=1; else if (seen) exit }
+            seen && !/^## /{ print }
+          ' CHANGELOG.md > notes.md
+          test -s notes.md || echo "Release $V" > notes.md
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --title "poststruct $GITHUB_REF_NAME" --notes-file notes.md

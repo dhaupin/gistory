@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "eye-shapes",
+  "description": "The eye daemon's own adversarial pack, run by eyestruct's pack runner on every CI: ledger tampering (corrupt, duplicate ids, control-char payloads), manifest corruption, unexplained and dangling visual memory, note enforcement, capability refusals, and the eye-side text-leg guard. Browser-class captures are a documented accepted-risk bound, not a silent skip.",
+  "version": "0.1.0",
+  "entry": "index.js",
+  "env": {
+    "fs": {
+      "targets": [".eyes/manifest.yml", ".eyes/ledger.json", ".eyes/<route>/<view>/current.png"]
+    },
+    "cli": ["look", "diff", "adopt", "ledger", "gate", "raster", "walk", "mcp"]
+  }
+}

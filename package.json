@@ -41,6 +41,32 @@
   "engines": {
     "node": ">=18"
   },
+  "//dependencies": "NONE — the published bundle is self-contained ESM. The app's UI deps (react, react-dom, react-router-dom, lucide-react, qrcode.react) live in devDependencies: the Pages/CF build and CI install dev deps too, and keeping them out of dependencies keeps `npm install gistory-sync` free of a React tree it never uses.",
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/bun": "^1.4.2",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "crashtest": "^1.1.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "freestruct": "^1.0.0",
+    "globals": "^15.14.0",
+    "lucide-react": "^1.17.0",
+    "packstruct": "1.0.0",
+    "prestruct": "^1.1.0",
+    "puppeteer": "^25.12.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.18.4",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "^8.18.2",
+    "vite": "^6.0.5"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && prestruct build && node scripts/build-sw.mjs",
@@ -59,6 +85,7 @@
     "sync:barrage": "bun tests/barrage.ts",
     "crashtest:build": "node scripts/build-crashtest.mjs",
     "crashtest:run": "node scripts/build-crashtest.mjs && crashtest run",
+    "framework:gate": "node scripts/framework-gate.mjs",
     "test:ui": "node tests/ui/run.mjs",
     "ui:audit": "node scripts/ui-audit.mjs",
     "probe:dist": "node scripts/dist-probe.mjs",
@@ -75,32 +102,5 @@
     "db:maintain:check": "node scripts/db-maintain.mjs --check",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run build:lib",
     "preview": "vite preview"
-  },
-  "dependencies": {
-    "lucide-react": "^1.17.0",
-    "qrcode.react": "^4.2.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.18.4"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@resvg/resvg-js": "^2.6.2",
-    "@types/bun": "^1.4.2",
-    "@types/react": "^19.0.6",
-    "@types/react-dom": "^19.0.3",
-    "@vitejs/plugin-react": "^4.3.4",
-    "crashtest": "^1.1.0",
-    "eslint": "^9.17.0",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.16",
-    "freestruct": "^1.0.0",
-    "globals": "^15.14.0",
-    "packstruct": "1.0.0",
-    "prestruct": "^1.1.0",
-    "puppeteer": "^25.12.0",
-    "typescript": "~5.6.2",
-    "typescript-eslint": "^8.18.2",
-    "vite": "^6.0.5"
   }
 }
