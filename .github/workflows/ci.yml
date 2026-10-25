@@ -95,7 +95,9 @@ jobs:
       # (plus sitemap.xml and 404.html). The CLI fails the build when a route
       # fails to render, so this gate proves the whole pipeline ran.
       - name: Production build (prestruct pipeline)
-        run: npx prestruct build      - name: Prerendered pages exist
+        run: npx prestruct build
+
+      - name: Prerendered pages exist
         run: |
           test -f dist/index.html
           test -f dist/terms/index.html
