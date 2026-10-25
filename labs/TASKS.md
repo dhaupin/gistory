@@ -13,6 +13,52 @@ Conventions
 
 ## Now
 
+- **D1 500MB incident + repairs (2026-10-25).** The relay's D1 hit the plan's
+  500MB ceiling (API error 7500 refuses ALL writes at that size, so the daily
+  maintenance could not even shrink it — every scheduled run died on its first
+  DELETE while the SELECT counts succeeded, which is what made the failure
+  read as "flaky" for two days).
+  - **Root cause: a closed-tab wake echo loop.** A wake that delivered blobs
+    pushed the merged snapshot back unconditionally; because every push
+    carries a fresh `sentAt` envelope, the other device always had "something
+    new" to pull, woke this one back, and two service workers ponged a full
+    ~415KB state at each other — ~600 pushes each overnight, all comfortably
+    inside the per-minute request limits. Culprit devices (named from the
+    DB): the two BETA browsers on the Moto Stylus 2024 (`c80a3297…27dbe` =
+    Brave Beta, `19b02737…a5ed1` = Chrome Beta) — the user runs all four
+    phone browsers as normal daily instances, so the guards had to assume
+    they keep doing that.
+  - **Manual purge** via the D1 dashboard console (the one door that still
+    worked): DELETE everything but the newest 2 snapshots on the bloated
+    chain (one per device, a complete restore point each) + the live-test
+    debris; the file fell back under the ceiling and the 7500 refusals
+    cleared. Retention will hold it there; if a future flood ever re-hits
+    the ceiling, D1 Time Travel (restore to a pre-flood timestamp) is the
+    only lever while writes are refused.
+  - **Two guards shipped in `aec2038`:** (1) server — a per-chain daily
+    BYTE budget (96MB/day, `push-chain-bytes`, weighted counter in
+    guards.ts, charged after write auth in push.ts): full-state pushes look
+    ordinary on every request-rate counter while filling storage, so only
+    bytes tell the truth — per-chain because the echo spends from TWO
+    devices at once. (2) client — both push paths gate on CONTENT, not the
+    envelope: the SW push-away fires only when `syncFingerprint`
+    (`src/sync/merge.ts`, 64-bit FNV over a canonical serialization,
+    ignoring sentAt/senderDeviceId) actually changed, and App's
+    `pushSnapshot` no-ops when content matches the session's last successful
+    push (session-scoped ref on purpose: a reload re-seeds the chain, an
+    echo loop cannot). AGENTS.md's wake contract + guard table updated to
+    match. Battery: sync:smoke 375 (byte budget behavioral + wiring pinned
+    textually), typecheck, lint, db:maintain:check.
+  - Also landed in `5e24e50` + `e6a8c79` while chasing the "flaky" failures:
+    execSql now surfaces wrangler's stderr instead of dying as "Command
+    failed" (the 7500 text was invisible for days), `--census` (read-only
+    byte map, works while writes are refused, dispatchable from the
+    Maintain D1 workflow), and the maintenance write loop stopped running
+    every statement twice.
+  - Verify tomorrow: the 03:17 UTC `Maintain D1` schedule should be its first
+    green run since the ceiling hit; server-side byte budget goes live with
+    the next Pages deploy of the push.
+
 - **Workspace housekeeping commit (2026-10-25, user-directed clean).**
   - Styling-pass leftovers committed: the four pre-session modified files
     (docs noindex meta for `/discussions/` release-draft pages, one-h1 gate
