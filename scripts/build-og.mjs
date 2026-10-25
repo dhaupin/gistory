@@ -57,7 +57,7 @@ const docsCard = shell(`
 `)
 
 const siteCard = shell(`
-  <text x="96" y="118" font-family="Liberation Mono" font-size="30" fill="#5b8bf4">{'{{'}language{'}'} {'{{'}codebase{'}'} {'{{'}tone{'}'}</text>
+  <text x="96" y="118" font-family="Liberation Mono" font-size="30" fill="#5b8bf4">{{language}} {{codebase}} {{tone}}</text>
   <text x="92"  y="252" font-family="Liberation Sans" font-weight="700" font-size="88" fill="#f2f4f8" letter-spacing="-2">Gistory</text>
   <text x="94"  y="330" font-family="Liberation Sans" font-size="44" fill="#c7cbd4">Every prompt you write,</text>
   <text x="94"  y="386" font-family="Liberation Sans" font-size="44" fill="#c7cbd4">kept, found, and <tspan font-style="italic" fill="#5b8bf4">filled in</tspan>.</text>

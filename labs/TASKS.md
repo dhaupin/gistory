@@ -13,6 +13,13 @@ Conventions
 
 ## Now
 
+- **OG card tag-row fix (2026-10-25).** `public/og-image.png` rendered its
+  decorative variable row as literal Jekyll-escape soup
+  (`{'{{'}language{'}'} …`) — the escaping idiom from the docs pages was
+  cargo-culted into `scripts/build-og.mjs`'s SVG, where nothing needs
+  escaping. Now plain `{{language}} {{codebase}} {{tone}}`, regenerated all
+  three committed cards via `npm run build:og`.
+
 - **D1 500MB incident + repairs (2026-10-25).** The relay's D1 hit the plan's
   500MB ceiling (API error 7500 refuses ALL writes at that size, so the daily
   maintenance could not even shrink it — every scheduled run died on its first
