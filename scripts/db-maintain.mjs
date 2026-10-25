@@ -115,12 +115,26 @@ function execSql(target, statements, { file = false } = {}) {
   else args.push('--local')
   const batch = statements.join(';\n-- statement --\n')
   args.push(file ? `--file=${batch}` : `--command=${batch}`, '--json')
-  const out = execFileSync('npx', args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    maxBuffer: 64 * 1024 * 1024,
-  })
+  let out
+  try {
+    out = execFileSync('npx', args, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 64 * 1024 * 1024,
+    })
+  } catch (err) {
+    // Wrangler's own stderr (the actual API error — 401/403 on a token that
+    // can read but not write, a D1 outage, a version drift) used to die here
+    // as an opaque 'Command failed' — two days of scheduled failures dug at
+    // the wrong layer because of it. Surface the real text, loud, at cause.
+    const stdoutSays = typeof err.stdout === 'string' ? err.stdout.trim().slice(-1200) : ''
+    const stderrSays = typeof err.stderr === 'string' ? err.stderr.trim().slice(-1200) : ''
+    const detail = [stderrSays && `stderr: ${stderrSays}`, stdoutSays && `stdout: ${stdoutSays}`]
+      .filter(Boolean)
+      .join(' | ')
+    throw new Error(`wrangler d1 ${target} failed (exit ${err.status ?? 'unknown'}): ${detail || err.message}`)
+  }
   // Wrangler prints its own progress lines around the JSON payload.
   const start = out.indexOf('[')
   const end = out.lastIndexOf(']')
