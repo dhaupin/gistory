@@ -1,23 +1,42 @@
 # Hardening report
 
-> crashtest v1.0.0 / seed 12648430
+> crashtest v1.1.0 / seed 12648430
 > cut stamp: labs/run-meta.json (wall clock, deliberately outside this file).
 > CI rule: fail on a NEW EXPLOITED finding, or a REGRESSION of anything previously REFUSED.
 
 ## Findings
 
-### 🛡 REFUSED (37)
+### 🛡 REFUSED (56)
 - auth/identity-spoof-headers: route "admin" not declared on this target - spoof matrix skipped (declare it for coverage)
 - auth/secret-watermark: no fake secrets planted in env - declare CRASHTEST_SECRET to arm this probe
 - auth/privilege-escalation: route "device" not declared on this target - escalation skipped (declare it for coverage)
 - authz/method-matrix-privileged: route "admin" not declared on this target - authz skipped (declare it for coverage)
 - authz/role-body-spoof-family: route "admin" not declared on this target - authz skipped (declare it for coverage)
 - authz/handler-alias-confusion: route "admin" not declared on this target - authz skipped (declare it for coverage)
+- governance/succession-trust-floor: vocabulary knob(s) "grantsRoute", "resolveRoute" not declared on this target - governance skipped (export moduleCtx['governance'].grantsRoute/resolveRoute for coverage)
+- governance/succession-single-heir: vocabulary knob(s) "grantsRoute", "resolveRoute" not declared on this target - governance skipped (export moduleCtx['governance'].grantsRoute/resolveRoute for coverage)
+- governance/succession-revocation-carry: vocabulary knob(s) "grantsRoute", "resolveRoute" not declared on this target - governance skipped (export moduleCtx['governance'].grantsRoute/resolveRoute for coverage)
+- governance/escrow-two-key-release: vocabulary knob(s) "escrowRoute" not declared on this target - escrow skipped (export moduleCtx['governance'].escrowRoute for coverage)
+- governance/escrow-expiry-is-fail-closed: vocabulary knob(s) "escrowRoute" not declared on this target - escrow skipped (export moduleCtx['governance'].escrowRoute for coverage)
+- governance/escrow-refusal-is-typed: vocabulary knob(s) "escrowRoute" not declared on this target - escrow skipped (export moduleCtx['governance'].escrowRoute for coverage)
+- governance/grant-conflict-deterministic: vocabulary knob(s) "grantsRoute", "resolveRoute" not declared on this target - governance skipped (export moduleCtx['governance'].grantsRoute/resolveRoute for coverage)
+- governance/capability-no-sideways: vocabulary knob(s) "grantsRoute", "resolveRoute" not declared on this target - governance skipped (export moduleCtx['governance'].grantsRoute/resolveRoute for coverage)
+- governance/lock-ttl-honesty: governance knob(s) "locksRoute", "ttlMode" not declared on this target - lock-ttl-honesty skipped (declare locksRoute + the DOCUMENTED ttlMode for coverage)
+- governance/lock-owner-fencing: governance knob(s) "locksRoute", "staleToken" not declared on this target - fencing skipped (declare locksRoute + staleToken for coverage)
 - guards/hygiene-no-store: route "enroll" not declared on this target - attack skipped (declare it for coverage)
 - guards/burst-wall: route "burst" not declared on this target - attack skipped (declare it for coverage)
 - input/proto-pollution-body: route "enroll" not declared on this target - attack skipped (declare it for coverage)
 - input/never-fail-mutations: route "enroll" not declared on this target - attack skipped (declare it for coverage)
 - input/oversized-field: route "enroll" not declared on this target - attack skipped (declare it for coverage)
+- memory/drift-silent-overwrite: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
+- memory/drift-stale-poisons-fresh: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
+- memory/drift-contradiction-carry: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
+- memory/hallucinated-fact-probe: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
+- memory/citation-drift: vocabulary knob(s) "writeRoute", "readRoute", "deleteRoute" not declared on this target - citation drift skipped (export moduleCtx['memory'].writeRoute/readRoute/deleteRoute for coverage)
+- memory/phantom-scope: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
+- memory/identity-merge-collision: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
+- memory/resolution-order-stability: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
+- memory/delete-is-loud: vocabulary knob(s) "writeRoute", "readRoute", "deleteRoute" not declared on this target - delete skip (export moduleCtx['memory'].writeRoute/readRoute/deleteRoute for coverage)
 - proto-hygiene/head-get-parity: 4 route(s): HEAD mirrors GET (no throws, no status drift beyond honest 405) + 4 info note(s)
 - proto-hygiene/request-shape-flood: 4 route(s) x 18 bare shapes (query chaos, path shapes, header casings) all landed 4xx-or-cleaner with case-parity intact
 - race/double-submit-idempotency: route "charge" not declared on this target - race skipped (declare it for coverage)
@@ -56,18 +75,37 @@
 - sync-relay-shapes/watermark-pin: poison ciphertext (wrong-for-the-chain passphrase) relayed through a valid write secret (200) - owner: gistory relay (dhaupin), bound: the relay cannot validate ciphertext (it is blind by design), so a valid-secret blobs hold the victim watermark — the client-side consequence is a watermark that holds before the poison blob and RETRIES on the next sync, never skips; pinned behaviorally in tests/sync-smoke.ts
 
 ## Cost economics
-- total: 166 backend ops across 550 in-process requests from 43 attacks
+- total: 1712 backend ops across 550 in-process requests from 62 attacks
   - auth/identity-spoof-headers: 0 ops / 0 requests
   - auth/secret-watermark: 0 ops / 0 requests
   - auth/privilege-escalation: 0 ops / 0 requests
   - authz/method-matrix-privileged: 0 ops / 0 requests
   - authz/role-body-spoof-family: 0 ops / 0 requests
   - authz/handler-alias-confusion: 0 ops / 0 requests
+  - governance/succession-trust-floor: 0 ops / 0 requests
+  - governance/succession-single-heir: 0 ops / 0 requests
+  - governance/succession-revocation-carry: 0 ops / 0 requests
+  - governance/escrow-two-key-release: 0 ops / 0 requests
+  - governance/escrow-expiry-is-fail-closed: 0 ops / 0 requests
+  - governance/escrow-refusal-is-typed: 0 ops / 0 requests
+  - governance/grant-conflict-deterministic: 0 ops / 0 requests
+  - governance/capability-no-sideways: 0 ops / 0 requests
+  - governance/lock-ttl-honesty: 0 ops / 0 requests
+  - governance/lock-owner-fencing: 0 ops / 0 requests
   - guards/hygiene-no-store: 0 ops / 0 requests
   - guards/burst-wall: 0 ops / 0 requests
   - input/proto-pollution-body: 0 ops / 0 requests
   - input/never-fail-mutations: 0 ops / 0 requests
   - input/oversized-field: 0 ops / 0 requests
+  - memory/drift-silent-overwrite: 0 ops / 0 requests
+  - memory/drift-stale-poisons-fresh: 0 ops / 0 requests
+  - memory/drift-contradiction-carry: 0 ops / 0 requests
+  - memory/hallucinated-fact-probe: 0 ops / 0 requests
+  - memory/citation-drift: 0 ops / 0 requests
+  - memory/phantom-scope: 0 ops / 0 requests
+  - memory/identity-merge-collision: 0 ops / 0 requests
+  - memory/resolution-order-stability: 0 ops / 0 requests
+  - memory/delete-is-loud: 0 ops / 0 requests
   - proto-hygiene/head-get-parity: 8 ops / 8 requests
   - proto-hygiene/request-shape-flood: 72 ops / 80 requests
   - race/double-submit-idempotency: 0 ops / 0 requests
@@ -80,19 +118,19 @@
   - session/logout-invalidates: 0 ops / 0 requests
   - state/enumeration-oracle: 0 ops / 0 requests
   - state/id-collision-alias: 0 ops / 0 requests
-  - sync-relay-shapes/takeover-by-own-secret: 3 ops / 3 requests
-  - sync-relay-shapes/create-race-second-writer: 4 ops / 7 requests
-  - sync-relay-shapes/secret-format-variants: 5 ops / 12 requests
-  - sync-relay-shapes/existence-oracle: 3 ops / 15 requests
-  - sync-relay-shapes/member-rename-nuisance: 2 ops / 17 requests
-  - sync-relay-shapes/spoofed-device-write: 2 ops / 19 requests
-  - sync-relay-shapes/status-nonmember-read: 2 ops / 21 requests
-  - sync-relay-shapes/chain-rows-farm: 25 ops / 46 requests
-  - sync-relay-shapes/phantom-device-rows: 6 ops / 52 requests
-  - sync-relay-shapes/waf-body-shapes: 5 ops / 57 requests
-  - sync-relay-shapes/parser-query-shapes: 5 ops / 62 requests
-  - sync-relay-shapes/watermark-pin: 3 ops / 65 requests
-  - sync-relay-shapes/guard-header-hygiene: 21 ops / 86 requests
+  - sync-relay-shapes/takeover-by-own-secret: 55 ops / 3 requests
+  - sync-relay-shapes/create-race-second-writer: 74 ops / 7 requests
+  - sync-relay-shapes/secret-format-variants: 86 ops / 12 requests
+  - sync-relay-shapes/existence-oracle: 45 ops / 15 requests
+  - sync-relay-shapes/member-rename-nuisance: 41 ops / 17 requests
+  - sync-relay-shapes/spoofed-device-write: 39 ops / 19 requests
+  - sync-relay-shapes/status-nonmember-read: 33 ops / 21 requests
+  - sync-relay-shapes/chain-rows-farm: 529 ops / 46 requests
+  - sync-relay-shapes/phantom-device-rows: 130 ops / 52 requests
+  - sync-relay-shapes/waf-body-shapes: 32 ops / 57 requests
+  - sync-relay-shapes/parser-query-shapes: 73 ops / 62 requests
+  - sync-relay-shapes/watermark-pin: 53 ops / 65 requests
+  - sync-relay-shapes/guard-header-hygiene: 442 ops / 86 requests
   - taxonomy/abuse-not-5xx: 0 ops / 0 requests
   - taxonomy/errors-stay-impersonal: 0 ops / 0 requests
   - upload/filename-traversal-family: 0 ops / 0 requests

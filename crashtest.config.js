@@ -1,20 +1,30 @@
 // crashtest.config.js — Gistory's run root.
 //
 // The relay IS crashtest's native shape (plain handlers over a request ctx),
-// so the config is thin: register the four routes, attach the in-memory D1
-// fixture as `GISTRY_DB`, and arm `sync-relay-shapes` with this target's
-// vocabulary — the pack itself knows nothing about gistory.
+// and since crashtest v1.1.0 (FakeD1 v0.2/v0.3 — built and verified against
+// real SQLite for exactly the statements this relay runs: INSERT..SELECT
+// MAX(seq)+1 RETURNING, ON CONFLICT upserts, INSERT OR IGNORE, CASE/COALESCE
+// value expressions, parameter-bound LIMIT), the run root speaks crashtest's
+// own env spec — no hand-built engine anymore. The node:sqlite D1 fixture this
+// config carried from day one was retired the release that closed the gap.
 //
-// The crypto used to build REAL push bodies comes from the bundled agents
-// (scripts/build-crashtest.mjs -> crashtest/handlers.mjs), so an "accepted"
-// write in an attack is a body the relay itself would happily accept from a
-// legitimate device. Junk ciphertext would make every attack a 4xx for the
-// wrong reason.
+// What remains target-specific:
+//   * the table plan below (migrations-equivalent shape: FakeD1 rows are
+//     objects, so columns come free; the declared UNIQUES are what feed the
+//     constraint reading for INSERT OR IGNORE and the ON CONFLICT targets),
+//   * the bundled handlers (scripts/build-crashtest.mjs -> crashtest/handlers.mjs;
+//     plain Node inside the CLI cannot import gistory's TS sources),
+//   * the agent crypto that builds REAL push bodies — an "accepted" write is
+//     a body the relay itself would happily take from a legitimate device,
+//     never junk ciphertext that makes every attack a 4xx for the wrong reason,
+//   * real budgets, not guesses, for the guard-hygiene attack.
 //
 // One fixture instance backs the whole campaign: attacks see each other's
-// materialized rows on purpose (e.g. takeover asserts the stored digest the
-// create attack installed survived the joiner's handshake). Determinism:
-// fixed ids everywhere (the handlers never re-roll them), fixed passphrases.
+// materialized rows on purpose (e.g. takeover asserts the digest the create
+// attack installed survived the joiner's handshake). The binding is captured
+// from the first request; moduleCtx oracles only ever read through it, so
+// there is deliberately no per-request reset. Determinism: fixed ids
+// everywhere (the handlers never re-roll them), fixed passphrases, fixed seed.
 //
 // The six bounded attacks carry gistory's documented accepted risks here —
 // the same lines the relay's own red-team log labels — so a bound that stops
@@ -30,27 +40,59 @@ import {
   newWriteSecret,
   POLICIES,
 } from './crashtest/handlers.mjs'
-import { buildFixtureDb } from './crashtest/fixture.mjs'
+import { createHash } from 'node:crypto'
 
-const db = buildFixtureDb()
-const env = { GISTRY_DB: db.d1 }
+// Migrations-equivalent table plan for env.d1.GISTRY_DB. Empty tables — the
+// campaign's attacks materialize every row themselves, through the real relay
+// handlers. Uniques mirror migrations/000x: chains.id, devices(chain_id,id),
+// blobs(chain_id,seq), rate_limits.key.
+const tables = {
+  chains: { rows: [], uniques: { pk: ['id'] } },
+  devices: { rows: [], uniques: { pk: ['chain_id', 'id'] } },
+  blobs: { rows: [], uniques: { pk: ['chain_id', 'seq'] } },
+  rate_limits: { rows: [], uniques: { pk: ['key'] } },
+}
 
 // The chain key material belongs to the "honest device" speaking for the
-// target in the vocabulary body factories: a chain the fixture CREATES with a
-// startPassphraseKey can push real, decryptable ciphertext; the pack's
-// poison-blob attack asks the fixture for bodies under a DIFFERENT one.
+// target in the vocabulary body factories: a chain created through the real
+// handshake can push real, decryptable ciphertext; the pack's poison-blob
+// attack asks for bodies under a DIFFERENT one.
 const PASS = 'crashtest fixture passphrase'
 
-const withEnv = (ctx) => ({ ...ctx, env })
+// Oracles run through the same binding the handlers run through. A database
+// backstop exists only after the first request, so an oracle that fires
+// before any attack has spoken to the relay is a harness mistake — fail it
+// loudly instead of inventing a zero.
+let fixtureD1 = null
+const d1 = () => {
+  if (!fixtureD1) {
+    throw new Error(
+      'crashtest.config.js: the GISTRY_DB binding was never captured — oracles run through it and only materialize after the first request',
+    )
+  }
+  return fixtureD1
+}
+const captureD1 = (ctx) => {
+  fixtureD1 ??= ctx.env.GISTRY_DB
+  return ctx
+}
+const one = async (sql, ...params) =>
+  (await d1().prepare(sql).bind(...params).first()) ?? null
 
 export default {
   baseUrl: 'https://relay.crashtest.local',
 
+  // crashtest's native fake env: one D1 binding, no secrets/vars/kv needed —
+  // the handlers read everything else from the request itself.
+  env: {
+    d1: { GISTRY_DB: { tables } },
+  },
+
   routes: {
-    handshake: (ctx) => handshakeHandler(withEnv(ctx)),
-    push: (ctx) => pushHandler(withEnv(ctx)),
-    pull: (ctx) => pullHandler(withEnv(ctx)),
-    status: (ctx) => statusHandler(withEnv(ctx)),
+    handshake: (ctx) => handshakeHandler(captureD1(ctx)),
+    push: (ctx) => pushHandler(captureD1(ctx)),
+    pull: (ctx) => pullHandler(captureD1(ctx)),
+    status: (ctx) => statusHandler(captureD1(ctx)),
   },
 
   moduleCtx: {
@@ -82,13 +124,25 @@ export default {
       makeStatusUrl: ({ chainId, deviceId }) =>
         `/sync/status?chain=${encodeURIComponent(chainId)}&deviceId=${encodeURIComponent(deviceId)}`,
 
-      // Materialized-state oracles (the fixture keeps one DB for the run).
-      hashMatches: async (chainId, writeSecret) =>
-        db.hashMatches(chainId, writeSecret),
+      // Materialized-state oracles (same binding, same instance, no reset).
+      hashMatches: async (chainId, writeSecret) => {
+        const row = await one('SELECT push_hash FROM chains WHERE id = ?', chainId)
+        const digest = createHash('sha256').update(writeSecret).digest('hex')
+        return row?.push_hash === digest
+      },
       counts: {
-        chains: () => db.chainCount(),
-        deviceRows: (chainId) => db.deviceRows(chainId),
-        blobsByDevice: (chainId, deviceId) => db.blobsByDevice(chainId, deviceId),
+        chains: async () =>
+          Number((await one('SELECT COUNT(*) AS n FROM chains'))?.n ?? 0),
+        deviceRows: async (chainId) =>
+          (await d1().prepare('SELECT id, name FROM devices WHERE chain_id = ?').bind(chainId).all()).results ?? [],
+        blobsByDevice: async (chainId, deviceId) =>
+          Number(
+            (await one(
+              'SELECT COUNT(*) AS n FROM blobs WHERE chain_id = ? AND device_id = ?',
+              chainId,
+              deviceId,
+            ))?.n ?? 0,
+          ),
       },
 
       // Real budgets, not guesses: the header-hygiene attack drives the actual

@@ -74,6 +74,22 @@ jobs:
       - name: Maintenance SQL check
         run: bun run db:maintain:check
 
+      # The adversarial campaign (crashtest, from npm) over the four relay
+      # routes: builds the handlers bundle, fires every pack (sync-relay-shapes
+      # plus the library) against the harness in-process, and FAILS on any new
+      # EXPLOITED finding or a regression of a previously REFUSED row. Verdicts
+      # live in labs/crashledger.json, so this also keeps the committed
+      # baseline honest. No account, no network, no sockets.
+      - name: Crashtest campaign (sync-relay-shapes)
+        run: bun run crashtest:run
+
+      # packstruct --deep: manifest + entry ship check, import + default-export
+      # probe, and the attack-id census over packs/. Same exact-pin lane the
+      # crashtest repo runs over its own packs (family convention; catches
+      # manifest drift, e.g. a renamed entry, before any run).
+      - name: Pack spec lint (packstruct)
+        run: npm run lint:packs
+
       # The full prestruct pipeline via the npm engine: vite build → inject
       # brand meta → prerender the lander and legal pages to per-route HTML
       # (plus sitemap.xml and 404.html). The CLI fails the build when a route

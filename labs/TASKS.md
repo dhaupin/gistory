@@ -13,6 +13,157 @@ Conventions
 
 ## Now
 
+- **Poststruct rig unpacking hosted in gistory (2026-10-25).** Per user call,
+  the poststruct 0.9.0 lock tar (full `.git`, three commits) unpacked at
+  `poststruct-staging/` inside the gistory workspace, then flowforge rig
+  (dhaupin/flowforge @ 91e52e0) extracted over it per MANIFEST receipts:
+  web/ landing shell (poststruct identity, audit-green tokens, authored
+  icon+og-image rasters out-of-tree), docs/ rebuilt on the rig layout + nav
+  starter + six checker gates (rig link-gate crashtest literals genericized
+  to /poststruct), docs.yml pagefind token-auth patch, MANIFEST.md cut.
+  Core CLI untouched; npm test 8/8 PASS; docs:verify 6/6 gates PASS; web
+  build 3/3 routes + sitemap + brand meta green. Receipts in
+  poststruct-staging/labs/TASKS.md. Pre-ship gate: the 404 `$1/$2` leak
+  stays until tonight's prestruct bump closes upstream #33. Push to
+  dhaupin/poststruct remains app-blocked (crashtest#18).
+
+- **404 leak receipt (2026-10-25): gistory's shipped `dist/404.html` carries
+  the upstream prestruct#33 bug** (function replacers emit literal `$1/$2`);
+  meta description / og:title / twitter:title / canonical tags are eaten down
+  to `$1The page you were looking for does not exist.$2 />` fragments
+  (lines 18–43). Found while reading dhaupin/flowforge's MANIFEST (their
+  `scripts/repair-404.cjs` receipt names the bug + the family fix path;
+  crashtest.creadev.org 404 is live-leaked too). Upstream: #33 OPEN, #42 is
+  the root-fix proposal (404 through the same injection pipeline) — both
+  pending the new prestruct version the family is rolling now. Choice on
+  file: adopt flowforge's stopgap pattern (a gistory repair-404 + probe
+  assertion) or await the engine bump that will close #33 at cause.
+
+- **crashtest#32 filed (2026-10-25): lint-packs opt-in passthrough.** Full
+  proposal (verb + `run --lint-packs` preflight mirroring
+  `--lint-determinism`, honest-skip vs loud-failure policy table, --help
+  sketch, docs/playbook/teeth list, packs-root vs packs/public footgun, why
+  opt-in not default-on — zero-deps + determinism law). Tooling receipts
+  honored: the Freebuff credential may CREATE an issue on crashtest but
+  cannot edit its body or comment (403) — two wording slips in the posted
+  body are recorded HERE instead: L41 "same reasoning as vapid" → "same
+  reasoning as config that can never work", L85 "honestambique skip pin" →
+  "honest-skip fidelity pin". Meaning unaffected.
+
+- **packstruct lane wired (2026-10-25).** Answered the "does crashtest call
+  packstruct?" question with receipts: no — crashtest ships zero runtime
+  dependencies and never references packstruct; it is a sibling linter per
+  host (crashtest's own CI runs it over its packs with an exact devDep pin).
+  Gistory adopts the same lane: devDependency `packstruct@1.0.0` EXACT (the
+  family's same-commit-same-findings pin), `lint:packs` =
+  `packstruct lint packs --deep` (manifest + entry-ship + import/default-
+  export probe + 14 attack-id census), and a "Pack spec lint" CI step right
+  after the crashtest campaign. Pack passes clean as-is: 1 pack checked, 1
+  module probed, 14 ids censused.
+
+- **Issue triage: all 5 gistory issues closed (2026-10-25).** #1 (redteam.ts
+  → pack proposal): delivered by packs/public/sync-relay-shapes (scenario
+  mapping table in the close comment; redteam.ts already retired in 91886e8)
+  + today's CI wiring. #2/#4 (FakeD1 swap digests): closed on today's shim
+  retirement — native env.d1 + oracles over the captured binding + env claims
+  declared. #3 (v1.0.1 digest): superseded by the v1.1.0 bump (FakeD1 v0.2 /
+  env claims adopted; chain-attacks/ctx.vars/store-diff/lint-determinism
+  deliberately unadopted until needed). #5 (family convention pulls): DONE —
+  README gained the direct Creadev.org workshop bullet (Docs list), and
+  docs/discussions/ adopted the amended file-IS-the-post system:
+  `discussions/index.md` carries the conventions + posting mechanics
+  (prestruct → crashtest lineage), and the staged `announcing-v1.0.0.md` was
+  reshaped from the old nested copy-block shape to frontmatter + standalone
+  body (+ one factual refresh: the CI-run pack line). Timing rule honored:
+  the draft stays staged (0.9.0 is the stable line, gistory-sync not yet on
+  npm — first post drops when the v1.0.0 tag ships). Gates: lint PASS incl.
+  check-docs 9 pages + language gate. Tooling note: python-subprocess gh
+  calls lose the Freebuff credential (auth injection is a wrapper on the
+  bash shell) — all gh ops run from bash; GraphQL response selection needs
+  `__typename`/real field names, and backslash-escaping inside double quotes
+  leaked literal `\^` into two comments (both cleaned via GraphQL comment
+  updates/deletes via body-file payloads).
+
+- **Crashtest shim retired + campaign wired into CI (2026-10-25).** After the
+  v1.1.0 bump, the hand-built `node:sqlite` D1 fixture (`crashtest/fixture.mjs`)
+  is gone: FakeD1 v0.2/v0.3 covers every statement the relay runs (v0.2 was
+  verified against real SQLite for exactly those eight), so the run root now
+  speaks crashtest's native `env.d1` spec — migrations-equivalent table plan
+  with declared uniques feeding INSERT OR IGNORE / ON CONFLICT semantics,
+  moduleCtx oracles reading the captured binding after the first request (an
+  oracle attempted pre-request throws loudly instead of inventing a zero),
+  and `pack.json` now declares env claims (d1[GISTRY_DB ×4 tables] + 4
+  routes — `crashtest packs` renders prerequisites as met). Root-caused
+  mid-flight: 4 attacks flipped EXPLOITED/NaN because the PACK called
+  `deviceRows`/`blobsByDevice` sync — a node:sqlite-era assumption; those call
+  sites now use the pack's own await-either-shape pattern (`oracleCount`),
+  contract comment updated (counts oracles may be sync or async). Campaign
+  re-verified identical: 56 REFUSED / 6 BOUNDED / 0 EXPLOITED / baseline 0 new
+  · 0 regressed · 0 accepted. Also: **ci.yml gained a "Crashtest campaign"
+  step** (after Maintenance SQL check, `bun run crashtest:run` — in-process,
+  no network) so commit/PR runs gate new EXPLOITED or REFUSED regressions;
+  AGENTS.md CI list + Files Quick Ref updated. Swept for other shims: none —
+  `scripts/build-crashtest.mjs` (TS→ESM for the node CLI) and the
+  db-migrate/maintain sqlite runners are real tooling, not crashtest
+  workarounds.
+
+- **Crashtest dep bumped to v1.1.0 (2026-10-25).** `devDependency crashtest
+  ^1.0.0 -> ^1.1.0` (lockfile refreshed via npm install, CLI verified v1.1.0).
+  The run-root contract gistory speaks was untouched by 1.1.0 (fully
+  additive: memory/governance library families, optional pack env claims,
+  deterministic linter, FakeD1 v0.3/fakekv v0.2, harness primitives), so the
+  campaign was the only re-verification needed: `crashtest:run` 62 attacks /
+  166 ops / 550 requests — 56 REFUSED, 6 BOUNDED, **0 EXPLOITED**, baseline 0
+  new / 0 regressed. Ledger + hardening report + run-meta regenerated with
+  the new honest-skip inventory (19 governance/memory/… skip rows grew the
+  file; stored verdicts unchanged). No config/pack source changes needed —
+  `sync-relay-shapes` spoke the same vocabulary into the new runner.
+
+- **Resilience issue filed on vant (2026-10-24): dhaupin/vant#252** — "using
+  brain must imply recent backup (scheduled horcrux push + staleness
+  receipts)". Body grounded in the wipe's four-fate table: labs/MEM.md +
+  horcrux/rook.svg irrecoverable vs rook brain (context luck) + magpie kit
+  (horcrux round-trip) recoverable; four concrete asks (cron'd default push,
+  staleness receipt in `vant health`, brains outside ephemeral mounts,
+  one-command restore). Filed rather than reusing tonight's earlier staging
+  (the .vant-* drafts were wipe casualties themselves); showcase #241/#242
+  untouched.
+
+- **Next-project PRD seeded (2026-10-23): `magpie` (working name) — eyes for
+  production agents, `labs/prd-eyes.md`.** Born from the four real sight
+  gaps (non-ambient eyes, no persistent visual memory, no grounding,
+  documented blind-spot classes), grounded in a 2026-10-23 landscape survey
+  (Playwright MCP vision mode, browser-use, Percy/Applitools MCP, documented
+  playwright issues #39955/#1233): the web's gap is fragmentation + recall,
+  not missing pixels. Shape: eye daemon + MCP tools (`look`/`look-diff`/
+  `walk`), committed `.eyes/` visual memory (git-native, fleet-shared via
+  one-branch-per-agent), ledger-gated diffs. Two laws pinned: smallest
+  artifact that answers the question (context QoS)  and "a diff without a ledger row fails the pass" (crashtest rule, aimed at appearance). MVP cut
+  and transfer ritual written into the PRD. **Staging complete this pass:**
+  brain `models/private/magpie/` (identity + goals + structure + workflow +
+  lessons/errors seeds) + PRD transfer stone moved to `horcrux/prd-eyes.md`
+  + art stone `horcrux/magpie-p_mirror-eyes-2026.svg` (mirror-test magpie,
+  payload round-trip verified: 7 stones restorable from the unsealed
+  `brn:unsealed` block — vant's sealed-secret pass happens at repo open).
+  NOT started — seed only, awaiting dhaupin's name/scope blessing before
+  any repo exists. Workspace note: the Freebuff resync mid-session wiped
+  gitignored locals (models/, horcrux/ art, labs/MEM.md) — repo tree and
+  tracked-file edits survived intact.
+
+- **Docs + showcase pass (2026-10-23, uncommitted).** Docs theme-toggle icon
+  fixed: in light mode BOTH glyphs rendered stacked because
+  `.docs-icon-btn svg { display: block }` (0,1,1) outranked
+  `.docs-icon-sun { display: none }` (0,1,0) — show/hide rules now scoped
+  under `.docs-icon-btn` (light = moon only, i.e. the “switch to dark”
+  affordance; dark = sun only). Verified: lint:docs PASS. Gistory showcase
+  submission filed on vant: dhaupin/vant#242 (`[Showcase] Gistory`, card
+  verified live on axolotl's vant-pub staging deploy first), picture URL
+  og-image.png as interim until a square icon-512 lands from a hand-made
+  logo (the paste-ready Gemini brief went to the user; generated-in-repo
+  script was reverted — scripts/build-logo.mjs deleted, nothing else
+  touched). Crashtest's own card is live on the same staging but NOT yet
+  merged into vant main (`web/home/src/showcase.mjs` still has one entry).
+
 - **QC pass (2026-10-22): bugs found and fixed in the UX batch above.**
   - **Variable saves never pushed**: the debounced-push scheduler’s effect
     omitted `variables` from its deps, so a saved/deleted variable only
@@ -1055,4 +1206,63 @@ Conventions
   in-browser: fixtures verify-docs-code-style.mjs + live
   verify-lander-code.mjs (24 token spans, badge ts/yaml heuristics, copy
   button, app-shell scope leak asserted negative).
+  Theme final touch: Prism tokens re-keyed to the brand (tomorrow's stock
+  pink/purple -> indigo family #a9bbff/c9d4ff, green strings, dim comments
+  — all AA on the #1e1e1e slab; same override file for docs + lander);
+  unused prism-line-numbers CDN request dropped from the docs layout;
+  docs gain --primary-hover (light #2a41a8, dark #a0b5ff) wired to nav/
+  header/footer link hovers + lander-link hover; docs-content h2 gets the
+  border-bottom separator; ::selection themed on both sites; lander-code
+  check asserts the brand token color live.
+- **2026-10-22 — SEO + islands audit pass (all verified, uncommitted).**
+  `check-docs.mjs` gains gate #4 (ONE H1): every docs page must carry
+  exactly one markdown h1; a second h1 splits the page's topical signal,
+  none means no crawlable h1 at all. fences are stripped before counting
+  (discussions/ announcement templates legitimately carry headings inside
+  ~~~md copy-source blocks — a naive count would flag content as page
+  structure). PASS = all 8 pages have exactly one h1.
+
+  Product pages re-audited in the prerendered bundle (final dist check:
+  `/`, `/terms/`, `/privacy/`, `/404.html` each carry exactly one h1).
+  Islands audit: src/ui/prestruct-islands.js is the
+  only pre-island surface and is dead code (0 uses in src/, 0 in built
+  HTML) — the lander is a full-hydration SPA so prerendered HTML is the
+  whole tree; nothing sandboxed needs an island; do NOT assert islands
+  limit prerender anywhere. Prestruct bug found while here and filed
+  upstream: dhaupin/prestruct#32 (their own docs' classic `<script src>`
+  tag for pagefind@1.5.2 throws "import.meta outside a module" on every
+  built docs page; duplicate `await import(...)` already held the search
+  path so the static tag was pure breakage). Same bug families swept
+  across the sibling docs: vant got the FULL pair (classic pagefind
+  script + dead line-numbers CSS, filed dhaupin/vant#239), freestruct
+  got the ride-along only (pagefind already fixed there in freestruct#15;
+  filed dhaupin/freestruct#17 for the dead CSS). Live-checked vant docs
+  confirm the classic tag ships at build line 1239 + dynamic import at
+  1257.
+- **2026-10-22 — robots/sitemap accuracy audit (product + docs).**
+  Product site (gistory.creadev.org) VERIFIED GOOD live + dist: robots.txt
+  allows all, disallows /assets/ (hashed assets don't need indexing),
+  points at the live sitemap (200); sitemap = exactly the 3 real pages
+  (/ + terms + privacy, 404/sw.js excluded), each loc == canonical ==
+  og:url, lastmod 2026-10-22 (honest build-time), + Cache-Control 86400
+  on both artifacts via _headers. Docs (docs.creadev.org/gistory) has a
+  REAL doubling bug: every sitemap loc, the robots.txt Sitemap pointer,
+  and every page's canonical carry the baseurl TWICE
+  (/gistory/gistory/faq) — every crawlable pointer 404s. Root cause:
+  Jekyll baseurl=/gistory + freestruct basePath=/gistory; the deployed
+  build predates freestruct 1.0.0's pagesUrlFor guard (freestruct issue
+  #3, "trust the tree, never double the prefix") — freestruct 1.0.0 was
+  literally published today (17:04 UTC) and gistory already pins ^1.0.0.
+  Emulated pageUrlFor against the 7 real slugs: all produce single
+  prefix (gistory/faq etc.) so the NEXT docs build fixes sitemap +
+  robots + canonicals with no config change. Repo-side fix needed and
+  landed: docs/discussions/announcing-v1.0.0.md is live, indexable (no
+  robots meta) yet missing from the sitemap — the layout now emits
+  <meta name=robots noindex, nofollow> on pages whose permalink carries
+  /discussions/ so the draft is honestly non-indexable everywhere (the
+  noindex filter then classifies it true on the next build). Note: the
+  docs host root /robots.txt is GH Pages content-signals boilerplate
+  (not project-owned); per-project /gistory/robots.txt is advisory-only
+  for crawlers (they read the root), so the operative crawler surface
+  stays the product site robots (correct).
 

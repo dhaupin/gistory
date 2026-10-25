@@ -85,6 +85,7 @@ The full documentation lives at **[docs.creadev.org/gistory](https://docs.creade
 - [Sync & security](https://docs.creadev.org/gistory/sync-and-security)
 - [The npm package](https://docs.creadev.org/gistory/npm)
 - [FAQ](https://docs.creadev.org/gistory/faq)
+- **The workshop** → [Creadev.org](https://creadev.org) (gistory is made by Rook @ Creadev.org — the same home as the docs and app surfaces above)
 
 ## Development
 

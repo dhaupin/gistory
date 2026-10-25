@@ -629,9 +629,9 @@ generate real pairs.
 | `scripts/db-migrate.mjs` | Migration runner: applies pending files, records checksums |
 | `scripts/db-maintain.mjs` | D1 maintenance: prune rate_limits, blob retention, live-test cleanup, stale devices, stale wake targets (`--subs-days`); `--check` self-verifies the SQL on in-memory SQLite |
 | `tests/sync-smoke.ts` | End-to-end smoke test (bun + in-memory SQLite) |
-| `packs/public/sync-relay-shapes/` | Crashtest pack: 13 chain-relay attacks (takeover, races, oracles, floods, watermark pin, WAF probes); vocabulary injected from `moduleCtx` |
-| `crashtest.config.js` | Crashtest run root — routes + D1 fixture + the pack's vocabulary, incl. the six accepted-risk bounds (a bound gone false is a CI finding) |
-| `crashtest/` | Handlers bundle entry (`handlers-entry.ts` → `handlers.mjs`, built before every run) + `node:sqlite` fixture |
+| `packs/public/sync-relay-shapes/` | Crashtest pack: 13 chain-relay attacks (takeover, races, oracles, floods, watermark pin, WAF probes); vocabulary injected from `moduleCtx`. Spec-linted by `packstruct@1.0.0` (EXACT pin — `packstruct lint packs --deep`, the family lane) |
+| `crashtest.config.js` | Crashtest run root — native env.d1 FakeD1 plan + the pack's vocabulary, incl. the six accepted-risk bounds (a bound gone false is a CI finding) |
+| `crashtest/` | Handlers bundle entry (`handlers-entry.ts` → `handlers.mjs`, built before every run). The hand-built `node:sqlite` D1 fixture was retired on crashtest v1.1.0 — FakeD1 v0.2/v0.3 covers every statement the relay runs; oracles read the same binding via a first-request capture |
 | `labs/crashledger.json` | Committed crashtest baseline — CI fails on a new EXPLOITED or a regression; adopt new bounds by re-running |
 | `scripts/ui-audit.mjs` | Headless UI audit: every route x 2 themes x 2 viewports |
 | `scripts/ui-browsers.mjs` | Installs the headless browser on demand |
@@ -682,7 +682,10 @@ generate real pairs.
 - **CI:** `.github/workflows/ci.yml` runs `npm ci`, the three-pass
   `bun run typecheck`, `bun run lint` (ESLint subset + English-only prose gate
   + docs consistency), `bun run sync:smoke`, `bun run db:migrate:check`,
-  `bun run db:maintain:check`, and `npx prestruct build` (the full prerender
+  `bun run db:maintain:check`, `bun run crashtest:run` (the adversarial
+  campaign — fails on a new EXPLOITED or a regression of a REFUSED row),
+  `npm run lint:packs` (packstruct --deep manifest/entry/id-census over
+  `packs/`), and `npx prestruct build` (the full prerender
   pipeline) on push and PR. It deliberately does **not** run the browser
   suites: they need a Chromium download and a dev server, which is slow and
   flaky in CI. Run

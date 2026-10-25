@@ -7,19 +7,6 @@ comments: false
 nav_order: 21
 ---
 
-# Announcing gistory v1.0.0
-
-The draft announcement post for Discussions. Technical, changelog style. Copy
-the block below into the community announcement category when the `v1.0.0`
-tag ships: the version line in `CHANGELOG.md` is written for that tag
-already, and the release URL fills in from the tag. Two edits this draft
-accepts at release time: the npm one-liner if the slot moves, and the release
-URL. Prose follows the repo content style contract: direct, dry, no em
-dashes, no marketing language. The current stable line is 0.9.0.
-
----
-
-~~~md
 # gistory 1.0.0
 
 gistory is a personal prompt manager that runs in your browser with no
@@ -28,7 +15,7 @@ organize with tags and projects, and sync across devices end to end
 encrypted. v1.0.0 is the first stable release line, and the first line under
 which the sync engine ships as its own package:
 
-```bash
+```npm
 npm i gistory-sync
 ```
 
@@ -41,7 +28,8 @@ The package is the sync engine, the exact code the app and its service worker
 run, as one ESM bundle with TypeScript declarations:
 
 - `SyncAgent`: key derivation, encrypted full state push and pull, pairing
-  tokens.
+  tokens. The pairing token carries the chain id and the chain's write secret,
+  never the passphrase.
 - `mergePayload`: pure merge for sync payloads, timestamp based with a
   deterministic device id tie breaker, tombstones for deletes.
 - `SyncQos`: debounced and coalescing push scheduler with backoff that honors
@@ -54,7 +42,7 @@ run, as one ESM bundle with TypeScript declarations:
 The React app and the sync relay are parts of the monorepo, not of the
 package. They deploy as one Cloudflare Pages project with no separate worker.
 
-```ts
+```javascript
 import { SyncAgent, mergePayload, SyncQos } from 'gistory-sync'
 
 const agent = new SyncAgent({ name: 'backup node' })
@@ -73,7 +61,7 @@ optional additions never change how an existing field resolves.
 The npm release pipeline runs on version tags only, through npm Trusted
 Publishing: the registry verifies the workflow's identity against a Trusted
 Publisher entry, so no token is stored anywhere. Each tag also attaches the
-exact tarball to a GitHub release after re proving it from a clean install.
+exact tarball to a GitHub release after re-proving it from a clean install.
 
 ## How sync works
 
@@ -85,11 +73,16 @@ write secret the relay only ever sees as a hash. Deletes ride as tombstones
 and merge like edits.
 
 The relay is four small functions over one SQLite table set. It defends
-itself in app with throttles, a circuit breaker, and shape checks, and there
+itself in-app with throttles, a circuit breaker, and shape checks, and there
 is a runbook for the whole deployment in the repository. There is
 deliberately no delete endpoint for real chains: the server cannot tell a
-quiet device from an abandoned one, so only client side tombstones and
+quiet device from an abandoned one, so only client-side tombstones and
 exported JSON backups touch content.
+
+The relay's abuse surface is exercised, not assumed: an in-process
+adversarial campaign (the crashtest pack surface) runs against the four
+relay routes on every CI run and fails on a new exploit or a regression of a
+previously refused case.
 
 ## Run it
 
@@ -101,4 +94,3 @@ in Settings, and import merges by id rather than duplicating.
 Docs: https://docs.creadev.org/gistory
 Repository: https://github.com/dhaupin/gistory
 Releases: https://github.com/dhaupin/gistory/releases
-~~~

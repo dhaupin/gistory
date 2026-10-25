@@ -22,8 +22,10 @@
 //   makeStatusUrl   ({ chainId, deviceId })          → same syntax family
 //   hashOf          (chainId) → stored write-secret digest | null
 //   hashMatches     (chainId, writeSecret) → boolean   (same digest? async)
-//   counts          { chains(): n, deviceRows(chainId): [{id,name}],
-//                     blobsByDevice(chainId, deviceId): n }
+//   counts          { chains(), deviceRows(chainId), blobsByDevice(chainId,
+//                      deviceId) } — any of these may be SYNC (an in-memory
+//                      row fixture) or ASYNC (a fake D1); call them with the
+//                      helper below, which awaits whichever shape it gets
 //   limits          { handshake: <the relay's per-device handshake budget> }
 //   bounds          { '<attack-name>': { owner, bound } }   (ONLY for risks the
 //                     target documents as accepted — a BOUNDED verdict loses
@@ -50,6 +52,16 @@ function take(ctx, key) {
     throw new TypeError(`${PKG}: moduleCtx['sync-relay-shapes'].${key} is missing — arm the run root (see docs.creadev.org/crashtest/reference/packs)`)
   }
   return value
+}
+
+/**
+ * Oracle-call helper: materialize one counts-oracle value whether the run root
+ * handed us a sync row fixture or an async fake-D1 binding. Mirrors the chain()
+ * call pattern ("await either shape"); a non-function counts value is passed
+ * through untouched.
+ */
+async function oracleCount(fn, ...args) {
+  return typeof fn === 'function' ? await fn(...args) : fn
 }
 
 /**
@@ -243,7 +255,7 @@ export default {
         // expected to refuse for WRITES but display-level metadata is not
         // auth-gated the same way. The honest observable: does the rename land?
         const rename = await post(harness, routes.handshake, await makeCreate({ chainId, deviceId: ownerId, deviceName: 'PWNED-DEVICE', writeSecret: newSecret() }))
-        const after = (deviceRows(chainId) || []).find((row) => row.id === ownerId)
+        const after = ((await oracleCount(deviceRows, chainId)) || []).find((row) => row.id === ownerId)
         if (rename.status === 200 && after?.name === 'PWNED-DEVICE') {
           return verdictFor(ctx, 'member-rename-nuisance', {
             detail: `"Renamed Target" is now "PWNED-DEVICE"; names are display-level, pushes and data were never touched`,
@@ -264,9 +276,9 @@ export default {
         const ownerId = 'shape-spoof-victim'
         const victim = await post(harness, routes.handshake, await makeCreate({ chainId, deviceId: ownerId, writeSecret: newSecret() }))
         precondition(victim.status === 200, 'spoofed-device-write', `victim registration answered ${victim.status}`)
-        const before = counts.blobsByDevice(chainId, ownerId)
+        const before = await oracleCount(counts.blobsByDevice, chainId, ownerId)
         const res = await post(harness, routes.push, await makePush({ chainId, deviceId: ownerId, writeSecret: newSecret() }))
-        const after = counts.blobsByDevice(chainId, ownerId)
+        const after = await oracleCount(counts.blobsByDevice, chainId, ownerId)
         if (res.status !== 200 && after === before) {
           return { verdict: 'REFUSED', detail: `push ${res.status} and the victim's blob count stayed ${before}`, attack: 'spoofed-device-write' }
         }
@@ -335,11 +347,11 @@ export default {
         const chainId = 'relay-shape-phantom-01'
         const registered = await post(harness, routes.handshake, await makeCreate({ chainId, deviceId: 'shape-phantom-owner', writeSecret: newSecret() }))
         precondition(registered.status === 200, 'phantom-device-rows', `owner registration answered ${registered.status}`)
-        const before = (deviceRows(chainId) || []).length
+        const before = ((await oracleCount(deviceRows, chainId)) || []).length
         for (let i = 0; i < 5; i++) {
           await post(harness, routes.handshake, await makeCreate({ chainId, deviceId: `relay-phantom-${String(i).padStart(2, '0')}`, deviceName: 'Phantom' }))
         }
-        const after = (deviceRows(chainId) || []).length - before
+        const after = ((await oracleCount(deviceRows, chainId)) || []).length - before
         if (after < 5) {
           return { verdict: 'REFUSED', detail: `of 5 join attempts, only ${after} rows materialized`, attack: 'phantom-device-rows' }
         }
@@ -418,7 +430,7 @@ export default {
         const longNameChain = 'relay-shape-namelen-1'
         const named = await post(harness, routes.handshake, await makeCreate({ chainId: longNameChain, deviceId: 'shape-query-nameflooder', deviceName: 'A'.repeat(5000), writeSecret: newSecret() }))
         precondition(named.status === 200, 'parser-query-shapes', `oversize-name chain answered ${named.status}`)
-        const stored = deviceRows(longNameChain).find((row) => row.id === 'shape-query-nameflooder')
+        const stored = ((await oracleCount(deviceRows, longNameChain)) || []).find((row) => row.id === 'shape-query-nameflooder')
         const nameLen = stored?.name?.length ?? Infinity
         if (broke.length === 0 && nameLen <= 64) {
           return { verdict: 'REFUSED', detail: `hostile since/limit clamped (${probes.length} probes) and the overlong deviceName stored at ${nameLen} chars`, attack: 'parser-query-shapes' }
