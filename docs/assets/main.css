@@ -14,6 +14,7 @@
   --text-dim: #565b66;
   --border: #dfe2e7;
   --primary: #3552cc;
+  --primary-hover: #2a41a8;
   --primary-fg: #ffffff;
   --sidebar-width: 240px;
   --header-height: 52px;
@@ -29,6 +30,7 @@
      needs the lighter half of the family (the app splits this across a
      light-fill --primary + --primary-fg; here one token does both jobs). */
   --primary: #8ba4ff;
+  --primary-hover: #a0b5ff;
 }
 
 * { box-sizing: border-box; }
@@ -89,10 +91,14 @@ body {
 
 .docs-icon-btn { display: flex; }
 
-/* Sun/moon by current theme (the toggle flips data-theme on <html>). */
-.docs-icon-sun { display: none; }
-:root[data-theme='dark'] .docs-icon-sun { display: block; }
-:root[data-theme='dark'] .docs-icon-moon { display: none; }
+/* Sun/moon by current theme (the toggle flips data-theme on <html>):
+light mode shows the MOON (the affordance is “switch to dark”), dark shows
+the sun. Scoped under .docs-icon-btn on purpose — bare .docs-icon-sun has
+lower specificity than the .docs-icon-btn svg { display: block } rule above,
+so the sun used to render next to the moon in light mode. */
+.docs-icon-btn .docs-icon-sun { display: none; }
+:root[data-theme='dark'] .docs-icon-btn .docs-icon-sun { display: block; }
+:root[data-theme='dark'] .docs-icon-btn .docs-icon-moon { display: none; }
 
 .docs-brand {
   font-weight: 700;
@@ -118,7 +124,7 @@ body {
   border-radius: 6px;
 }
 
-.docs-header-link:hover { color: var(--primary); background: var(--bg); }
+.docs-header-link:hover { color: var(--primary-hover); background: var(--bg); }
 
 .docs-body {
   display: grid;
@@ -167,7 +173,7 @@ body {
 }
 
 .docs-nav a:hover {
-  color: var(--primary);
+  color: var(--primary-hover);
   background: var(--surface);
 }
 
@@ -180,7 +186,7 @@ body {
 }
 
 .docs-content h1 { font-size: 1.9rem; letter-spacing: -0.02em; margin: 0 0 1rem; }
-.docs-content h2 { font-size: 1.35rem; margin: 2rem 0 0.6rem; }
+.docs-content h2 { font-size: 1.35rem; margin: 2rem 0 0.6rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); }
 .docs-content h3 { font-size: 1.08rem; margin: 1.4rem 0 0.4rem; }
 .docs-content h4, .docs-content h5, .docs-content h6 {
   font-size: 0.98rem;
@@ -282,10 +288,44 @@ body {
 .docs-copy-btn.copied { color: #4ade80; border-color: #4ade80; opacity: 1; }
 
 /* Prism overrides: the tomorrow theme paints its own background; keep the
-   slab consistent with the badge/copy geometry. */
+   slab consistent with the badge/copy geometry, and re-key the token colors
+   to the brand — tomorrow's stock pink/purple (~#cc99cd) unrelated to the
+   indigo family. Two hue groups + green strings + dim comments is enough
+   structure for doc-sized snippets; every value clears AA on the slab. */
 .docs-content pre[class*='language-'] { background: #1e1e1e; }
 .docs-content code[class*='language-'] { background: transparent; }
 .docs-content .line-numbers .line-numbers-rows { border-right-color: #333; }
+
+.docs-content .token.comment,
+.docs-content .token.prolog,
+.docs-content .token.doctype,
+.docs-content .token.cdata { color: #8b93a3; }
+
+.docs-content .token.property,
+.docs-content .token.tag,
+.docs-content .token.constant,
+.docs-content .token.symbol,
+.docs-content .token.deleted,
+.docs-content .token.atrule,
+.docs-content .token.keyword { color: #a9bbff; } /* 8:1 on #1e1e1e */
+
+.docs-content .token.string,
+.docs-content .token.char,
+.docs-content .token.attr-value,
+.docs-content .token.inserted,
+.docs-content .token.regex { color: #8bd0a8; }
+
+.docs-content .token.function,
+.docs-content .token.class-name { color: #c9d4ff; }
+
+.docs-content .token.number,
+.docs-content .token.boolean,
+.docs-content .token.attr-name,
+.docs-content .token.operator,
+.docs-content .token.punctuation { color: #aab2bd; }
+
+.docs-content .token.selector,
+.docs-content .token.important { color: #c9d4ff; }
 .docs-content table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 .docs-content th, .docs-content td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
 .docs-content details { margin: 0.6rem 0; }
@@ -305,7 +345,16 @@ body {
 }
 
 .docs-footer a { color: var(--text-dim); }
-.docs-footer a:hover { color: var(--primary); }
+.docs-footer a:hover { color: var(--primary-hover); }
+
+/* Brand detail the docs were missing: selection uses the accent family, so
+   drag-selects read as the product, not the OS default. */
+.docs-nav ::selection,
+.docs-content ::selection,
+.docs-footer ::selection {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
 
 .docs-footer-sep { opacity: 0.5; }
 .docs-footer-dim { color: var(--text-dim); }

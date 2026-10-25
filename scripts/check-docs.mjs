@@ -11,6 +11,10 @@
 //   3. LINKS      — every internal href "/gistory/..." inside a page matches
 //      a real page permalink (freestruct --strict also checks broken links
 //      post-build; this is the cheap pre-flight that runs everywhere).
+//   4. ONE H1     — every page carries exactly one markdown h1 (`# ...`),
+//      the per-page heading both crawlers and the h1-as-title convention
+//      need; a second h1 splits the page's topical signal, a missing one
+//      has Jekyll emit no h-level-1 at all.
 //
 //   node scripts/check-docs.mjs   (wired as `npm run lint:docs`)
 
@@ -108,6 +112,7 @@ if (!existsSync(navFile)) {
 // href checks see what the browser will.
 for (const file of pages) {
   const src = readFileSync(file, 'utf8')
+  // eslint-disable-next-line no-useless-escape -- kramdown's exact escape sequence
   const body = src.replace(/\{\{\s*'\{\{'\s*\}\}|{{ '\{\{'' }}'/g, '{{ ').replace(/\{\{\s*'\}\}'\s*\}\}|{{ '\}\}'' }}'/g, ' }}')
   const hrefs = [...body.matchAll(/\]\((\/[^)#\s]*)[#\s)]?/g)].map(m => m[1])
   for (const href of hrefs) {
@@ -118,9 +123,23 @@ for (const file of pages) {
   }
 }
 
+// ---- 4. one h1 -------------------------------------------------------------
+// The per-page h1 is the heading crawlers bind to <title> — exactly one per
+// page: more splits the topical signal, none means no crawlable h1 at all.
+for (const file of pages) {
+  const src = readFileSync(file, 'utf8')
+  const body = src.slice(src.indexOf('\n---', 3) + 1)
+    // Fence strips first: copy-source blocks (the ~~~md announcement template)
+    // legitimately carry headings that are content, not page structure.
+    .replace(/^(```|~~~)[\s\S]*?^\1.*$/gm, '')
+  const h1s = [...body.matchAll(/^#\s+[^\n]+/gm)]
+  if (h1s.length === 0) err(file, 1, 'page has no markdown h1 ("# …") — every doc page needs one')
+  else if (h1s.length > 1) err(file, 1, `page has ${h1s.length} h1s (${h1s.map(h => JSON.stringify(h[0].slice(0, 40))).join(', ')}) — exactly one per page`)
+}
+
 if (errors.length) {
   console.error(`CHECK-DOCS: FAIL (${errors.length} error(s))`)
   for (const e of errors) console.error('  ' + e)
   process.exit(1)
 }
-console.log(`CHECK-DOCS: PASS (${pages.length} pages, frontmatter + nav + links)`)
+console.log(`CHECK-DOCS: PASS (${pages.length} pages, frontmatter + nav + links + one h1)`)

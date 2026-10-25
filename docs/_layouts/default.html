@@ -7,13 +7,21 @@
   <!-- freestruct injects description/OG/Twitter/canonical/JSON-LD post-build
        (docs/_freestruct templates). The Jekyll head stays meta-free on purpose:
        the engine deletes conflicting tags it did not write (missing-only gate). -->
+  {% if page.permalink contains '/discussions/' %}
+  <!-- Release-draft page: a copy source for community announcements, not a
+       docs destination. freestruct already keeps it out of sitemap/feed/search
+       (noindex-honoring filter, issue #5) — this meta is what makes the page
+       itself carry the noindex so the filter's classification is true. -->
+  <meta name="robots" content="noindex, nofollow">
+  {% endif %}
   <link rel="icon" type="image/svg+xml" href="{{ '/favicon.svg' | relative_url }}">
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
   <link rel="stylesheet" href="{{ '/pagefind/pagefind.css' | relative_url }}" data-pagefind-ignore>
   <!-- Prism.js for syntax highlighting — the pattern prestruct's own docs ship
-       (dark code blocks + data-language badge + copy button). -->
+       (dark code blocks + data-language badge + copy button). The token
+       palette is overridden in main.css to brand hues; the line-numbers CSS
+       is deliberately NOT loaded (nothing activates the plugin). -->
   <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" defer>
-  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" defer>
   <!-- Theme before first paint: the attr on <html> drives the dark token
        overrides in main.css, so there is no flash of the wrong mode. -->
   <script>

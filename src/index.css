@@ -2665,7 +2665,7 @@ textarea::placeholder {
 }
 
 .lander-link:hover {
-  color: var(--text);
+  color: var(--primary-hover);
 }
 
 .lander-hero {
@@ -2897,6 +2897,27 @@ textarea::placeholder {
 
 .lander-example pre[class*='language-'] { background: #1e1e1e; }
 .lander-example code[class*='language-'] { background: transparent; }
+
+/* Token palette re-keyed to the brand (same override set the docs ship):
+   tomorrow's stock pink/purple has no relation to the indigo family. */
+.lander-example .token.comment,
+.lander-example .token.prolog { color: #8b93a3; }
+
+.lander-example .token.property,
+.lander-example .token.tag,
+.lander-example .token.keyword { color: #a9bbff; }
+
+.lander-example .token.string,
+.lander-example .token.attr-value { color: #8bd0a8; }
+
+.lander-example .token.function,
+.lander-example .token.class-name { color: #c9d4ff; }
+
+.lander-example .token.number,
+.lander-example .token.boolean,
+.lander-example .token.attr-name,
+.lander-example .token.operator,
+.lander-example .token.punctuation { color: #aab2bd; }
 
 .lander-example pre::before {
   content: attr(data-language);

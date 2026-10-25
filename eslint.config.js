@@ -31,6 +31,10 @@ export default tseslint.config(
       // Crashtest build output (generated before every run by
       // scripts/build-crashtest.mjs) — lint the entry + fixture, not the bundle.
       'crashtest/handlers.mjs',
+      // The poststruct staging tree is an independent repo (own .git, own
+      // gates, its own push target) — it carries zero-dep plain-JS tools whose
+      // Node globals (process/console/Response) are legitimate there.
+      'poststruct-staging/**',
     ],
   },
   js.configs.recommended,
