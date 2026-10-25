@@ -67,7 +67,7 @@ import {
   viewKeyItem,
 } from '../src/sync/view-state'
 import { importData, exportThread, saveMessages, saveThreads } from '../src/lib/store'
-import type { Message, Thread } from '../src/lib/models'
+import type { Message, MessageAttachment, Thread } from '../src/lib/models'
 
 import { onRequestPost as handshakePost } from '../functions/sync/handshake'
 import { onRequestPost as pushPost } from '../functions/sync/push'
@@ -2971,7 +2971,7 @@ section('13. Attachment groundwork — metadata syncs, bytes never do')
 // metadata; the bytes live device-local and NEVER ride a payload. These
 // checks pin the money rules the future UI must not break. Messages ride
 // under a LIVE thread — the merge drops arrays whose thread was tombstoned.
-const att = (overrides: Partial<Record<string, unknown>> = {}) => ({
+const att = (overrides: Partial<MessageAttachment> = {}): MessageAttachment => ({
   id: 'att_1',
   name: 'board.png',
   mime: 'image/png',
@@ -2979,7 +2979,7 @@ const att = (overrides: Partial<Record<string, unknown>> = {}) => ({
   addedAt: 500,
   ...overrides,
 })
-const attMsg = (ts: number, attachments: unknown[] = []) => ({
+const attMsg = (ts: number, attachments: MessageAttachment[] = []): Message => ({
   id: 'm-att',
   threadId: 't1',
   content: 'board screenshot',
@@ -2992,7 +2992,7 @@ const attWinner = mergePayload(
   { ...base(), threads: [thread('t1', 100)], messages: { t1: [attMsg(200, [att()])] } },
   { threads: [thread('t1', 100)], messages: { t1: [attMsg(300)] }, senderDeviceId: 'devA' },
   'devZ',
-) as { messages: Record<string, Array<Record<string, unknown>>> }
+) as { messages: Record<string, Message[]> }
 check('a newer edit that removes attachments replaces the whole item (LWW)',
   (attWinner.messages.t1[0].attachments ?? []).length === 0)
 
@@ -3000,16 +3000,16 @@ const attCarried = mergePayload(
   { ...base(), threads: [thread('t1', 100)], messages: { t1: [attMsg(200)] } },
   { threads: [thread('t1', 100)], messages: { t1: [attMsg(300, [att()])] }, senderDeviceId: 'devA' },
   'devZ',
-) as { messages: Record<string, Array<Record<string, unknown>>> }
-const carried0 = attCarried.messages.t1[0].attachments?.[0] ?? {}
+) as { messages: Record<string, Message[]> }
+const carried0 = attCarried.messages.t1[0].attachments?.[0]
 check('an edit that ADDS attachments carries them whole (no partial merge)',
-  carried0.id === 'att_1' && carried0.mime === 'image/png' && typeof carried0.bytes === 'number')
+  carried0?.id === 'att_1' && carried0?.mime === 'image/png' && typeof carried0?.bytes === 'number')
 
 const oldPayloadFriendly = mergePayload(
   { ...base(), threads: [thread('t1', 100)], messages: { t1: [attMsg(200, [att()])] } },
   { threads: [thread('t1', 100)], messages: { t1: [attMsg(150)] }, senderDeviceId: 'devA' },
   'devZ',
-) as { messages: Record<string, Array<Record<string, unknown>>> }
+) as { messages: Record<string, Message[]> }
 check('payloads saved before attachments existed still merge (house rule)',
   (oldPayloadFriendly.messages.t1[0].attachments ?? []).length === 1)
 
@@ -3033,7 +3033,7 @@ import { buildAttachment, isAllowedImageMime, collectAttachmentIds } from '../sr
 import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_MESSAGE } from '../src/lib/models'
 
 function fakeStore() {
-  const rows = new Map<string, string | ArrayBuffer>()
+  const rows = new Map<string, Blob | ArrayBuffer>()
   return {
     rows,
     store: async (id: string, bytes: ArrayBuffer | Blob) => {
@@ -3132,7 +3132,6 @@ section('15. Attachment byte channel — /sync/attach')
 // Functions, and the store is the same in-memory SQLite the sync tests use.
 import { onRequestPost as attachPost } from '../functions/sync/attach'
 import { onRequestGet as attachGet } from '../functions/sync/attach'
-import { POLICIES } from '../functions/_shared/guards'
 
 routes['POST /sync/attach'] = attachPost
 routes['GET /sync/attach'] = attachGet
@@ -3237,7 +3236,7 @@ const replicateStore = fakeStore()
 const repStats = await replicateMissingAttachments(
   { t1: [{ id: 'm9', threadId: 't1', content: 'x', createdAt: 1, attachments: [{ id: 'att_smoke_s1', name: 'pixels', mime: 'image/png', bytes: 64, addedAt: 1 }] }] },
   agentAttB,
-  { bytesOf: async (id) => replicateStore.rows.get(id) ?? null, storeOne: replicateStore.store },
+  { bytesOf: async (id): Promise<Blob | ArrayBuffer | null> => replicateStore.rows.get(id) ?? null, storeOne: replicateStore.store },
 )
 check('the merge-side replication restores missing bytes over the real routes',
   repStats.restored === 1 && repStats.failed.length === 0 && replicateStore.rows.has('att_smoke_s1'))
