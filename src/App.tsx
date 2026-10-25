@@ -1,6 +1,6 @@
 // Gistory App - Main Entry Point
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { loadData, saveThreads, saveMessages, saveProjects, generateId, importData,  loadSettings, saveSettings, loadVariables, saveVariables, sweepDrafts } from './lib/store'
 import { varKey, tombstoneDeadScopes, type Variables } from './lib/variables'
 import type { Thread, Project, Message, MessagesByThread } from './lib/models'
@@ -14,7 +14,7 @@ import {
   suggestDeviceName,
   type RemoteDevice,
 } from './sync/agent'
-import { emptyDeleted, mergePayload, normalizeDeleted, type DeletedRegistry, type SyncData, type SyncPayload, type SyncSettings } from './sync/merge'
+import { emptyDeleted, mergePayload, normalizeDeleted, syncFingerprint, type DeletedRegistry, type SyncData, type SyncPayload, type SyncSettings } from './sync/merge'
 import { describeDecryptFailures } from './sync/errors'
 import { errorMessage } from './sync/errors'
 import { SyncError } from './sync/agent'
@@ -231,14 +231,35 @@ function AppRoot() {  // NOTE: This component is ALSO mounted by AppLayout under
     setSettings(settingsRef.current)
   }, [])
 
+  // The content fingerprint of the state this page last pushed successfully.
+  // Session-scoped on purpose (never persisted): a reloaded page pushes its
+  // full state once — the old behavior, and what re-seeds a chain after a
+  // restore — while an echo loop, which fires WITHIN a session, is what gets
+  // stopped by the skip below. The no-op push this prevents is real: unmerge
+  // it and a merge that changed nothing still transitions every state ref,
+  // the schedule effect fires, and the device ships a fresh `sentAt` envelope
+  // the other devices now treat as "new" — repeat, forever.
+  const lastPushedFpRef = useRef<string | null>(null)
+
   /**
    * Push the current snapshot. Throws on failure so the QoS scheduler can
    * decide whether to retry; callers that want a quiet failure use
-   * `pushSnapshotQuiet`.
+   * `pushSnapshotQuiet`. No-ops (without erroring, so the scheduler sees a
+   * success and clears itself) when the content is byte-identical to the last
+   * successful push of this session — a no-change merge save re-delivers it
+   * and the server 500-shaped no-ops forever; this keeps the loop from ever
+   * leaving the page.
    */
   const pushSnapshot = useCallback(
     async (agent: SyncAgent) => {
-      await agent.push(snapshot())
+      const data = snapshot()
+      const fp = syncFingerprint(data)
+      if (lastPushedFpRef.current !== null && fp === lastPushedFpRef.current) {
+        setSyncStatus('idle')
+        return
+      }
+      await agent.push(data)
+      lastPushedFpRef.current = fp
       setLastSync(Date.now())
       setSyncError(null)
       setSyncStatus('idle')

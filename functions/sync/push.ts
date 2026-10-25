@@ -31,6 +31,7 @@ import { sendFanOut } from '../_shared/push-fanout'
 import {
   POLICIES,
   chargeFailure,
+  consumeLimitUnits,
   guardRoute,
   inspectBody,
   throttledResponse,
@@ -108,6 +109,27 @@ export const onRequestPost = withBreaker(async (db, context) => {
       )
     }
     return errorResponse('Wrong write secret — this device cannot write to the chain', 403)
+  }
+
+  // Byte budget, the storage-cost backstop. The request-rate buckets above
+  // count requests; this counts the bytes that would actually be written,
+  // which is the resource a runaway full-state echo loop spends while keeping
+  // every per-minute counter comfortably green. Charged after write auth so a
+  // 401 never spends the chain's budget, and only for admitted writes.
+  {
+    const budget = await consumeLimitUnits(
+      db,
+      'push-chain-bytes',
+      chainId,
+      POLICIES.pushChainBytes,
+      data.length,
+    )
+    if (!budget.ok) {
+      return throttledResponse(
+        budget.retryAfterMs,
+        'This chain has reached its daily sync budget — changes are saved on your device and will upload when the budget resets.',
+      )
+    }
   }
 
   let seq: number

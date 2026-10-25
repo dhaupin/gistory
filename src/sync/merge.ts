@@ -282,3 +282,43 @@ export function mergePayload(
     messages,
   }
 }
+
+// --- Convergence fingerprint -----------------------------------------------
+
+/**
+ * A content fingerprint of a snapshot, deliberately independent of what an
+ * agent stamps into its push envelope (`sentAt`, `senderDeviceId`).
+ *
+ * FNV-1a run twice with different seeds (an effective 64-bit digest) over a
+ * serialization with explicit key order, so equal content fingerprints equal
+ * no matter how the object was constructed. It answers exactly one question:
+ * "did this merge change what the chain cares about, or is the payload
+ * different only because the envelope is fresh?"
+ *
+ * Why it exists: a wake that delivered blobs used to push the merged snapshot
+ * back unconditionally, and since every push carries a new `sentAt`, two
+ * closed-tab devices would wake each other forever — ~600 full-state pushes
+ * each in one night, the exact shape that filled this project's D1 database
+ * to its ceiling (2026-10-25 incident). The fingerprint is what makes "the
+ * merge changed nothing" knowable without decrypting anyone else's payloads.
+ */
+export function syncFingerprint(data: SyncData): string {
+  const canonical = JSON.stringify([
+    data.threads ?? [],
+    data.messages ?? {},
+    data.projects ?? [],
+    data.deleted ?? null,
+    data.view ?? null,
+    data.settings ?? null,
+    data.variables ?? null,
+  ])
+  const fnv = (seed: number): string => {
+    let hash = seed | 0
+    for (let i = 0; i < canonical.length; i++) {
+      hash ^= canonical.charCodeAt(i)
+      hash = Math.imul(hash, 0x01000193) >>> 0
+    }
+    return hash.toString(16).padStart(8, '0')
+  }
+  return fnv(0x811c9dc5) + fnv(0x2f5a3b17)
+}

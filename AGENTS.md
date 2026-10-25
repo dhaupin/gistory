@@ -226,6 +226,7 @@ hammering, and what a valid write secret looks like.
 |-------|---------|--------|-----------------|
 | `push` | deviceId | 120/min | one runaway client |
 | `push-chain` | chainId | 600/min | a chain being filled with junk blobs |
+| `push-chain-bytes` | chainId | 96MB/day | a full-state ECHO loop — requests that look ordinary on every per-minute counter while filling the database (2026-10-25: 1220 × ~415KB snapshots hit the 500MB ceiling overnight). Charged after write auth, only for admitted writes; per-chain on purpose because the ping-pong shape has TWO devices each spending ~50% |
 | `pull` | deviceId | 240/min | a pull loop starving pushes of D1 time, and `status`, which leaks the device list |
 | `handshake` | deviceId | 20/min | walking chain ids to enumerate chains |
 | `write-fail` | chainId | 20/min | guessing a write secret — a MISSING or malformed secret is charged here too, so the cheapest flood (omit the field) is not free |
@@ -541,8 +542,12 @@ push stores blob ─▶ sendFanOut (functions/_shared/push-fanout.ts)
 sw: if an APP page is open (#/ hash — a lander client cannot carry it) →
     BroadcastChannel-nudge the page (it pulls/merges/renders itself) and stop
     (else) hydrate → pull → decrypt → merge → nudge → push merged snapshot
-    (sender's watermark already current, so a push-away sends nothing — it
-      only converges a half-synced chain)
+      ONLY when the merge actually changed content (syncFingerprint before vs
+      after — envelopes carry a fresh sentAt, so an unchanged snapshot would
+      look new to every other device and the two closed-tab workers would
+      pong full state at each other forever. That loop is the 2026-10-25
+      incident that filled D1). The page's own push path has the same guard:
+      pushSnapshot no-ops when content matches the session's last push
 ```
 
 Rules worth keeping:

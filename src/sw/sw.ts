@@ -20,7 +20,7 @@
 
 import { ensureStorageReady, stGetString, stSetString } from '../sync/idb'
 import { SyncAgent } from '../sync/agent'
-import { emptyDeleted, mergePayload, normalizeDeleted, type SyncData } from '../sync/merge'
+import { emptyDeleted, mergePayload, normalizeDeleted, syncFingerprint, type SyncData } from '../sync/merge'
 import { normalizeVariables } from '../lib/variables'
 import { loadView, saveView } from '../sync/view-state'
 
@@ -233,17 +233,28 @@ async function runWake(chainId: string): Promise<void> {
     // diff, exactly here where the data is decryptable.
     const newCount = newMessageCount(before, data)
     if (newCount > 0 && stGetString(KEY_NOTIFY) === '1') void showBadge(newCount)
-  }
 
-  // An undecryptable blob parked the watermark this pull (poisoned chain or
-  // wrong passphrase); the next open page re-reports it. Push only a clean
-  // merge — a poisoned pull's snapshot is identical to other devices'
-  // anyway, and that push would buy the chain another wake round for it.
-  if (blobs.length > 0 && failures === 0) {
-    try {
-      await agent.push(loadSnapshot())
-    } catch {
-      /* the periodic page sync retries; the merge already persisted */
+    // An undecryptable blob parked the watermark this pull (poisoned chain or
+    // wrong passphrase); the next open page re-reports it. Push only a clean
+    // merge — a poisoned pull's snapshot is identical to other devices'
+    // anyway, and that push would buy the chain another wake round for it.
+    //
+    // And push only a merge that actually CHANGED content: the push-away
+    // exists to converge a half-synced chain, but pushing an unchanged
+    // snapshot is exactly how a full-state echo loop is born — every push
+    // carries a fresh `sentAt`, so the other device always has "something
+    // new" to pull, wakes us back, and two closed-tab workers can pong a full
+    // 400 KB state at each other for an hour without any request-rate limit
+    // noticing. The fingerprint (which ignores the envelope: sentAt,
+    // senderDeviceId) is what makes "this merge changed nothing" knowable
+    // without decrypting anyone's payloads. A skipped push is free: the next
+    // real edit re-arms it, and the page's periodic sync owns pacing.
+    if (failures === 0 && syncFingerprint(before) !== syncFingerprint(data)) {
+      try {
+        await agent.push(data)
+      } catch {
+        /* the periodic page sync retries; the merge already persisted */
+      }
     }
     notifyOpenPages(blobs.length)
   }

@@ -104,6 +104,27 @@ export const POLICIES = {
    */
   fanout: { limit: 120, windowMs: 60_000 },
   /**
+   * Per-chain BYTE budget per day — the storage-cost backstop.
+   *
+   * Every other push guard counts REQUESTS; this one counts the `data` bytes
+   * actually written, which is the resource the relay sells (full-state
+   * snapshots are sizeable, so 24 pushes with 400 KB payloads can pass every
+   * request-rate limit in a morning and still fill the database). Policy:
+   * sits far above any legitimate day (the busiest real chain this app has
+   * seen pushes a few MB/day; the runaway SW echo loop that filled 500 MB did
+   * it in ~15 minutes) and far below what a day of a runaway loop costs.
+   *
+   * Scoped per chain, not per device, on purpose: an echo loop ping-pongs
+   * between TWO devices, halving each device's share — a per-device byte
+   * budget would be out-run by exactly the shape it is meant to stop.
+   *
+   * Charged only for admitted writes (a refused push costs nothing, same
+   * rule as every other bucket), and a refusal is a 429 + Retry-After pause,
+   * so a loop that eats the budget stalls itself rather than dying loudly —
+   * the catch-up pull is the correctness net; nothing is lost.
+   */
+  pushChainBytes: { limit: 96_000_000, windowMs: 24 * 60 * 60_000 },
+  /**
    * Per-IP backstop across ALL /sync routes, checked FIRST in `guardRoute`.
    * Every other bucket is keyed by a client-supplied id (deviceId, chainId),
    * so a flood that rotates identities gets a fresh budget per request. The
@@ -256,6 +277,51 @@ await db
          window_start = ?`,
     )
     .bind(key, outcome.decision.windowStart, outcome.decision.windowStart, outcome.decision.windowStart)
+    .run()
+
+  return outcome
+}
+
+/**
+ * Charge a WEIGHTED amount against a bucket — the byte-budget variant.
+ *
+ * Same single upsert and same reset rule as `consumeLimit`; the only
+ * difference is that one request can move the counter by more than 1, so the
+ * stored `count` reads "units spent in this window" rather than requests.
+ * The first charge of a window starts AT `units`, not 1.
+ *
+ * A denied request charges nothing, exactly like `consumeLimit`.
+ */
+export async function consumeLimitUnits(
+  db: D1Database,
+  scope: string,
+  subject: string,
+  policy: RatePolicy,
+  units: number,
+  now = Date.now(),
+): Promise<LimitOutcome> {
+  const safeUnits = Math.max(1, Math.floor(units))
+  const key = `${scope}:${subject}`
+  const existing = await readLimit(db, scope, subject)
+  const outcome = evaluateLimit(existing, policy, now)
+  if (!outcome.ok) return outcome
+
+  await db
+    .prepare(
+      `INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         count = CASE WHEN window_start = ? THEN count + ? ELSE ? END,
+         window_start = ?`,
+    )
+    .bind(
+      key,
+      outcome.decision.windowStart,
+      safeUnits,
+      outcome.decision.windowStart,
+      safeUnits,
+      safeUnits,
+      outcome.decision.windowStart,
+    )
     .run()
 
   return outcome

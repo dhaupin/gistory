@@ -36,6 +36,7 @@ import {
   breakerRecord,
   breakerResponse,
   consumeLimit,
+  consumeLimitUnits,
   evaluateLimit,
   guardRoute,
   hasControlChars,
@@ -1635,6 +1636,35 @@ check('the recovered window restarts the count at 1', (await readLimit(d1 as any
 await pruneLimits(d1 as any, t0 + POLICIES.handshake.limit + POLICIES.handshake.windowMs + 11 * 60_000)
 check('pruning drops buckets whose window closed long ago', (await readLimit(d1 as any, 't', 'subject')) === null)
 
+// The byte-budget consumer: the same upsert, but one request can move the
+// counter by more than 1 — `count` reads units spent, not requests. This is
+// the storage-cost backstop for full-state payloads (2026-10-25 incident).
+//
+// Admission compares the CURRENT counter to the policy, so a single charge is
+// inspected (and capped by MAX_PAYLOAD_BYTES in the route), while the budget
+// refuses once the counter is already at or past the limit — a loop of
+// max-sized pushes burns the budget charge by charge and then stalls. The 40MB
+// sized charge below is impossible as ONE payload (route cap is 5MB); it
+// models many pushes in one window arriving at the counter.
+const BC = POLICIES.pushChainBytes
+const firstByteCharge = await consumeLimitUnits(d1 as any, 'push-chain-bytes', 'chain-budget', BC, 40_000_000, t0)
+check('a weighted charge under the byte budget is admitted', firstByteCharge.ok)
+check('the byte counter starts AT its units, not 1', (await readLimit(d1 as any, 'push-chain-bytes', 'chain-budget'))?.count === 40_000_000)
+// The counter is at 40MB of a 96MB budget: 56MB more fits exactly, and the
+// next charge sees the counter already at the limit and is refused. (A real
+// loop can overshoot by at most one payload — admission compares the CURRENT
+// counter; MAX_PAYLOAD_BYTES bounds the overshoot, which is fine: the budget
+// is here to catch a flood, not to meter a single write.)
+const nearLimit = await consumeLimitUnits(d1 as any, 'push-chain-bytes', 'chain-budget', BC, 56_000_000, t0 + 1000)
+check('a charge that lands just under the budget is admitted', nearLimit.ok)
+check('weighted charges accumulate rather than reset', (await readLimit(d1 as any, 'push-chain-bytes', 'chain-budget'))?.count === 96_000_000)
+const overByteBudget = await consumeLimitUnits(d1 as any, 'push-chain-bytes', 'chain-budget', BC, 5_000_000, t0 + 2000)
+check('a charge against an exhausted byte budget is refused', !overByteBudget.ok)
+check('a refused byte charge does not advance the counter', (await readLimit(d1 as any, 'push-chain-bytes', 'chain-budget'))?.count === 96_000_000)
+const nextDay = await consumeLimitUnits(d1 as any, 'push-chain-bytes', 'chain-budget', BC, 5_000_000, t0 + BC.windowMs)
+check('the byte budget resets with the window', nextDay.ok)
+check('the reset byte counter restarts at the new charge', (await readLimit(d1 as any, 'push-chain-bytes', 'chain-budget'))?.count === 5_000_000)
+
 section('8b. Circuit breaker (pure)')
 
 const BP: BreakerPolicy = { failures: 3, cooldownMs: 1000 }
@@ -2317,6 +2347,32 @@ check(
 check(
   'the device name is read through the shared persistence layer',
   /const storedName = stGetString\(DEVICE_NAME_KEY\)/.test(syncSource),
+)
+
+// Echo-loop guards (the 2026-10-25 incident: 1220 full-state pushes per night
+// filled D1 to its ceiling). The wake push-away used to fire whenever a pull
+// delivered blobs; because every push carries a fresh `sentAt`, the other
+// device always had something "new" to pull, which woke us back, and two
+// closed-tab workers ponged forever below every request-rate limit. Nothing
+// exercises the SW or App here, so the invariants are pinned textually, same
+// reasoning as the checks above.
+check(
+  'the wake push-away is gated on the merge fingerprint (content vs envelope)',
+  /syncFingerprint\(before\) !== syncFingerprint\(data\)/.test(swSourceVars),
+)
+check(
+  'App push no-ops when content matches the last successful push of the session',
+  /fp === lastPushedFpRef\.current/.test(appSource),
+)
+const pushRoute = readFileSync(new URL('../functions/sync/push.ts', import.meta.url), 'utf8')
+check(
+  'push charges the per-chain daily byte budget',
+  /consumeLimitUnits\(\s*db,\s*'push-chain-bytes'/.test(pushRoute),
+)
+check(
+  'the byte budget is charged only after write auth passes',
+  pushRoute.indexOf('constantTimeEqualHex') !== -1 &&
+    pushRoute.indexOf('constantTimeEqualHex') < pushRoute.indexOf("'push-chain-bytes'", pushRoute.indexOf('consumeLimitUnits')),
 )
 
 section('9. Maintenance wiring — the limit table sweeps itself')
