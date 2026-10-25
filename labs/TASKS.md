@@ -13,6 +13,31 @@ Conventions
 
 ## Now
 
+- **Workspace housekeeping commit (2026-10-25, user-directed clean).**
+  - Styling-pass leftovers committed: the four pre-session modified files
+    (docs noindex meta for `/discussions/` release-draft pages, one-h1 gate
+    rule in check-docs.mjs + fence stripping before counting, Prism token
+    palette re-keyed to brand hues in the lander and line-numbers CSS not
+    loaded, docs icon comment swapped for the token override note) were a
+    coherent styling pass next to a56dd9e — verified with the full lint
+    battery (eslint 0 errors, 9 docs pages) before committing.
+  - eslint.config.js gained a `poststruct-staging/**` ignore — the nested
+    staging repo is an independent project (own gates; plain-JS Node tools
+    whose console/process/Response globals are legitimate there), and the
+    root eslint was scanning into it.
+  - horcrux/ grew the poststruct transfer stone per the family lock
+    convention (`horcrux/poststruct-0.9.0-rig-lock.tar.gz`, ~311KB, full
+    `.git` history + rig + core, node_modules/dist excluded): the tree that
+    unpacks to the pushable repo survives this mount's resyncs now.
+  - magpie stones committed (`horcrux/prd-eyes.md` +
+    `horcrux/magpie-p_mirror-eyes-2026.svg`) — the perishable-seed lesson
+    applied before they could claim a third victim.
+  - The nine `.vant-*.md` scratch notes retired after content review: all
+    were completed work-products of the vant docs-parity + auth/encrypt
+    canon rounds (#185–#192 era), their findings already converted into
+    vant issues and the easy-wins canon — no unread content left, receipts
+    live upstream in dhaupin/vant.
+
 - **Poststruct rig unpacking hosted in gistory (2026-10-25).** Per user call,
   the poststruct 0.9.0 lock tar (full `.git`, three commits) unpacked at
   `poststruct-staging/` inside the gistory workspace, then flowforge rig
