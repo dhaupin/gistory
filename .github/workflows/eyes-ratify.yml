@@ -42,10 +42,19 @@ jobs:
           npm ci --prefix eyestruct-staging
 
       # On-demand chromium, the ui:browsers pattern: skipped in install,
-      # fetched per machine. Lands in ~/.cache/puppeteer where
-      # eyestruct's exec discovery looks first.
+      # fetched per machine. Installs the MANIFEST'S PINNED version into
+      # ~/.cache/puppeteer/chrome where eyestruct's exec discovery looks
+      # (bare `install chrome@stable` drops ./chrome into the worktree,
+      # which discovery never sees - and a stable != pinned version dance
+      # would make the ledger row claim a pin it did not shoot). The
+      # explicit EYESTRUCT_BROWSER export is belt-and-braces so the exact
+      # exec is on record in the run log either way.
       - name: Provision the pinned browser
-        run: npx --yes @puppeteer/browsers install chrome@stable
+        run: |
+          npx --yes @puppeteer/browsers install chrome@154.0.8037.57 --path "$HOME/.cache/puppeteer/chrome"
+          EXEC="$HOME/.cache/puppeteer/chrome/linux-154.0.8037.57/chrome-linux64/chrome"
+          test -x "$EXEC" || (echo "pinned chrome missing after install" && exit 2)
+          echo "EYESTRUCT_BROWSER=$EXEC" >> "$GITHUB_ENV"
 
       # The full prerender pipeline (same gate production used): the ratify
       # captures must shoot what actually ships, not a dev server.
