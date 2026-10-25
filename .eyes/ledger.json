@@ -40,5 +40,25 @@
     "verified": true,
     "id": "row-0004",
     "ts": 1792957612364
+  },
+  {
+    "type": "adopt",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "home/desktop-1280-dark",
+    "note": "bootstrap: pinned-env capture (linux chrome 154.0.8037.57), replaces the cross-machine local baseline; canon cuts on the next ratify dispatch",
+    "ratified": false,
+    "id": "row-0005",
+    "ts": 1792971098240
+  },
+  {
+    "type": "adopt",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "settings/desktop-1280-dark",
+    "note": "bootstrap: pinned-env capture (linux chrome 154.0.8037.57), replaces the cross-machine local baseline; canon cuts on the next ratify dispatch",
+    "ratified": false,
+    "id": "row-0006",
+    "ts": 1792971098271
   }
 ]
