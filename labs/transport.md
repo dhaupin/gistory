@@ -48,7 +48,7 @@ Every carry, regardless of shape, passes these five before it counts:
    finish, THEN verify the landing survived (a correct landing still gets
    reassembled if an interleaved lane's own bytes win - the mount-tree
    ferry law in monoforge-staging/horcrux/lock-archive-overlay.patch).
-5. Receipts: blob ids in the TASTS log, not prose-only ("landed" without
+5. Receipts: blob ids in the TASKS log, not prose-only ("landed" without
    a digest is a guess with punctuation).
 
 ## Failure classes found tonight (with evidence)
