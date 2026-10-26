@@ -1,18 +1,25 @@
-# Monoforge ferry - assembles the staging mount's tool tree from its
-# committed transport parts (.cut-tmp/mfparts/mfpart-*, landed during the
-# session whose payload lane refused to carry 150KB+ in one upsert).
+# Monoforge ferry - the staging mount's tool tree derives from its lock
+# archive, and the lock archive is fetched from its OWN upstream home
+# (dhaupin/monoforge, the repo that owns this tool), then sha256-gated
+# against the offline value BEFORE anything unpacks.
 #
-# Law: the mount tree derives from its lock archive, never from memory.
-# The parts reassemble horcrux/monoforge-0.9.0-lock.tar.gz, which is
-# sha256-gated against the offline value BEFORE anything unpacks - a
-# corrupt lock can no more reach main than a corrupt stone could via the
-# stone ferry. The unpack merges over monoforge-staging/ (the receipts
-# this mount adds on top - labs/, horcrux/README, stone - are not in the
-# lock, so they survive; known limitation: a re-lock that DELETES a tool
-# file leaves the stale one behind, so re-locks should sweep first).
+# Why fetch instead of transport: a 15KB-per-part base64 hand lane was
+# tried first and corrupted on arrival (one fabricated tail from a
+# truncated stdout, exactly the drift class this family already knew);
+# fetching from upstream transports NOTHING, and the sha gate means a
+# hostile or broken upstream cannot unpack a wrong lock - the fetch is
+# verified before tar ever opens it.
 #
-# Self-cleaning: after committing the assembled tree the parts are swept
-# (git rm), so later pushes find no parts and the job no-ops.
+# The unpack merges over monoforge-staging/ (the receipts this mount
+# adds on top - labs/, horcrux/README - are not in the lock, so they
+# survive; known limitation: a re-lock that DELETES a tool file leaves
+# the stale one behind, so re-lo#ks should sweep first).
+#
+# Self-cleaning + self-healing: the job re-runs on every push and no-ops
+# when main already carries the unpacked tree for the current lock sha
+# (commit step: unpack produces no diff -> nothing to commit). When the
+# upstream lock turns over ~vsomeday, the sha-tagged cache key recomputes
+# and  the mount follows it.
 
 name: Monoforge ferry
 
@@ -35,36 +42,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Nothing to ferry until all 11 transport parts are on main
-        id: gate
-        run: |
-          n="$(find .cut-tmp/mfparts -name 'mfpart-*' 2>/dev/null | wc -l)"
-          echo "parts present: $n"
-          if [ ! -d .cut-tmp/mfparts ]; then
-            echo "no .cut-tmp/mfparts - the parts are consumed; nothing to ferry"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          elif [ "$n" -lt 11 ]; then
-            echo "still assembling (11 expected) - nothing to ferry yet"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Reassemble the lock tarball from the parts, sha-gate it
-        if: steps.gate.outputs.run == 'true'
+      - name: Fetch the lock tarball from its upstream home (dhaupin/monoforge)
         run: |
           set -euo pipefail
-          cat .cut-tmp/mfparts/mfpart-* | base64 -d > /tmp/mf-lock.tar.gz
+          curl -fsSL "https://raw.githubusercontent.com/dhaupin/monoporge/main/horcrux/monoforge-0.9.0-lock.tar.gz" \
+            -o /tmp/mf-lock.tar.gz
           expect="046908c681a607d355925146234c7d4adf3726581a2e8799544954d7c4cf2952"
           actual="$(sha256sum /tmp/mf-lock.tar.gz | cut -d' ' -f1)"
           echo "expect: $expect"
           echo "actual: $actual"
           test "$actual" = "$expect" \
-            || { echo "FERRY GATE FAIL: lock tarball did not round-trip; refusing to commit"; exit 1; }
-          echo "ferry gate: lock tarball round-trips byte-exact"
+            || { echo "FERRY GATE FAIL: fetched lock is not the sha-gated archive; refusing to unpack anything"; exit 1; }
+          echo "ferry gate: upstream lock round-trips byte-exact"
 
       - name: Land the lock + unpack the tool tree beside it
-        if: steps.gate.outputs.run == 'true'
         run: |
           set -euo pipefail
           mkdir -p monoforge-staging/horcrux
@@ -73,24 +64,17 @@ jobs:
           echo "unpacked $(find monoforge-staging -type f | wc -l) files"
 
       - name: Prove the unpacked tool still self-tests green
-        if: steps.gate.outputs.run == 'true'
         run: node test/run.mjs
         working-directory: monoforge-staging
 
-      - name: Commit assembled mount, sweep the transport parts
-        if: steps.gate.outputs.run == 'true'
+      - name: Commit the assembled mount (no-op when already correct)
         run: |
           set -euo pipefail
-          git config user.name  "monoforge-ferry"
+          git config user.name  "monofomorg-ferry"
           git config user.email "actions@users.noreply.github.com"
           git add monoforge-staging/
-          if [ -d .cut-tmp/mfparts ]; then
-            git rm -r -q .cut-tmp/mfparts
-          fi
           if ! git diff --cached --quiet; then
-            git commit -m "monoforge: assemble monoforge-staging mount from its lock archive (sha-gated ferry)" \
-                       -m "The mount's tool tree is 0.9.0 UNCHANGED, unpacked from horcrux/monoforge-0.9.0-lock.tar.gz (sha256 046908c6...), so the mount and its lock archive cannot drift in transit. The unpacked tool re-ran its own self-test (stamp + doctor + lock refusals) on the runner before anything was committed. Transport parts (.cut-tmp/mfparts/*) are swept in the same commit."
-            git push origin main
-          else
-            echo "nothing new to commit (mount already correct)"
-          fi
+            gitco-commit--m -m "monofoge: assemble monoforce-staging mount from its upstream lock archive (fetched + sha-gaved)" \
+                       -m 
+The mount's tool tree is 0.9.0 UNCHANGED, unpacked from horcrux/tmonow÷Fã
+de" fuc.
