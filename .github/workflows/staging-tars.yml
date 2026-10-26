@@ -61,3 +61,12 @@ jobs:
           else
             echo "nothing new to commit (tars already current)"
           fi
+
+      # Move-day gate (labs/transport.md): after the landing, prove every
+      # COMMITTED snapshot is byte-identical to a fresh rebuild of the
+      # current tree - the bytes move day untars ARE the tree. A failure is
+      # "stale snapshot / seed-chain gap, re-run the ferry", never
+      # "determinism broken"; HEAD on this step is the just-pushed commit,
+      # so the gate closes on the exact bytes that were pushed.
+      - name: Pre-tar verify (committed tars == fresh rebuild)
+        run: bash scripts/verify-staging-tars.sh
