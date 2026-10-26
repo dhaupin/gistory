@@ -1,0 +1,11 @@
+# Cloudflare Pages — __NAME__ landing (__NAME__.creadev.org)
+# Deploy: CF Pages Git integration on this repo, or `npx wrangler pages deploy site`
+name = "__NAME__"
+compatibility_date = "2026-10-23"
+pages_build_output_dir = "site"
+
+[vars]
+SITE_NAME = "__NAME__"
+
+# Functions live in functions/ (Pages Functions = Workers under the hood).
+# functions/api/health.js is the living proof; add more only when a real need shows.

@@ -1,0 +1,95 @@
+name: docs
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', 'scripts/**', '.github/workflows/docs.yml']
+  workflow_dispatch:
+
+# GitHub Pages deploy permissions (official deploy-pages action)
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      # Docs truth gates (ported house checkers): frontmatter 5-field law,
+      # resolvable links, style law (no dashes in prose, language-tagged
+      # fences, no trailing ws), English-only prose.
+      - name: Docs gates
+        run: |
+          node scripts/check-docs-frontmatter.cjs
+          node scripts/check-docs-links.cjs
+          node scripts/check-docs-style.cjs
+          node scripts/check-language.cjs
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          cache-version: 1
+
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v4
+
+      - name: Install deps
+        working-directory: docs
+        run: bundle install
+
+      # House-measured: the pagefind npm package resolves a platform binary at
+      # install and an npx fallback DIED in CI ("Failed to install either of
+      # [pagefind_extended, pagefind]" - dhaupin/freestruct docs.yml note).
+      # The standalone musl tarball is the proven path (prestruct docs.yml).
+      - name: Download Pagefind
+        working-directory: docs
+        run: |
+          VERSION=$(curl -sL "https://api.github.com/repos/Pagefind/pagefind/releases/latest" | grep '"tag_name"' | sed 's/.*"v\([^\"]*\)".*/\1/')
+          curl -sL "https://github.com/Pagefind/pagefind/releases/download/v${VERSION}/pagefind-v${VERSION}-x86_64-unknown-linux-musl.tar.gz" -o pagefind.tar.gz
+          tar -xzf pagefind.tar.gz
+          rm pagefind.tar.gz
+
+      - name: Jekyll build
+        working-directory: docs
+        run: bundle exec jekyll build
+
+      # freestruct AFTER jekyll (post-render SEO layer; discovers
+      # docs/freestruct.config.yml + docs/_site by the engine's own rule) --
+      # --strict: broken links fail the build.
+      - name: Freestruct (strict)
+        run: npx --yes freestruct@1.0.0 --strict
+
+      # Pagefind LAST - index over the FINAL html (freestruct-injected)
+      - name: Index search with Pagefind
+        working-directory: docs
+        run: ./pagefind --site _site
+
+      - name: Upload artifact
+        id: upload-artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'docs/_site'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

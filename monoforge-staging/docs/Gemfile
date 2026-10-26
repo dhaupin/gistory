@@ -1,0 +1,5 @@
+source 'https://rubygems.org'
+# No theme gem (docs use the custom layout, matching the fleet's docs) and
+# no sitemap/seo-tag plugins: freestruct generates sitemap.xml post-build
+# and owns all meta injection.
+gem 'jekyll', '~> 4.4'

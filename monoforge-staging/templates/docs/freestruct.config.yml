@@ -1,0 +1,7 @@
+# Freestruct post-render SEO layer for the baked docs.
+# Canonical math: site.url + basePath + relSlug => __DOCS_URL__/<page>
+site:
+  name: __NAME__ docs
+  url: https://docs.creadev.org
+  description: The shared /packs SPEC — manifest contract, entry profiles, lifecycle, and the lint CLI.
+basePath: /__NAME__

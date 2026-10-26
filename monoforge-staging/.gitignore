@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+_site/
+dist/
+docs/_site/
+docs/pagefind/
+pagefind-*.tar.gz
+.DS_Store

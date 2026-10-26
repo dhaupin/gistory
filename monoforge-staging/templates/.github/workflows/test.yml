@@ -1,0 +1,21 @@
+name: test
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install --no-fund --no-audit
+      - run: npm test
+      - name: lint the repo's own conformance fixtures + shipped packs through the CLI
+        run: |
+          node bin/cli.mjs lint test/fixtures/good/packs
+          if node bin/cli.mjs lint test/fixtures/bad/packs >/dev/null 2>&1; then
+            echo "lint should have failed on broken fixtures"; exit 1
+          fi
+          # dogfood: the repo's own packs tree (the crashtest scenario pack) is itself SPEC-v1 shaped
+          node bin/cli.mjs lint packs

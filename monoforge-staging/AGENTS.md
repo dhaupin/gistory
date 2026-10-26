@@ -1,0 +1,30 @@
+# AGENTS.md - monoforge
+
+## Identity
+- **Name:** monoforge (the fleet factory)
+- **Repo:** dhaupin/monoforge
+- **Core law:** generated green is never shipped; the doctor refuses
+  placeholder text, missing entries, and broken gates; the lock refuses a
+  dirty or failing tree.
+
+## Mechanical conventions (this repo)
+- Four verbs, one package: `new` (stamp from templates/), `doctor`
+  (the truth battery), `cut` (release cuts: component-family workspace
+  from a cutlist against a living lib), `lock` (doctor then archive).
+  All zero-dep Node >=20 ESM in `src/`, CLI in `bin/forge.mjs`.
+- The cut law: an unmapped internal dependency refuses loudly; shortfall
+  lazies must be declared in cutlist.json and ship as documented call-site
+  degrades (per-package README carries the list: absence is honest).
+- Templates are extracted from PROVEN trees (poststruct + packstruct as
+  of 2026-10-24). Add a block only when two instances prove it; a
+  template block with a single instance is a bet, and the doctor cannot
+  verify bets.
+- The negative test in `test/run.mjs` asserts the refusal paths (bad
+  config, stray dir) and the doctor fail (unfilled) / pass (filled) pair.
+  Update the test in the same commit as any check change; run
+  `npm test` first.
+- All prose submits to the voice law: zero dashes of any kind, no
+  AI-cliche constructions, plain declarative sentences only.
+
+## Release
+- 0.9.0 = current manual npm. 1.0.0 flips OIDC; publish.yml refuses 0.x.

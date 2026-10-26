@@ -1,0 +1,40 @@
+{
+  "name": "monoforge",
+  "version": "0.9.0",
+  "description": "The struct-family factory: stamps a new fleet repo from proven template blocks, doctors it for truth, and locks it. Generated green is never shipped: the doctor refuses placeholder text and unverified gates.\n",
+  "type": "module",
+  "bin": {
+    "monoforge": "bin/forge.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "templates/"
+  ],
+  "scripts": {
+    "test": "node test/run.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "scaffold",
+    "generator",
+    "factory",
+    "ci",
+    "struct-family",
+    "creadev"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dhaupin/monoforge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dhaupin/monoforge/issues"
+  },
+  "homepage": "https://github.com/dhaupin/monoforge#readme"
+}
