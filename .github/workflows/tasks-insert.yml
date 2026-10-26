@@ -1,0 +1,83 @@
+# Tasks-insert ferry - splices a committed part file into labs/TASKS.md
+# at the "## Now" head, so a fresh pass entry never has to hand-carry the
+# 120KB log through the transport lane (the drift class the sha audit
+# keeps catching). One-shot lane: parts land under .cut-tmp/task-parts/,
+# the runner concatenates them in lexical order, splices at the byte
+# anchor, sha-gates the assembly against the offline blob id, commits,
+# and sweeps the parts - after which the workflow no-ops (no parts).
+#
+# The pinned id below is THE CURRENT ONE-SHOT CONTRACT: a future pass
+# entry lands as new parts plus a fresh expected id here. The gate is
+# byte-level: a splice that does not round-trip refuses to commit.
+name: Tasks insert
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tasks-insert-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  insert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Splice the Now entry from its committed parts (regeneration lane)
+        run: |
+          python3 - <<'PY'
+          import glob, pathlib, sys
+          parts = sorted(glob.glob('.cut-tmp/task-parts/*.md'))
+          if not parts:
+              print('no task parts; nothing to splice (one-shot already done)')
+              sys.exit(0)
+          part = ''.join(pathlib.Path(p).read_text(encoding='utf-8') for p in parts)
+          # Anti-transport: a landing lane that appends a trailing newline
+          # to the part (it legitimately ends mid-sentence at the anchor)
+          # must not be able to corrupt the splice - strip exactly the
+          # trailing newline and nothing else.
+          part = part.rstrip('\n')  # a correct part has no trailing newline
+          log_path = pathlib.Path('labs/TASKS.md')
+          base = log_path.read_text(encoding='utf-8')
+          # The part is the new file PREFIX: preamble + the fresh Now entry,
+          # ending right before the OG card line's suffix. Splice = prefix
+          # replacement at that byte anchor; everything after rides intact.
+          ANCHOR = ' `public/og-image.png` rendered its'
+          if base.count(ANCHOR) < 1:
+              print('splice anchor not found in the base log; refusing')
+              sys.exit(1)
+          spliced = part + base[base.index(ANCHOR):]
+          log_path.write_text(spliced, encoding='utf-8')
+          print(f'spliced {len(parts)} part(s) at the byte anchor; {len(spliced.encode("utf-8"))} bytes')
+          PY
+
+      - name: Sha-gate the assembled log (offline blob id, git hash-object)
+        if: hashFiles('.cut-tmp/task-parts/*.md') != ''
+        run: |
+          set -euo pipefail
+          expect="4d3c98817584228d814e40e71f6f06e36f6dc007"
+          actual="$(git hash-object labs/TASKS.md)"
+          echo "expect TASKS: $expect"
+          echo "actual TASKS: $actual"
+          test "$actual" = "$expect" \
+            || { echo "GATE FAIL: the splice did not round-trip; refusing to commit"; exit 1; }
+          echo "gate: the log round-trips; committing"
+
+      - name: Commit the log, sweep the parts
+        run: |
+          set -euo pipefail
+          test -n "$(find .cut-tmp/task-parts -name '*.md' -print -quit 2>/dev/null)" || { echo 'nothing to commit'; exit 0; }
+          git config user.name  "tasks-insert"
+          git config user.email "actions@users.noreply.github.com"
+          git add labs/TASKS.md
+          git rm -r -q .cut-tmp/task-parts
+          git commit -m "tasks: splice the brain-r2 ferry receipt into the Now head (CI-assembled, sha-gated)" \
+                     -m "The 120KB rolling log is never hand-carried: the entry rides as committed parts, the runner splices them at the byte anchor and gates the assembly against the offline blob id (4d3c9881) before committing."
+          git push origin main
