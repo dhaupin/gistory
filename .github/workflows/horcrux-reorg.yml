@@ -24,12 +24,13 @@ name: Horcrux reorg
 on:
   workflow_dispatch:
 
-# contents: write only. The default GITHUB_TOKEN cannot push a commit that
-# touches .github/workflows files (run 40307523461's push rejection) and
-# cannot be granted `workflows:` write either (GitHub refuses to parse the
-# scope), so the three workflow reference patches landed directly via the
-# dispatcher lane (blobs 3c5e6dd / e15ac9c / 790702c) BEFORE any dispatch,
-# and this lane handles only the moves + the six text/script references.
+# contents: write only. The GITHUB_TOKEN CANNOT be granted `workflows:`
+# write (GitHub refuses to parse it - "Unexpected value 'workflows'") and
+# its push rejects any commit that touches .github/workflows files, so the
+# three workflow reference patches NEVER ride the runner commit: the
+# dispatcher lands those upserts directly (the lane verified byte-exact on
+# blobs 3c5e6ddf / e15ac9cb / 790702cd), and this lane handles only moves
+# + the six text/script references.
 permissions:
   contents: write
 
