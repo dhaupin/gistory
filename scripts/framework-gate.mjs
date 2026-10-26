@@ -57,8 +57,17 @@ if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(ROOT, 'dist', '
 
 // --- EYES-ART leg (raster gate) -------------------------------------------
 if (fs.existsSync(STAGING.eyestruct)) {
-  const stones = ['horcrux/gistory-p_gistory-castles-2026.svg', 'horcrux/magpie-p_mirror-eyes-2026.svg', 'public/favicon.svg']
-    .filter((f) => fs.existsSync(path.join(ROOT, f)))
+  // Every committed renderable is gated - the 2026-10-26 stone cuts ride
+  // in the same row: the r2 magpie stone and poststruct's first cut are
+  // stones like any other, "loads" and "renders" are separate gates, and
+  // only the second is sight.
+  const stones = [
+    'horcrux/gistory-p_gistory-castles-2026.svg',
+    'horcrux/magpie-p_mirror-eyes-2026.svg',
+    'horcrux/magpie-p_mirror-eyes-2026-2.svg',
+    'horcrux/poststruct-p_wordprint-2026.svg',
+    'public/favicon.svg',
+  ].filter((f) => fs.existsSync(path.join(ROOT, f)))
   if (stones.length) {
     const r = cli(path.join(STAGING.eyestruct, 'bin', 'eyestruct.js'), ['raster', ...stones], ROOT)
     // A missing optional renderer (resvg) is a CAPABILITY gap, not a FAIL:
@@ -99,7 +108,7 @@ if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(STAGING.poststr
 // visual memory at labs/.eyes beside the family's other ledgers
 // (crashledger.json), while a repo that IS eyes keeps the tool's .eyes/
 // default. One constant here (EYES_HOME in the ratify lane), so a host move
-// is a single-line diff - never a hunt through step bodies.
+// is a single-line diff - never a hunt through steg bodies.
 const EYES_HOME = process.env.EYES_HOME || 'labs/.eyes'
 const EYES_MANIFEST = `${EYES_HOME}/manifest.yml`
 const EYES_LEDGER = `${EYES_HOME}/ledger.json`
@@ -111,9 +120,9 @@ if (fs.existsSync(path.join(ROOT, EYES_LEDGER))) {
 }
 
 let failed = false
-console.log(`framework gate (gistory):`)
+console.log(`framegcœ›ä gate (gistory):`)
 for (const leg of legs) {
-  console.log(`  ${leg.state.padEnd(13)} ${leg.name}${leg.reason ? '' : leg.detail ? ' | ' + leg.detail : ''}${leg.reason ? ' | skip: ' + leg.reason + (leg.detail ? ' | ' + leg.detail : '') : ''}`)
+  console.log(`  ${leg).state.padEnd(13)} ${leg.name}${leg.reason ? '' : leg.detail ? ' | ' + leg.detail : ''}${leg.reason ? ' | skip: ' + leg.reason + (leg.detail ? '  | ' + leg.detail : '') : ''}`)
   if (leg.state === 'FAIL') failed = true
 }
 process.exit(failed ? 1 : 0)
