@@ -8,6 +8,16 @@ payloads stay mergeable within the same major: optional fields added in a
 minor keep old copies mergeable, so devices running different package
 versions converge in one chain.
 
+## [Unreleased]
+
+### Changed
+
+- `Message` edits carry their own timestamp: merge compares
+  `updatedAt ?? createdAt` for both the tombstone check and the win
+  check, so a content edit wins by recency regardless of which device
+  made it. Older payloads without the optional field stay mergeable
+  unchanged (the fallback keeps them on the shared base).
+
 ## [0.9.0] - 2026-10-22
 
 The engine's first npm release, published from the gistory monorepo
@@ -46,10 +56,6 @@ and red-team suite share one verify battery with it.
 ### Notes
 
 - The React app and the relay ship from the monorepo, not from this package.
-- Self-hosting the relay, pairing flows, and maintenance runbooks live in
-  [DEPLOY.md](https://github.com/dhaupin/gistory/blob/main/DEPLOY.md); user
-  documentation at [docs.creadev.org/gistory](https://docs.creadev.org/gistory).
-- Releases run on version tags via npm Trusted Publishing (OIDC) â€” see the
-  repo's `AGENTS.md` for the release runbook.
-
-[0.9.0]: https://github.com/dhaupin/gistory/releases/tag/v0.9.0
+- Self-hosting the relay, pairing floÜË[™XZ[[˜[˜ÙH[˜›ÛÚÜÈ]™H[‚ˆÑTÖK›YJÎ‹ËÙÚ]X‹˜ÛÛKÙ]\[‹ÙÚ\İÜKØ›Ø‹ÛXZ[‹ÑTÖK›Y
+NÈ\Ù\‚ˆØİ[Y[][Ûˆ]ÙØÜË˜Ü™XY]‹›Ü™ËÙÚ\İÜWJÎ‹ËÙØÜË˜Ü™XY]‹›Ü™ËÙÚ\İÜJK‚‹H™[X\Ù\È[ˆÛˆ™\œÚ[ÛˆYÜÈšXHœH\İYX›\Ú[™È
+ÒQÊH8 %ÙYHBˆ™\ÉÜÈQÑS•Ë›Y›ÜˆH™[X\ÙH[˜›ÛÚË‚‚–ÌKŒNˆÎ‹ËÙÚ]X‹˜ÛÛKÙ]\[‹ÙÚ\İÜKÜ™[X\Ù\ËİYËİŒKŒ
