@@ -25,14 +25,14 @@
   DOM-clean edit gets caught; fresh session answers a visual question
   from .eyes/ with no browser).
 - **Completion sprint (2026-10-26, pre-move).** 1) Web landing rebranded
-  the flowforge placeholder: 12 identity fields (ssr identity block, Home
-  copy + CTAs, nav brand/links/badge, footer, manifest, theme key both
-  ends, package name) - `prestruct build` local green, dist proves zero
-  flowforge strings, inject-brand populates eyestruct identity. 2) Own CI
-  minted: .github/workflows/test.yml (node 20, npm ci hermetic, npm test
-  + npm run check) - the tar-move plan's injected change #1, so move-day's
+  the flowforge placeholder: 12 fields (ssr identity block, Home copy + CTAs,
+  nav brand/links/badge, footer, manifest, theme key both ends, package
+  name) - `prestruct build` local green, dist proves zero flowforge
+  strings, inject-brand populates eyestruct identity. 2) Own CI minted:
+  .github/workflows/test.yml (node 20, npm ci hermetic, npm test +
+  npm run check) - the tar-move plan's injected change #1, so move-day's
   first standalone push is gated by its own battery, not the borrow.
   3) docs/verbs.md added (usage lines match bin dispatch exactly; the
-  frontmatter gate caught a leading-slash permalink and held it to the
-  plain-path contract). Whole npm run check + npm test green locally
-  before landing.
+  frontmatter gate caught a leading-slash permalink and
+  held it to the plain-path contract). Whole npm run check + npm test
+  green locally before landing.
