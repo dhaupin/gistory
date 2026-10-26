@@ -1,0 +1,131 @@
+# Overlay for the seven lock-archived files (2026-10-26, pre-move)
+
+The monoforge completion sprint repaired files that live INSIDE
+`horcrux/monoforge-0.9.0-lock.tar.gz` — six of them ride the unified diff
+at the bottom of this file (the docs `_config.yml`, its layout, and
+`freestruct.config.yml`, both stamped-side and template-side; the git
+paths keep their mount prefix so it applies tree-top):
+
+- `monoforge-staging/docs/_config.yml` + `_layouts/default.html` +
+  `freestruct.config.yml`
+- `monoforge-staging/templates/docs/_config.yml` + `_layouts/default.html`
+- `monoforge-staging/templates/docs/freestruct.config.yml`
+
+(`docs/verbs.md`, `docs/packs.md`, and the `site/` tree land as normal
+new files — the ferry never deletes extra files, so they survive it;
+only files THE ARCHIVE CONTAINS get reassembled back to archive bytes.)
+
+The gistory ferry law — *the mount tool tree matches its lock* — reassembles
+files that ride in the lock archive back to their ARCHIVE bytes on every
+interleaved ferry run, so landing the fixed on-disk bytes was not durable: the
+system worked, the lane was wrong.
+
+That repair canonically belongs **upstream in dhaupin/monoforge**, which needs
+a re-lock to converge (a lock only receipts a green tree). Until move day:
+this patch carries the fixed bytes durably in the mount's horcrux slot — the
+tar never deletes extra files, so a receipt under `horcrux/` is ferry-safe.
+
+Convergence at move day (needs the first write grant on dhaupin/monoforge):
+1. `git apply monoforge-staging/horcrux/lock-archive-overlay.patch
+   (git blob d80cfbf8f3fe1458dff268dc096a547ef910c845)`
+2. rerun the self-test battery (stamp/doctor/lock refusals stay green)
+3. `bin/forge.mjs lock` re-cut of `monoforge-0.9.0-lock.tar.gz` (bump the
+   sha record in the lock record file), commit upstream
+4. ingest the re-lock into gistory (update the ferry's sha pin), then the
+   mount tool tree IS the fixed bytes and this patch retires (delete it in
+   the same commit the ferry pin moves).
+
+diff --git a/monoforge-staging/docs/_config.yml b/monoforge-staging/docs/_config.yml
+index 6beecfa..84aeead 100644
+--- a/monoforge-staging/docs/_config.yml
++++ b/monoforge-staging/docs/_config.yml
+@@ -3,7 +3,7 @@
+ # presentation lives in _layouts/default.html, kramdown GFM + rouge,
+ # permalink pretty; freestruct generates the sitemap post-build).
+ title: monoforge docs
+-description: The shared /packs SPEC - manifest contract, entry profiles, lifecycle, and the lint CLI.
++description: stamps fleet repos from the proven template blocks, doctors them with the truth battery, and locks them with a checksum - generated green is never shipped.
+ url: https://docs.creadev.org
+ baseurl: /monoforge
+ 
+diff --git a/monoforge-staging/docs/_layouts/default.html b/monoforge-staging/docs/_layouts/default.html
+index 55d207b..a7d1782 100644
+--- a/monoforge-staging/docs/_layouts/default.html
++++ b/monoforge-staging/docs/_layouts/default.html
+@@ -12,8 +12,8 @@
+     <button class="burger" aria-label="Toggle menu" aria-expanded="false">☰</button>
+     <nav class="nav-list">
+       <a href="{{ '/' | relative_url }}">home</a> ·
+-      <a href="{{ '/spec' | relative_url }}">SPEC v1</a> ·
+-      <a href="{{ '/linter' | relative_url }}">linter</a> ·
++      <a href="{{ '/verbs' | relative_url }}">verbs</a> ·
++      <a href="{{ '/packs' | relative_url }}">packs</a> ·
+       <a href="{{ '/search' | relative_url }}">search</a>
+     </nav>
+   </header>
+@@ -21,7 +21,7 @@
+     {{ content }}
+   </main>
+   <footer>
+-    <p>© 2026 Creadev.org · monoforge - the shared /packs spec · \1 · <a href="https://monoforge.creadev.org/terms">Terms</a> · <a href="https://monoforge.creadev.org/privacy">Privacy</a> · part of the struct family</p>
++    <p>© 2026 Creadev.org · monoforge - the fleet factory · <a href="https://monoforge.creadev.org/terms">Terms</a> · <a href="https://monoforge.creadev.org/privacy">Privacy</a> · part of the struct family</p>
+   </footer>
+ <script>document.querySelector('.burger').addEventListener('click',()=>{const n=document.querySelector('.nav-list');n.classList.toggle('open');document.querySelector('.burger').setAttribute('aria-expanded',n.classList.contains('open'))})</script>
+ </body>
+diff --git a/monoforge-staging/docs/freestruct.config.yml b/monoforge-staging/docs/freestruct.config.yml
+index 1fa12ab..47c74b0 100644
+--- a/monoforge-staging/docs/freestruct.config.yml
++++ b/monoforge-staging/docs/freestruct.config.yml
+@@ -3,5 +3,5 @@
+ site:
+   name: monoforge docs
+   url: https://docs.creadev.org
+-  description: The shared /packs SPEC — manifest contract, entry profiles, lifecycle, and the lint CLI.
++  description: stamps fleet repos from the proven template blocks, doctors them with the truth battery, and locks them with a checksum - generated green is never shipped.
+ basePath: /monoforge
+diff --git a/monoforge-staging/templates/docs/_config.yml b/monoforge-staging/templates/docs/_config.yml
+index 9e3c49c..7e17a54 100644
+--- a/monoforge-staging/templates/docs/_config.yml
++++ b/monoforge-staging/templates/docs/_config.yml
+@@ -3,7 +3,7 @@
+ # presentation lives in _layouts/default.html, kramdown GFM + rouge,
+ # permalink pretty; freestruct generates the sitemap post-build).
+ title: __NAME__ docs
+-description: The shared /packs SPEC - manifest contract, entry profiles, lifecycle, and the lint CLI.
++description: __DESCRIPTION__
+ url: https://docs.creadev.org
+ baseurl: /__NAME__
+ 
+diff --git a/monoforge-staging/templates/docs/_layouts/default.html b/monoforge-staging/templates/docs/_layouts/default.html
+index 3745f00..2a74bdd 100644
+--- a/monoforge-staging/templates/docs/_layouts/default.html
++++ b/monoforge-staging/templates/docs/_layouts/default.html
+@@ -12,8 +12,6 @@
+     <button class="burger" aria-label="Toggle menu" aria-expanded="false">☰</button>
+     <nav class="nav-list">
+       <a href="{{ '/' | relative_url }}">home</a> ·
+-      <a href="{{ '/spec' | relative_url }}">SPEC v1</a> ·
+-      <a href="{{ '/linter' | relative_url }}">linter</a> ·
+       <a href="{{ '/search' | relative_url }}">search</a>
+     </nav>
+   </header>
+@@ -21,7 +19,7 @@
+     {{ content }}
+   </main>
+   <footer>
+-    <p>© 2026 Creadev.org · __NAME__ - the shared /packs spec · \1 · <a href="__SITE_URL__/terms">Terms</a> · <a href="__SITE_URL__/privacy">Privacy</a> · part of the struct family</p>
++    <p>© 2026 Creadev.org · __NAME__ - __SPECIES__ · <a href="__SITE_URL__/terms">Terms</a> · <a href="__SITE_URL__/privacy">Privacy</a> · part of the struct family</p>
+   </footer>
+ <script>document.querySelector('.burger').addEventListener('click',()=>{const n=document.querySelector('.nav-list');n.classList.toggle('open');document.querySelector('.burger').setAttribute('aria-expanded',n.classList.contains('open'))})</script>
+ </body>
+diff --git a/monoforge-staging/templates/docs/freestruct.config.yml b/monoforge-staging/templates/docs/freestruct.config.yml
+index 9b3250b..c6459b0 100644
+--- a/monoforge-staging/templates/docs/freestruct.config.yml
++++ b/monoforge-staging/templates/docs/freestruct.config.yml
+@@ -3,5 +3,5 @@
+ site:
+   name: __NAME__ docs
+   url: https://docs.creadev.org
+-  description: The shared /packs SPEC — manifest contract, entry profiles, lifecycle, and the lint CLI.
++  description: __DESCRIPTION__
+ basePath: /__NAME__
