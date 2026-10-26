@@ -1,0 +1,21 @@
+name: test
+# eyestruct's OWN battery, riding in-tree from move day (the mount borrowed
+# gistory's ci.yml staging-hosts leg until then; the tar-move plan's injected
+# change #1 is this file). Same two legs the host leg proves today:
+#   npm test       - the node:test spine (smoke)
+#   npm run check  - lint:docs && packs && lint:packs && conform:packs
+# npm ci is hermetic against the shipped lockfile (packstruct@1.0.0 exact
+# pin inside). Docs gates fail loudly on voice/links/frontmatter drift.
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci --no-fund --no-audit
+      - run: npm test
+      - run: npm run check

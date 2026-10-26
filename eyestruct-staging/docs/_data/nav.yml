@@ -8,5 +8,7 @@
       url: /eyestruct/
 - title: Reference
   items:
+    - title: Verbs
+      url: /eyestruct/verbs
     - title: PRD
       url: /eyestruct/labs/prd-eyes
