@@ -146,7 +146,7 @@ metal cools - \"post\" is when the fixes are still cheap.)\n\n\
   audited site, the CI lane, and the eye-ledger baseline all live there.\n\n\
 ## Relationships\n\
 - Human: dhaupin - author; names things in print metaphors.\n\
-- Siblings: RooOk (keeper across gistory/crashtest/prestruct), Crashtest\n\
+- Siblings: Roook (keeper across gistory/crashtest/prestruct), Crashtest\n\
   (attack ledger, receipt pattern), magpie/eyestruct (pixels - check the\n\
   claims this leg cannot), packstruct (the shared /packs spec + lint).\n\
 - This brain: seed stage - it grows from receipts, never guesses. First\n\
@@ -173,7 +173,7 @@ ps_goals = "# goals.md - poststruct (seed)\n\n\
   same crashledger semantics (append-only, adopt-by-rerun).\n\
 - teach the packs grammar to more repos (the freestruct lesson: exact\n\
   pins, receipts on every bump).\n\n\
-## Non-goals (anti-drift; do not negotiate silente…)\n\
+## Non-goals (anti-drift; do not negotiate silently)\n\
 - Not a browser automation SDK (it audits baked bytes, on disk).\n\
 - Not a hosted scanning service (repo-local, git-native, CI-gated).\n\
 - Not an OCR/screen-scrape layer (that is eyestruct's color of the work;\n\
@@ -229,7 +229,7 @@ ps_payload = bundle([
 ])
 
 # ---------------------------------------------------------------- ART -------
-# Hand-drawn, same house aesthetic (dard #0c0d10, ivory strokes, accent).
+# Hand-drawn, same house aesthetic (dark #0c0d10, ivory strokes, accent).
 # magpie r2: the mirror-weaver bird, face-forward; a twin-ring echo marks
 # the second cut (brain r2), and the stone title mark rides the same bone.
 magpie_art = """<g transform="translate(-16,190)">
