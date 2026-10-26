@@ -14,15 +14,18 @@ handoff/  build artifacts destined for OTHER repos (not continuance material)
 
 | file | brain / project | gen | state | git blob id |
 |------|-----------------|-----|-------|-------------|
-| `gistory-p_gistory-castles-2026.svg` | gistory (the host) | r1 | **brn:secret** — sealed vant baseline; refresh pass runs upstream when the repo opens | `843371dd` |
-| `gistory-p_gistory-castles-2026-2.svg` | gistory (the host) | r2 | unsealed — the 2026-10-26 brain refresh (birth-run + birth-gate receipts ride inside); `scripts/cut-gistory.py`, ferry-gated | `a1a01c2d6bd46225b5178437f5e0e8de0536cd64` |
-| `magpie-p_mirror-eyes-2026.svg` | magpie · **eyestruct** | r1 | unsealed — 2026-10-23 hand-cut source-of-record; carries the eyestruct seed brain + its PRD | `567765e6` |
-| `magpie-p_mirror-eyes-2026-2.svg` | magpie · **eyestruct** | r2 | unsealed — CI-cut from r1 with patched receipts; `scripts/cut-stones.py`, ferry-gated | `0bde5b6db94edac65636a34648db13f116cb436e` |
+| `gistory-p_gistory-castles-2026-r1.svg` | gistory (the host) | r1 | **brn:secret** — sealed vant baseline; refresh pass runs upstream when the repo opens | `843371dd` |
+| `gistory-p_gistory-castles-2026-r2.svg` | gistory (the host) | r2 | unsealed — the 2026-10-26 brain refresh (birth-run + birth-gate receipts ride inside); `scripts/cut-gistory.py`, ferry-gated | `a1a01c2d6bd46225b5178437f5e0e8de0536cd64` |
+| `magpie-p_mirror-eyes-2026-r1.svg` | magpie · **eyestruct** | r1 | unsealed — 2026-10-23 hand-cut source-of-record; carries the eyestruct seed brain + its PRD | `567765e6` |
+| `magpie-p_mirror-eyes-2026-r2.svg` | magpie · **eyestruct** | r2 | unsealed — CI-cut from r1 with patched receipts; `scripts/cut-stones.py`, ferry-gated | `0bde5b6db94edac65636a34648db13f116cb436e` |
 | `poststruct-p_wordprint-2026.svg` | poststruct (struct family) | r2 | unsealed — 2026-10-26 seed-brain transfer stone (text leg); password rides after `p_` in the filename | `295e5a170c6761e14e71cff0e9b34f70f08327ee` |
 
-**Naming convention:** `<brain>-p_<stone-word>-<year>[-<gen>].svg`. The stone
+**Naming convention:** `<brain>-p_<stone-word>-<year>[-rN].svg`. The stone
 word rides after `p_`; for unsealed stones the password rides after `p_` in the
 FILENAME (the house convention — the filename is part of the vault key).
+Generation suffixes are `-r1`/`-r2` (bare digit `-2` names retired 2026-10-26,
+path-only: each cutter pins its stone's BIRTH name into the SVG header via
+`label=`, so bytes — and ferry gate ids — never move on a rename).
 
 **The magpie pair (the naming disconnect, stated plainly):** magpie is the
 **eyestruct project's brain name** (the project's word was "eyes" during the

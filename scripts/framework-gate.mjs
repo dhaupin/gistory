@@ -62,10 +62,10 @@ if (fs.existsSync(STAGING.eyestruct)) {
   // stones like any other, "loads" and "renders" are separate gates, and
   // only the second is sight.
   const stones = [
-    'horcrux/stones/gistory-p_gistory-castles-2026.svg',
-    'horcrux/stones/gistory-p_gistory-castles-2026-2.svg',
-    'horcrux/stones/magpie-p_mirror-eyes-2026.svg',
-    'horcrux/stones/magpie-p_mirror-eyes-2026-2.svg',
+    'horcrux/stones/gistory-p_gistory-castles-2026-r1.svg',
+    'horcrux/stones/gistory-p_gistory-castles-2026-r2.svg',
+    'horcrux/stones/magpie-p_mirror-eyes-2026-r1.svg',
+    'horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg',
     'horcrux/stones/poststruct-p_wordprint-2026.svg',
     'public/favicon.svg',
   ].filter((f) => fs.existsSync(path.join(ROOT, f)))

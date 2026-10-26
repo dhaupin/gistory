@@ -5,7 +5,7 @@
 # (labs/ci-repair-ledger-2026-10-26.md, the birth gate, the ferry lanes);
 # this stone carries the brain texts + pointers so the vant-workspace
 # restore and the receipts never drift apart. The sealed baseline
-# (horcrux/stones/gistory-p_gistory-castles-2026.svg, brn:secret) stays
+# (horcrux/stones/gistory-p_gistory-castles-2026-r1.svg, brn:secret) stays
 # untouched - its sealed pass happens upstream when the repo opens.
 # Format: stone-delimited v1 unsealed, per the magpie r2 precedent.
 # Determinism: fixed brain texts + fixed art -> fixed bytes; the stone
@@ -30,10 +30,13 @@ def bundle(files):
             out.append(line if line.endswith('\n') else line + '\n')
     return MARKER.join(out)
 
-def wrap_stone(dest, art, note, owner, stone_name, year, payload_text):
+def wrap_stone(dest, art, note, owner, stone_name, year, payload_text, label=None):
     """Assemble the final SVG artifact; self-check by parsing what is written."""
     payload_b64 = base64.b64encode(payload_text.encode('utf-8')).decode('ascii')
-    stem = pathlib.PurePath(dest).stem
+    # The wheel's identity is its BIRTH name: filenames are vault paths and may
+    # rename across generations (path-only), but the SVG's own header must stay
+    # byte-stable - the stone IS the bytes, the filename is only the address.
+    stem = pathlib.PurePath(dest).stem if label is None else pathlib.PurePath(label).stem
     svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" xmlns:brn="urn:vant" '
         'viewBox="0 0 400 400" width="400" height="400">\n'
@@ -184,9 +187,10 @@ gistory_art = '''<g transform="translate(0,12)">
 </g>
 '''
 
-n3 = wrap_stone(ROOT / 'horcrux/stones/gistory-p_gistory-castles-2026-2.svg', gistory_art,
+n3 = wrap_stone(ROOT / 'horcrux/stones/gistory-p_gistory-castles-2026-r2.svg', gistory_art,
                 'transfer stone r2 for the gistory brain (the host refresh: birth-run + birth-gate receipts ride inside; sealed vant baseline untouched)',
-                'dhaupin/gistory', 'gistory-castles', '2026', gs_payload)
+                'dhaupin/gistory', 'gistory-castles', '2026', gs_payload,
+                label='gistory-p_gistory-castles-2026-2')
 print(f'gistory r2 stone bytes: {n3}')
 
 gsdir = OUT / 'gistory-brain'; gsdir.mkdir(parents=True, exist_ok=True)

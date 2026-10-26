@@ -3,13 +3,13 @@
 # Round-trip-equality is asserted BEFORE any bytes are written; nothing
 # here throws away content it did not parse. Stone format: stone-delimited
 # v1 (brn:unsealed), per the convention provably used by
-# horcrux/stones/magpie-p_mirror-eyes-2026.svg - parse, patch, re-encode, verify
+# horcrux/stones/magpie-p_mirror-eyes-2026-r1.svg - parse, patch, re-encode, verify
 # block-for-block, then rasterize before calling it done.
 
 import re, base64, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-STONE = ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026.svg'
+STONE = ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026-r1.svg'
 OUT = ROOT / '.cut-tmp'; OUT.mkdir(exist_ok=True)
 MARKER = '<<STONE>>'
 
@@ -48,10 +48,13 @@ def replace_block(st, name, new_body):
 def serialize(st):
     return MARKER.join(st['parts'])
 
-def wrap_stone(dest, art, note, owner, stone_name, year, payload_text):
+def wrap_stone(dest, art, note, owner, stone_name, year, payload_text, label=None):
     """Assemble the final SVG artifact; self-check by parsing the written file."""
     payload_b64 = base64.b64encode(payload_text.encode('utf-8')).decode('ascii')
-    stem = pathlib.PurePath(dest).stem
+    # The wheel's identity is its BIRTH name: filenames are vault paths and may
+    # rename across generations (path-only), but the SVG's own header must stay
+    # byte-stable - the stone IS the bytes, the filename is only the address.
+    stem = pathlib.PurePath(dest).stem if label is None else pathlib.PurePath(label).stem
     svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" xmlns:brn="urn:vant" '
         'viewBox="0 0 400 400" width="400" height="400">\n'
@@ -270,9 +273,10 @@ poststruct_art = """<g transform="translate(0,8)">
 </g>
 """
 
-n1 = wrap_stone(ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026-2.svg', magpie_art,
+n1 = wrap_stone(ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg', magpie_art,
                 'transfer stone r2 for the magpie brain (eyes project), brain receipts patched this cutting',
-                'dhaupin/magpie', 'mirror-eyes', '2026', magpie_payload)
+                'dhaupin/magpie', 'mirror-eyes', '2026', magpie_payload,
+                label='magpie-p_mirror-eyes-2026-2')
 n2 = wrap_stone(ROOT / 'horcrux/stones/poststruct-p_wordprint-2026.svg', poststruct_art,
                 'transfer stone for the poststruct seed brain (text leg, struct family); password rides after p_ per house convention',
                 'dhaupin/poststruct', 'wordprint', '2026', ps_payload)
