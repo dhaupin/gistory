@@ -207,7 +207,7 @@ Documentation for both engines' audit proposals gets repointed here (one new tra
 
 ## 11. Honest risk register
 
-- **Fragment targets (']'foo') in linkcheck'** require in-page anchor extraction — small, but fiddly with SSR'd React attrs; ship anchors as WARN in M1, promote in M2 if stable.
+- **Fragment targets (`#foo`) in linkcheck** require in-page anchor extraction — small, but fiddly with SSR'd React attrs; ship anchors as WARN in M1, promote in M2 if stable.
 - **The a11y "informative image" heuristic is the oldest trap in automated a11y.** Decorative-vs-informative is context-dependent; we mark `alt=""` as decorative and everything else as informative, documented as a conservative policy — never claim WCAG conformance, only that these specific failures are caught.
 - **Cliche detection is lexicon-and-construction matching, not authorship forensics.** It catches known tells (dash bans being the only unambiguous one); it will miss fresh AI-isms and flag the odd human sentence that happens to contain "seamlessly." Policy: banned terms are configurable per org, default level WARN for lexicon hits (human review), FAIL reserved for the mechanical classes (dash characters, keyboard mashing, lorem ipsum in production). Never claim it proves human authorship — it proves the absence of named patterns, which is the thing you can actually enforce.
 - **Zero-dep discipline vs future HTML parsing.** The seed uses regexes and they've held fine (16 routes × 4 or so a day of rebuilds, dozens of tt runs). If a check needs a real parser, that's the moment one dependency becomes acceptable — decided then, not now.
