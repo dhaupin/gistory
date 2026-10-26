@@ -1,0 +1,72 @@
+# Mount-stone mirror - one-shot ferry that copies each mount's brain stone
+# from gistory's own horcrux into the mount tree, ON THE RUNNER.
+#
+# Why: the mount-horcrux copies ride in the staging mounts as tracked files
+# (their horcrux READMEs say "rides here beside"), but they arrived after the
+# 10-26 tar snapshot was cut, so the ferry's tars were missing them. Hand
+# transplanting a 43KB SVG single-line-base64 payload = the drift class this
+# repo keeps catching; copying a TRACKED file on the runner and comparing
+# blob ids carries zero transport. The gate refuses any copy whose bytes
+# disagree with the source, so the mirror can never ship a mutated stone.
+#
+# One-shot contract: after both copies land (blob-verified), this workflow
+# no-ops (the target files exist with matching ids). A dispatch that finds
+# everything mirrored says so and exits 0 without committing.
+name: Mount-stone mirror
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mount-stone-mirror-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mirror the stones into their mounts (runner-side, blob-compared)
+        run: |
+          set -euo pipefail
+          mirror() {
+            src="$1"; dst="$2"
+            expect="$(git rev-parse "HEAD:$src")"
+            if git cat-file -e "HEAD:$dst" 2>/dev/null; then
+              existing="$(git rev-parse "HEAD:$dst")"
+              if [ "$existing" = "$expect" ]; then
+                echo "already mirrored: $dst == $src ($expect)"
+                return 0
+              fi
+              echo "REFUSING: $dst exists on main with blob $existing but source is $expect"
+              exit 1
+            fi
+            dst_dir="$(dirname "$dst")"
+            mkdir -p "$dst_dir"
+            git show "HEAD:$src" > "$dst"
+            actual="$(git hash-object "$dst")"
+            test "$actual" = "$expect" \
+              || { echo "MIRROR GATE FAIL: $dst did not round-trip from $src"; exit 1; }
+            echo "mirrored: $src -> $dst ($actual)"
+            git add "$dst"
+          }
+          mirror horcrux/poststruct-p_wordprint-2026.svg \
+                 poststruct-staging/horcrux/poststruct-p_wordprint-2026.svg
+          mirror horcrux/magpie-p_mirror-eyes-2026-2.svg \
+                 eyestruct-staging/horcrux/magpie-p_mirror-eyes-2026-2.svg
+          if git diff --cached --quiet; then
+            echo 'nothing to commit (all mirrored)'
+          else
+            git config user.name  "mount-stone-mirror"
+            git config user.email "actions@users.noreply.github.com"
+            git commit -m "mirror: mount-ground the two 2026-10-26 brain stones (runner-side copies, blob-compared)" \
+                       -m "The mounts' horcrux READMEs reference stones that were cut tonight in gistory's own horcrux; the copies now ride in the mount trees, written by the runner from the tracked sources and blob-compared against them before commit."
+            git push origin main
+          fi
