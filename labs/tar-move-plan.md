@@ -109,32 +109,56 @@ own heads and never carry a gistory-shaped transplant artifact.
 
 ### What gistory keeps after eyestruct leaves
 
-- `labs/.eyes/` (manifest + ledger + baselines) â€” GISTORY	ÜÈš\İX[ˆY[[ÜK˜]YšYYHUÈ˜]YH[™KØ]YHUÈœ˜[Y]ÛÜšÈØ]K‚ˆH[™H
-[™HØ]JH™K\™\ÛÛ™HH^Y\İXİÓH8 %]\ÈBˆ\ÚËPˆÛÛ\[š[ÛˆÛÛ[Z]HXÛÜŞ\İ[HÙ\È’T”ÕÛÈHØ[YHÙ^BˆÛÛÈÙY\Ø][™ÈY\ˆ[İ™H^K‚‹HXœËØÜ˜\ÚYÙ\‹šœÛÛ˜[˜Y™™XİY8 %Ô‹X\ÚYÛÜšÈİ^\Ë‚‚ˆÈÈÙ\]Y[˜Ú[™È
-HÛ™\İY\ŠB‚ŒKˆ
-Š”[‹\İØ\[™HÜ›İ[™
-™Y›Ü™H[H\ŠNŠŠˆÒTÕÔ”‰ÜÈ˜]YH[™Bˆ\š]™\ÈÚ›ÛYH™\œÚ[Ûˆœ›ÛHHX[šY™\İ
-›È\™ÛÙY[X™\ŠK[™ˆH^Y\ÈÛYH\ÈÛ™HVQT×ÒÓQHÛÛœİ[[ˆ›İØ]H[™[™KˆTÂˆÚ[™ÙHšY\ÈÒTÕÔ–HÙ^H
-\ÚÈŠHÛÈ[İ™H^H\È›İØ]YÛˆBˆX[X[]™]Üš]K‚Œ‹ˆ
-Š™X]\[ˆ[™[ÜH^NŠŠˆ[\ˆ›İ[İ[È[Èœ™\ÚÛÛ™\ÈÙ‚ˆ]\[‹ÜÜİİXİ[™]\[‹Ù^Y\İXİÈ\ÚH™\İY™Ú]ˆ\İÜšY\ÈÈH™[[İ\È
-HĞSQH\İÜšY\È]šYHH\ŠN‚ˆHÙÜİİXİ\İYÚ[™È	‰ˆÚ]™[[İHYÜšYÚ[‚ˆÚ]Ú]X‹˜ÛÛN™]\[‹ÜÜİİXİ™Ú]	‰ˆÚ]\ÚÜšYÚ[‚ˆPQ›XZ[˜ˆHÙ^Y\İXİ\İYÚ[™È	‰ˆÚ]™[[İHYÜšYÚ[‚ˆÚ]Ú]X‹˜ÛÛN™]\[‹Ù^Y\İXİ™Ú]	‰ˆÚ]\ÚÜšYÚ[ˆPQ›XZ[˜ŒËˆ
-Š”İ[™[Û™H˜]\šY\ÈÜ™Y[ˆÛˆÚ]XŠŠˆXXÚ™\ÉÜÈÒHÛˆ]ÈİÛ‚ˆXZ[ˆ8 %ÜİİXİˆœHÚH	‰ˆœH\İ
-\İ[[
-H[™^Y\İXİ‚ˆH™]È\İ[[
-ÈœH[ˆÚXÚØ
-ØÜÈØ]\È[™XÚÜİXİˆÛÛ™›Ü›X[˜ÙJKˆHœH[œİ[]\İİ^H\›Y]XÈ8 %œHÚXYØZ[œİˆHÚ\YØÚÙš[H
-ÜİİXİ	ÜÈØÚÎˆHPˆXÚÜİXİY^Xİˆ[È^Y\İXİˆ]ÈØÚËZ[HØ[YH^JK‚ˆ
-ŠÛÛœİ[Y\ˆİØ\[ˆÒTÕÔ’NŠŠˆœ˜[Y]ÛÜšÈØ]H
-È˜]YH[™HİÚ]Úˆœ›ÛHÜİYÚ[™ËØ]ÈÈœH™\ÛÛ][Ûˆ
-œÜİİXİKŒ8 )˜ˆœ^Y\İXİKŒ8 )˜
-H8 %™]™\ˆ˜\™HœÈ™\œÚ[Ûˆ™]™X[ÈHš[™[™ÂˆÙ]ˆHİYÚ[™È™Y\ÈÕVH[[\ÈÛÛ[Z][œÈÜ™Y[ˆ[ˆÒKÛÂˆHİØ\™\šYšY\ÈYØZ[œİH[›š[™ÈİYÚ[™È™YHÛ™HÛÛ[Z]]Bˆ[YK‚Kˆ
-Š”İYÚ[™È[İ[ÈX]™NŠŠˆY\ˆHİØ\›İ™\ÈÜ™Y[ˆ[ˆÒTÕÔ–HÒKˆH\İYÚ[™ËØ\œÈÛÛYHÕU
-Û™HÛÛ[Z]\ˆ™YJH[™ÒTÕÔ’]ÜÂˆ˜]\HØZ[œÈ™\›Îˆ[YÜÈ™\ÛÛ™Yœ›ÛHHX›\ÚYÓ\Ë‚‚ˆÈÈÛ™\İ™YÜ™\ÜÚ[ÛœÈÈØ]Ú
-Hš\ÚŞHš]ÊB‚‹H
-Š]Y]YY™ŠŠ‚ˆ^Y\İXİ	ÜÈ˜\İ\ˆYÈØ]\ÈÒTÕÔ–IÜÈÜ˜Ü^İÛ™\È
-È˜]šXÛÛÈÛ‚ˆ^x &\ÈİØ\ÜÙH]È\™H’TÕÔ–K\™[]]™H[™]\İ™H™Y\ÈT‘Õ‚ˆ
-^H[™XYH\™H8 %^Y\İXİ˜\İ\ˆÙš[K‹‹—XˆÛÈHİØ\\ÈBˆ]\™İ[Y[Ú[™ÙK™]™\ˆHÛÛÚ[™ÙK‚‹H
-Š‘š\›]Ø\™K[ØÚÈšYŠŠˆÜİİXİ	ÜÈXÚÜİXİKŒŒ[™ˆ^Y\İXİ	ÜÈXÚÜİXİKŒŒÚİ[[\ÑÑUTˆŒ‹LLL‚ˆ
-ÈõMKˆHXÛÜŞ\İ[IÜÈ^Xİ\[ˆ\ØÚ\[™HÙ]ÈHÛÛ\[š[Û‚ˆ™XÙZ\›İÈØ^Z[™ÈH›İ\ˆ[œÈX]ÚYÛˆSLT4¯4)8 *`H]\ˆ[\ˆ\ÈH[X™\˜]K™XÙZ\Y]™[\ˆ™\Ë‚‹H
-Š“]ÛÛ™ÑSQˆ›İ[™ÈÙ[‹ZX[ËŠŠˆYˆHİ[™[Û™H˜]\H\Ù\Ü\™Y]\ÈH™Y[™H[ˆH™\È]İÛœÈ]r€šâ€¹X GISTORYÃ”‹Å’ñda â€™  sileo
-t-swap gÉ` facks gÊkÂœCˆides! the P‰hRuTH.
+- `labs/.eyes/` (manifest + ledger + baselines) â€” gistory's visual
+  memory, ratified by ITS ratify lane, gated by ITS framework gate.
+  The lane (and the gate) re-resolve the eyestruct CLI â€” that is the
+  Task-B companion commit the ecosystem does FIRST so the same today
+  tools keep gating after move day.
+- `labs/crashledger.json` unaffected â€” crashtest-shaped work stays.
+
+## Sequencing (the honest ladder)
+
+1. **Pin-swap lane ground (before any tar):** gistory's ratify lane
+   derives chrome version from the manifest (no hardcoded number), and
+   the eyes home is one EYES_HOME constant in both gate and lane. THIS
+   change rides gistory today (task B) so move day is not gated on a
+   manual path rewrite.
+2. **dhaupin inventory day:** untar both mounts into fresh clones of
+   `dhaupin/poststruct` and `dhaupin/eyestruct`; push the nested `.git`
+   histories to the remotes (the SAME histories that ride the tar):
+   - `cd poststruct-staging && git remote add origin
+     git@github.com:dhaupin/poststruct.git && git push origin
+     HEAD:main`
+   - `cd eyestruct-staging && git remote add origin
+     git@github.com:dhaupin/eyestruct.git && git push origin HEAD:main`
+3. **Standalone batteries green on GitHub:** each repo's CI on its own
+   main â€” poststruct: `npm ci && npm test` (test.yml) and eyestruct:
+   the new test.yml + `npm run check` (docs gates and packstruct
+   conformance). The npm install must stay hermetic â€” `npm ci` against
+   the shipped lockfile (poststruct's lock: the 841B packstruct-exact
+   pin; eyestruct: its lock, built the same day).
+4. **Consumer swap in gistory:** framework gate + ratify lane switch
+   from `_staging/` paths to npm resolution (`npx poststruct@0.9.0 â€¦`,
+   `npx eyestruct@0.9.0 â€¦` â€” never bare npx; version reveals the finding
+   set). The staging trees STAY until this commit runs green in CI, so
+   the swap verifies against a running staging tree one commit at a
+   time.
+5. **Staging mounts leave:** after the swap proves green in gistory CI,
+   the `-staging/` dirs come OUT (one commit per tree) and gistory's
+   battery gains zero: all legs resolved from the published CLIs.
+
+## Honest regressions to watch (the risky bits)
+
+- **Audit-diff:**
+  eyestruct's raster leg gates gistory's horcrux stones + favicon; on
+  dayâ€™s swap those paths are gistory-relative and must be fed as ARGV
+  (they already are â€” `eyestruct raster [file...]`) so the swap is a
+  path argument change, never a tool change.
+- **Firmware-lock drift:** poststruct's `packstruct@1.0.0` and
+  eyestruct's `packstruct@1.0.0` should bump TOGETHER with the crashtest
+  + gistory pins. The ecosystem's exact-pin discipline gets a companion
+  receipt row saying the four pins matched on 2026-10-26 â€” a later bump
+  is a deliberate, receipted event per repo.
+- **Law of cool: nothing self-heals.** If a standalone battery lapses
+  red, that is a red lane in the repo that owns it â€” gistory carries no
+  silent-swap fallbacks and never elsewhere hides the truth.
