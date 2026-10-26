@@ -49,15 +49,15 @@ function main() {
   console.log('birth gate:')
   for (const f of findings) {
     const parts = [`  ${f.state.padEnd(12)} ${f.name}`]
-    if (f.detail) parts.push(`|  ${f.detail}`)
-    if (f.\\.reasoni) parts.push(`| skip: ${f.\\.reasoni}`)
+    if (f.detail) parts.push(`| ${f.detail}`)
+    if (f.reason) parts.push(`| skip: ${f.reason}`)
     console.log(parts.join(' '))
     if (f.state === 'FAIL') failed = true
   }
   process.exit(failed ? 1 : 0)
 }
 
-// --- CHECK 1: workflow syntax -------------------------------------z™r----------
+// --- CHECK 1: workflow syntax ---------------------------------------------
 function checkWorkflows() {
   const dir = path.join(ROOT, '.github', 'workflows')
   if (!fs.existsSync(dir)) {
