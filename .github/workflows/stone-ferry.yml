@@ -67,14 +67,14 @@ jobs:
           set -euo pipefail
           git config user.name  "stone-ferry"
           git config user.email "actions@users.noreply.github.com"
-          git add horcrux/stones/magpie-p_mirror-eyes-2026-2.svg \\
-                  horcrux/stones/poststruct-p_wordprint-2026.svg \\
+          git add horcrux/stones/magpie-p_mirror-eyes-2026-2.svg \
+                  horcrux/stones/poststruct-p_wordprint-2026.svg \
                   horcrux/stones/gistory-p_gistory-castles-2026-2.svg
           if [ -d .cut-tmp/parts ]; then
             git rm -r -q .cut-tmp/parts
           fi
           if ! git diff --cached --quiet; then
-            git commit -m "horcrux: cut magpie r2 + poststruct seed + gistory r2 stones (sha-gated ferry)" \\
+            git commit -m "horcrux: cut magpie r2 + poststruct seed + gistory r2 stones (sha-gated ferry)" \
                        -m "Every stone regenerates from committed sources and is sha-gated against its offline blob id (0bde5b6d / 295e5a17 / a1a01c2d) before anything is committed - the CI-cut lane, not hand-carry. Brain parity copies ride .cut-tmp."
             git push origin main
           else
