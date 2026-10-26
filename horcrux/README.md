@@ -19,6 +19,8 @@ the stone ferry against that offline id (the ferry gate ships in this pass)
 - raster validation: loads + renders via eyestruct-staging's gate
   (resvg present) - `raster OK, 5327 bytes opaque`
 - full-devil cut batteries this pass: 4 stones + favicon raster OK;
-  poststruct/eyestruct 10-26 git tars gzip+fsck+tree clean (53/94 files,
-  snapshot commits cea9b12d / d6e75483); horcrux prds byte-identical to
+  poststruct/eyestruct 10-26 git tars gzip+fsck+tree clean (54/95 files,
+  snapshot commits 3c773e50 / 587b6b98, RE-CUT after the mount-stone
+  mirror landed the two brain-stone copies inside the mounts - see the
+  tars receipt); horcrux prds byte-identical to
   their mounts (poststruct 632227f2, eyes 686b5079)

@@ -30,9 +30,31 @@ The host's own refresh stone joined the standing CI-cut lane.
   `git rev-parse origin/main:horcrux/gistory-p_gistory-castles-2026-2.svg`
   = `a1a01c2d6bd46225b5178437f5e0e8de0536cd64`.
 
+## Parity-dig addendum (2026-10-26, same evening)
+
+A fresh-fetch audit of every svg / prd / tar against origin found
+redone tree deltas: the two mount-horcrux brain-stone copies existed
+only on the working disk (never landed in the mount trees), so the
+10-26 tars were missing them. Cure, all runner-side:
+
+- `e71e408` mirror ferry committed; `6ccab5e` copied
+  `horcrux/poststruct-p_wordprint-2026.svg` ->
+  `poststruct-staging/horcrux/` and `horcrux/magpie-p_mirror-eyes-2026-2.svg`
+  -> `eyestruct-staging/horcrux/`, blob-compared (`295e5a17` / `0bde5b6d`).
+- staging-tars re-dispatched: fresh deterministic snapshots committed as
+  `d49686f` - poststruct tar `96a418d7` (snapshot `3c773e50`, 54 files),
+  eyestruct tar `21f8384e` (snapshot `587b6b98`, 95 files).
+- Re-validation from ORIGIN bytes: gzip -t both OK; fsck 0 errors both;
+  the stones inside the tar trees hash to the exact gate ids; the tar
+  HEAD trees equal the working mounts with ZERO deltas (node_modules
+  aside).
+- Gistory r2: payload re-derived from the ORIGIN stone equals the
+  restored `models/private/gistory/*.md` 6/6 byte-for-byte.
+
 ## The loop that is now closed
 
 The gistory brain refresh is CI-cut and sha-gated like the mounts' own
 stones: seal never needed, offline id pinned in the ferry gate, raster
 gated in the framework's EYES-ART leg. Next stone refresh is only ever:
-edit the cutter's committed texts, recompute the offline id, land.
+edit the cutter's committed texts, recompute the offline id, land - and
+the tar ferry re-snapshot any mount that gained a file before a move.
