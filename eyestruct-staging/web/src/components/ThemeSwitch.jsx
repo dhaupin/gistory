@@ -10,7 +10,7 @@
  */
 import { useEffect } from 'react'
 
-const THEME_KEY = 'flowforge-theme'
+const THEME_KEY = 'eyestruct-theme'
 
 function toggleTheme() {
   const el = document.documentElement

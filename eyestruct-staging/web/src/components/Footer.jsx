@@ -10,7 +10,7 @@ export default function Footer() {
   return (
     <footer className="footer">
       <div className="wrap footer-inner">
-        <span>- a flowforge shell site</span>
+        <span>eyestruct · part of the struct family</span>
         {NAV_ITEMS
           .filter(i => ['GitHub'].includes(i.label))
           .map(i => (
@@ -21,7 +21,7 @@ export default function Footer() {
             ? <Link key={i.label} to={i.href}>{i.label}</Link>
             : <a key={i.label} href={i.href} target="_blank" rel="noreferrer">{i.label}</a>
         ))}
-        <span>Made by <a href="https://creadev.org" target="_blank" rel="noopener" className="madeby">Rook @ Creadev.org</a></span>
+        <span>Made by <a href="https://creadev.org" target="_blank" rel="noopener" className="madeby">Creadev.org</a></span>
       </div>
     </footer>
   )
