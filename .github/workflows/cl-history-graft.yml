@@ -1,0 +1,43 @@
+name: cl-history-graft
+# One-shot, dispatch-only, ZERO carried file content: the target
+# CHANGELOG.md equals (a) the intact pre-change revision at 62a1f0fe
+# (body) plus (b) the intact Unreleased block from the 98fac3d
+# revision (its covered prefix is clean). The run extracts the block
+# from history, inserts it before the 0.9.0 anchor, blob-gates on the
+# disk shade ffc8839d, and only then writes and commits.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  graft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Extract block from history, graft, blob-gate, commit
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          v1 = subprocess.run(['git','show','98fac3df3ee585a927caf3b72846d1723cb4ac69:CHANGELOG.md'],capture_output=True,check=True).stdout
+          v0 = subprocess.run(['git','show','62a1f0fe1d3d2e59d4e83399aaad360139166e66:CHANGELOG.md'],capture_output=True,check=True).stdout
+          pu = b'## [Unreleased]'
+          p9 = b'## [0.9.0] - 2026-10-22'
+          block = v1[v1.index(pu):v1.index(p9)]
+          assert v0.count(p9) == 1, 'anchor not unique'
+          src = v0.replace(p9, block + p9, 1)
+          blob = subprocess.run('git hash-object --stdin',input=src,capture_output=True,check=True,shell=True).stdout.decode().strip()
+          print('grafted blob:', blob, '(target ffc8839df96d9e8c0a3efdb64898703f9e59c705)')
+          assert blob == 'ffc8839df96d9e8c0a3efdb64898703f9e59c705', 'BLOB MISMATCH - refusing to write'
+          open('CHANGELOG.md','wb').write(src)
+          print('REPAIR APPLIED, blob gate satisfied')
+          PY
+      - name: Commit the repair
+        run: |
+          git config user.name  "Codebuff"
+          git config user.email "noreply@codebuff.com"
+          git add CHANGELOG.md
+          git commit -m "changelog: history-graft rebuild (blob gate ffc8839d)"
+          git push
+          echo "LANDED-OK $(git rev-parse HEAD)"
