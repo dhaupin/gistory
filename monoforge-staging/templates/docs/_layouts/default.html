@@ -12,8 +12,6 @@
     <button class="burger" aria-label="Toggle menu" aria-expanded="false">☰</button>
     <nav class="nav-list">
       <a href="{{ '/' | relative_url }}">home</a> ·
-      <a href="{{ '/spec' | relative_url }}">SPEC v1</a> ·
-      <a href="{{ '/linter' | relative_url }}">linter</a> ·
       <a href="{{ '/search' | relative_url }}">search</a>
     </nav>
   </header>
@@ -21,7 +19,7 @@
     {{ content }}
   </main>
   <footer>
-    <p>© 2026 Creadev.org · __NAME__ - the shared /packs spec · \1 · <a href="__SITE_URL__/terms">Terms</a> · <a href="__SITE_URL__/privacy">Privacy</a> · part of the struct family</p>
+    <p>© 2026 Creadev.org · __NAME__ - __SPECIES__ · <a href="__SITE_URL__/terms">Terms</a> · <a href="__SITE_URL__/privacy">Privacy</a> · part of the struct family</p>
   </footer>
 <script>document.querySelector('.burger').addEventListener('click',()=>{const n=document.querySelector('.nav-list');n.classList.toggle('open');document.querySelector('.burger').setAttribute('aria-expanded',n.classList.contains('open'))})</script>
 </body>
