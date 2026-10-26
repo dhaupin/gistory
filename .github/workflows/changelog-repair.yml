@@ -1,0 +1,6 @@
+name: changelog-repair
+# One-shot, dispatch-only: CHANGELOG.md rode the commit lane with repeated
+# transcription drift, so the rescue does NOT carry the file. The run
+# rebuilds it from INTACT git history (the pre-Unreleased version at
+# 62a1f0fe) and inserts only the small Unreleased block, blob-gating on 
+"ˆÑ¡”­¹½İ¸µ½½‘¥Í¬Í¡…‘”	=IİÉ¥Ñ¥¹œ¸]½É­™±½Üµ™¥±”±•…¹ÕÀÉ¥‘•Ì(ŒÑ¡”½µµ¥Ğ±…¹”…™Ñ•Éİ…É‘Ì€¡„ÉÕ¸ÌÁÕÍ µ…ä¹½ĞÁ…Ñ (Œ€¹¥Ñ¡Õˆ½İ½É­™±½İÌ¤¸)½´
