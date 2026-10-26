@@ -33,6 +33,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the restore reads bytes from a PARENT TREE object;
+          # a depth-1 fetch does not carry those objects (the first run died
+          # on "unable to read tree 9f0b3f2f83...").
+          fetch-depth: 0
 
       - name: Restore the lock from the parent tree's own bytes
         run: |
