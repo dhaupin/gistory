@@ -95,16 +95,19 @@ if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(STAGING.poststr
 }
 
 // --- EYES-MEM leg (the .eyes ledger gate) ---------------------------------
-// gistory hosts its visual memory at labs/.eyes (next to crashledger.json,
-// the family's ledger home), so the gate verb names both bookkeeping
-// paths explicitly - the .eyes default belongs to repos that ARE eyes.
-const EYES_MANIFEST = 'labs/.eyes/manifest.yml'
-const EYES_LEDGER = 'labs/.eyes/ledger.json'
+// The eyes home is a HOST decision, not a tool default: gistory keeps its
+// visual memory at labs/.eyes beside the family's other ledgers
+// (crashledger.json), while a repo that IS eyes keeps the tool's .eyes/
+// default. One constant here (EYES_HOME in the ratify lane), so a host move
+// is a single-line diff - never a hunt through step bodies.
+const EYES_HOME = process.env.EYES_HOME || 'labs/.eyes'
+const EYES_MANIFEST = `${EYES_HOME}/manifest.yml`
+const EYES_LEDGER = `${EYES_HOME}/ledger.json`
 if (fs.existsSync(path.join(ROOT, EYES_LEDGER))) {
   const r = cli(path.join(STAGING.eyestruct, 'bin', 'eyestruct.js'), ['gate', '--manifest', EYES_MANIFEST, '--ledger', EYES_LEDGER], ROOT)
-  legs.push({ name: 'eyes-mem leg (eyestruct gate at labs/.eyes)', state: r.code === 0 ? 'PASS' : r.code === 2 ? 'CAPABILITY' : 'FAIL', code: r.code, detail: r.out.trim() })
+  legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: r.code === 0 ? 'PASS' : r.code === 2 ? 'CAPABILITY' : 'FAIL', code: r.code, detail: r.out.trim() })
 } else {
-  legs.push({ name: 'eyes-mem leg (eyestruct gate at labs/.eyes)', state: 'SKIP', reason: `no ${EYES_LEDGER} in this workspace - watch it with eyestruct-staging instead` })
+  legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: 'SKIP', reason: `no ${EYES_LEDGER} in this workspace - watch it with eyestruct-staging instead` })
 }
 
 let failed = false

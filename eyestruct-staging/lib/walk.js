@@ -11,6 +11,14 @@ const path = require('path')
 const manifest = require('./manifest')
 const { fail } = require('./reasons')
 
+// The candidate-name rule, exported: the ratify lane's drift-bootstrap
+// copies these files into slots WITHOUT retyping the slug expression here
+// (a lane that re-derives engine naming is doc drift by another name).
+function candidateName(route) {
+  const slug = route.path === '/' ? 'root' : route.path.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '')
+  return `walk__${slug}_${route.view}_${route.theme}.png`
+}
+
 function run(ctx) {
   const m = manifest.read(ctx.cwd, ctx)
   if (!m.routes.length) fail('WALK_EMPTY')
@@ -40,8 +48,7 @@ function run(ctx) {
         theme: route.theme,
       })
       .then((cap) => {
-        const slug = route.path === '/' ? 'root' : route.path.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '')
-        const file = path.join('.eyes-candidates', `walk__${slug}_${route.view}_${route.theme}.png`)
+        const file = path.join('.eyes-candidates', candidateName(route))
         fs.writeFileSync(path.join(ctx.cwd, file), cap.png)
         results.push({ route, file, bytes: cap.png.length, mapped: cap.map.length })
       })
@@ -59,4 +66,4 @@ function run(ctx) {
   })
 }
 
-module.exports = { run }
+module.exports = { run, candidateName }
