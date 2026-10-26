@@ -62,11 +62,11 @@ if (fs.existsSync(STAGING.eyestruct)) {
   // stones like any other, "loads" and "renders" are separate gates, and
   // only the second is sight.
   const stones = [
-    'horcrux/gistory-p_gistory-castles-2026.svg',
-    'horcrux/gistory-p_gistory-castles-2026-2.svg',
-    'horcrux/magpie-p_mirror-eyes-2026.svg',
-    'horcrux/magpie-p_mirror-eyes-2026-2.svg',
-    'horcrux/poststruct-p_wordprint-2026.svg',
+    'horcrux/stones/gistory-p_gistory-castles-2026.svg',
+    'horcrux/stones/gistory-p_gistory-castles-2026-2.svg',
+    'horcrux/stones/magpie-p_mirror-eyes-2026.svg',
+    'horcrux/stones/magpie-p_mirror-eyes-2026-2.svg',
+    'horcrux/stones/poststruct-p_wordprint-2026.svg',
     'public/favicon.svg',
   ].filter((f) => fs.existsSync(path.join(ROOT, f)))
   if (stones.length) {
@@ -84,7 +84,7 @@ if (fs.existsSync(STAGING.eyestruct)) {
       reason: capability ? 'the optional @resvg/render dependency is not installed for eyestruct-staging - run `npm install` in eyestruct-staging/ once' : undefined,
     })
   } else {
-    legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no renderable stones in horcrux/ or public/' })
+    legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no renderable stones in horcrux/stones/ or public/' })
   }
 } else {
   legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no eyestruct-staging in this workspace' })

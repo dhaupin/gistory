@@ -3,13 +3,13 @@
 # Round-trip-equality is asserted BEFORE any bytes are written; nothing
 # here throws away content it did not parse. Stone format: stone-delimited
 # v1 (brn:unsealed), per the convention provably used by
-# horcrux/magpie-p_mirror-eyes-2026.svg - parse, patch, re-encode, verify
+# horcrux/stones/magpie-p_mirror-eyes-2026.svg - parse, patch, re-encode, verify
 # block-for-block, then rasterize before calling it done.
 
 import re, base64, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-STONE = ROOT / 'horcrux/magpie-p_mirror-eyes-2026.svg'
+STONE = ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026.svg'
 OUT = ROOT / '.cut-tmp'; OUT.mkdir(exist_ok=True)
 MARKER = '<<STONE>>'
 
@@ -270,10 +270,10 @@ poststruct_art = """<g transform="translate(0,8)">
 </g>
 """
 
-n1 = wrap_stone(ROOT / 'horcrux/magpie-p_mirror-eyes-2026-2.svg', magpie_art,
+n1 = wrap_stone(ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026-2.svg', magpie_art,
                 'transfer stone r2 for the magpie brain (eyes project), brain receipts patched this cutting',
                 'dhaupin/magpie', 'mirror-eyes', '2026', magpie_payload)
-n2 = wrap_stone(ROOT / 'horcrux/poststruct-p_wordprint-2026.svg', poststruct_art,
+n2 = wrap_stone(ROOT / 'horcrux/stones/poststruct-p_wordprint-2026.svg', poststruct_art,
                 'transfer stone for the poststruct seed brain (text leg, struct family); password rides after p_ per house convention',
                 'dhaupin/poststruct', 'wordprint', '2026', ps_payload)
 print(f'magpie r2 stone bytes: {n1}')

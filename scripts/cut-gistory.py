@@ -5,7 +5,7 @@
 # (labs/ci-repair-ledger-2026-10-26.md, the birth gate, the ferry lanes);
 # this stone carries the brain texts + pointers so the vant-workspace
 # restore and the receipts never drift apart. The sealed baseline
-# (horcrux/gistory-p_gistory-castles-2026.svg, brn:secret) stays
+# (horcrux/stones/gistory-p_gistory-castles-2026.svg, brn:secret) stays
 # untouched - its sealed pass happens upstream when the repo opens.
 # Format: stone-delimited v1 unsealed, per the magpie r2 precedent.
 # Determinism: fixed brain texts + fixed art -> fixed bytes; the stone
@@ -184,7 +184,7 @@ gistory_art = '''<g transform="translate(0,12)">
 </g>
 '''
 
-n3 = wrap_stone(ROOT / 'horcrux/gistory-p_gistory-castles-2026-2.svg', gistory_art,
+n3 = wrap_stone(ROOT / 'horcrux/stones/gistory-p_gistory-castles-2026-2.svg', gistory_art,
                 'transfer stone r2 for the gistory brain (the host refresh: birth-run + birth-gate receipts ride inside; sealed vant baseline untouched)',
                 'dhaupin/gistory', 'gistory-castles', '2026', gs_payload)
 print(f'gistory r2 stone bytes: {n3}')

@@ -3,7 +3,7 @@
 //
 //   docs/og-image.png           → the docs site (freestruct injects it)
 //   public/og-image.png         → the product site (inject-brand points at it)
-//   horcrux/prestruct-og-image.png → handoff asset for dhaupin/prestruct:
+//   horcrux/handoff/prestruct-og-image.png → handoff asset for dhaupin/prestruct:
 //     their site's og:image is an SVG (og-image.svg), which the big crawlers
 //     (Facebook/LinkedIn/X) refuse to render — this PNG twin is regenerable
 //     here until the prestruct repo adopts it and the file moves home.
@@ -81,7 +81,7 @@ const prestructCard = shell(`
 for (const [svg, out] of [
   [docsCard, 'docs/og-image.png'],
   [siteCard, 'public/og-image.png'],
-  [prestructCard, 'horcrux/prestruct-og-image.png'],
+  [prestructCard, 'horcrux/handoff/prestruct-og-image.png'],
 ]) {
   const png = new Resvg(svg, {
     fitTo: { mode: 'width', value: W },

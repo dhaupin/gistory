@@ -675,7 +675,7 @@ generate real pairs.
 | `README.md` | The **npm landing** for `gistory-sync` — pitch, install, quickstart, security one-breath, docs links. Setup content that used to live here was moved to `DEPLOY.md` (it ships in the tarball via `files`) |
 | `DEPLOY.md` | The full setup + operations runbook (was previously split with the README): local dev, first-deploy checklist, bindings/VAPID with rationale, migrations + GitHub Actions path, maintenance tables, edge rate-limit rule + graceful fallback, troubleshooting, config-files table |
 | `CHANGELOG.md` | Keep-a-Changelog format; every release bumps `package.json` + appends a section in the SAME commit (the tag release reads the version from package.json, not the changelog) |
-| `scripts/build-og.mjs` | Regenerates the OG cards (`npm run build:og`): `docs/og-image.png`, `public/og-image.png` (ssr.config ogImage), `horcrux/prestruct-og-image.png` (handoff for dhaupin/prestruct#31 — their og:image is an SVG, which the big crawlers refuse) |
+| `scripts/build-og.mjs` | Regenerates the OG cards (`npm run build:og`): `docs/og-image.png`, `public/og-image.png` (ssr.config ogImage), `horcrux/handoff/prestruct-og-image.png` (handoff for dhaupin/prestruct#31 — their og:image is an SVG, which the big crawlers refuse) |
 
 ## Testing Notes
 
