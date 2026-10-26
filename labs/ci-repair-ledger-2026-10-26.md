@@ -56,5 +56,18 @@ commit `aaa9c2d9`).
   the tar pipeline in `scripts/make-staging-tars.sh`.
 - labs/tar-move-plan.md — where monoforge-staging goes next (dhaupin/monoforge).
 
+## Addendum: the birth gate is implemented (2026-10-26, this pass)
+
+The #5 ask became real code the same night: `scripts/birth-gate.mjs`
+(commit `02d8c8c`, blob `0f6c7b40`) — the rig lane's reference
+implementation, running as a fail-fast CI step in verify (ci.yml commit
+`9bbf4438`, blob `6d5dab4c`). All three failure classes above are now
+mechanical checks; negative-tested against the exact production
+signature (unquoted `self-test:` reproduces line 7 col 43, exits 1).
+Check four from the ask rides `staging-tars.yml` itself: a determinism
+proof step rebuilds the tar set and compares bytes in-run (commit
+`6474c05`, blob `29eb3efd`). First CI ride green: 6/6 workflow runs,
+tip `9bbf4438`.
+
 Locale: everything in this receipt is English-only (house prose gate; the
 yml edit itself stays ASCII-safe too).
