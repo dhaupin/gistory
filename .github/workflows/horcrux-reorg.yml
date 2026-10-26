@@ -246,13 +246,15 @@ jobs:
           set -euo pipefail
           git config user.name  "horcrux-reorg"
           git config user.email "actions@users.noreply.github.com"
+          # stage first (git mv rows ride in the index; the patcher's writes
+          # do not) so porcelain reports the canonical R/M rows the whitelist reads
+          git add -A horcrux scripts AGENTS.md .github/workflows/stone-ferry.yml .github/workflows/mount-stone-mirror.yml .github/workflows/staging-tars.yml
           # whitelist what may be dirty: horcrux moves + the 9 patched files
           git status --porcelain > /tmp/changes.txt
           if grep -Ev "^(R  horcrux/.*|M  AGENTS\\.md|M  scripts/(build-og\\.mjs|cut-gistory\\.py|cut-stones\\.py|framework-gate\\.mjs|make-staging-tars\\.sh)|M  \\.github/workflows/(mount-stone-mirror|stone-ferry|staging-tars)\\.yml)" /tmp/changes.txt; then
             echo "UNEXPECTED CHANGES (above)"; exit 1
           fi
           echo "whitelist clean: horcrux moves + the 9 patched files only"
-          git add -A horcrux scripts AGENTS.md .github/workflows/stone-ferry.yml .github/workflows/mount-stone-mirror.yml .github/workflows/staging-tars.yml
           git commit -m "horcrux: path-only reorg into stones/ tars/(+archive) prds/ handoff/" \
                      -m "Every artifact moves ON THE RUNNER from HEAD's own tracked bytes (git mv), so all blob ids - and the ferry gate pins (0bde5b6d / 295e5a17 / a1a01c2d) - hold by construction; live references patch by anchored, count-checked replaces. The vault index now lives in horcrux/README.md."
           git push origin main
