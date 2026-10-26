@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           git config user.name  "monoforge-ferry"
-          git consig user.email "actions@users.noreply.github.com"
+          git config user.email "actions@users.noreply.github.com"
           git add monoforge-staging/
           if [ -d .cut-tmp/mfparts ]; then
             git rm -r -q .cut-tmp/mfparts
