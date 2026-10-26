@@ -1,0 +1,44 @@
+name: web-lock-repair
+# One-shot, dispatch-only successor to web-lock-emit: its payload rode the
+# text lane with a 2-row scramble at row 117 ('AKhs' -> 'SAKh' + a stray
+# join), so the sha gate could never pass. This run repairs those two rows
+# from the KNOWN disk truth, then does the emit: decode gz+b64, sha-gate
+# (f47974f87e152364), write the lock, and commit lock + self-cleanup
+# (payload + both one-shot workflows) - origin keeps only the lock.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  workflows: write
+jobs:
+  repair-emit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair payload, decode, sha-gate, write lock
+        run: |
+          python3 - <<'PY'
+          import pathlib, base64, gzip, hashlib, json, io
+          p = pathlib.Path('horcrux/handoff/eyestruct-lock.gz.b64')
+          t = p.read_text()
+          bad = '8KU8fEMNEWSAKh\ns i/zs'
+          good = '8KU8fEMNEWAKhs\ni/zs'
+          assert bad in t, 'expected drift not found - payload shape changed'
+          t = t.replace(bad, good, 1)
+          raw = base64.b64decode(t)
+          lock = gzip.decompress(raw)
+          sha = hashlib.sha256(lock).hexdigest()
+          print('decoded bytes:', len(lock), 'sha256:', sha[:16])
+          assert sha[:16] == 'f47974f87e152364', 'SHA MISMATCH after repair: ' + sha[:16]
+          j = json.loads(lock)
+          assert j['name'] == 'eyestruct-site', 'NAME MISMATCH: ' + j['name']
+          pathlib.Path('eyestruct-staging/web/package-lock.json').write_bytes(lock)
+          PY
+      - name: Commit the lock, remove payload + workflows
+        run: |
+          git config user.name "Codebuff"
+          git config user.email "noreply@codebuff.com"
+          git add eyestruct-staging/web/package-lock.json
+          git rm -f horcrux/handoff/eyestruct-lock.gz.b64 .github/workflows/web-lock-emit.yml .github/workflows/web-lock-repair.yml
+          git commit -m "eyestruct: land the renamed package-lock.json (repair+emit one-shot, sha f47974f87e152364)"
+          git push
