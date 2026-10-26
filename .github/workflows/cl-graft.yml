@@ -1,0 +1,31 @@
+name: cl-graft
+# One-shot, dispatch-only: repairs CHANGELOG.md from two verified
+# sources - the intact 2697-byte prefix rides from history (98fac3d)
+# and only the short 382-byte tail carries (as hex, immune to quote
+# mangling). Blob-gates on the disk shade BEFORE writing. Cleanup rides
+# the commit lane afterwards.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  graft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Graft prefix + hex tail, blob-gate, commit
+        run: |
+          git show 98fac3df3ee585a927caf3b72846d1723cb4ac69:CHANGELOG.md | head -c 2697 > /tmp/out.md
+          python3 -c "import sys; open('/tmp/out.md','ab').write(bytes.fromhex('77732c20616e64206d61696e74656e616e63652072756e626f6f6b73206c69766520696e0a20205b4445504c4f592e6d645d2868747470733a2f2f6769746875622e636f6d2f6468617570696e2f676973746f72792f626c6f622f6d61696e2f4445504c4f592e6d64293b20757365720a2020646f63756d656e746174696f6e206174205b646f63732e637265616465762e6f72672f676973746f72795d2868747470733a2f2f646f63732e637265616465762e6f72672f676973746f7279292e0a2d2052656c65617365732072756e206f6e2076657273696f6e20746167320766961206e706d2054727573746564205075626c697368696e6720284f4944432920e2809420736565207468650a20207265706f277331206041474Te54532e6d646020666f72207468652072656c656173652072756e626f6f6b2e0a0a5b302e392e305d3a2068747470733a2f2f6769746875622e636f6d2f6468617570696e2f676973746f72792f72656c65617365732f7461672f76302e392e300a'))"
+          BLOB=$(git hash-object /tmp/out.md)
+          echo "grafted blob: $BLOB (target ffc8839df96d9e8c0a3efdb64898703f9e59c705)"
+          if [ "$BLOB" != "ffc8839df96d9e8c0a3efdb64898703f9e59c705" ]; then echo "BLOB MISMATCH - refusing to write"; exit 1; fi
+          cp /tmp/out.md CHANGELOG.md
+          git config user.name  "Codebuff"
+          git config user.email "noreply@codebuff.com"
+          git add CHANGELOG.md
+          git commit -m "changelog: graft the intact history prefix + hex-carried tail (blob gate ffc8839d)"
+          git push
+          echo "LANDED-OK $(git rev-parse HEAD)"
