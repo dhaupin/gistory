@@ -8,7 +8,7 @@
 //               site hygiene): the cheap diff gates before pixels.
 //   EYES-ART leg - eyestruct raster-gates every committed renderable
 //               (horcrux stones, favicon): loads-vs-renders, byte sanity.
-//   EYES-MEM  - eyestruct gate walks .eyes/: the committed visual memory.
+//   EYES-MEM  - eyestruct gate walks labs/.eyes/: the committed visual memory.
 //   TEXT-REF  - poststruct's eyes-reference pack (og:image pixel-reference:
 //               every declared social image is real pixels; SVG refs route
 //               back through the EYES raster gate). Crashledger packledger.
@@ -95,11 +95,16 @@ if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(STAGING.poststr
 }
 
 // --- EYES-MEM leg (the .eyes ledger gate) ---------------------------------
-if (fs.existsSync(path.join(ROOT, '.eyes', 'ledger.json'))) {
-  const r = cli(path.join(STAGING.eyestruct, 'bin', 'eyestruct.js'), ['gate'], ROOT)
-  legs.push({ name: 'eyes-mem leg (eyestruct gate)', state: r.code === 0 ? 'PASS' : r.code === 2 ? 'CAPABILITY' : 'FAIL', code: r.code, detail: r.out.trim() })
+// gistory hosts its visual memory at labs/.eyes (next to crashledger.json,
+// the family's ledger home), so the gate verb names both bookkeeping
+// paths explicitly - the .eyes default belongs to repos that ARE eyes.
+const EYES_MANIFEST = 'labs/.eyes/manifest.yml'
+const EYES_LEDGER = 'labs/.eyes/ledger.json'
+if (fs.existsSync(path.join(ROOT, EYES_LEDGER))) {
+  const r = cli(path.join(STAGING.eyestruct, 'bin', 'eyestruct.js'), ['gate', '--manifest', EYES_MANIFEST, '--ledger', EYES_LEDGER], ROOT)
+  legs.push({ name: 'eyes-mem leg (eyestruct gate at labs/.eyes)', state: r.code === 0 ? 'PASS' : r.code === 2 ? 'CAPABILITY' : 'FAIL', code: r.code, detail: r.out.trim() })
 } else {
-  legs.push({ name: 'eyes-mem leg (eyestruct gate)', state: 'SKIP', reason: 'gistory has no .eyes/ ledger yet - watch it with eyestruct-staging instead (its own repo runs the gate)' })
+  legs.push({ name: 'eyes-mem leg (eyestruct gate at labs/.eyes)', state: 'SKIP', reason: `no ${EYES_LEDGER} in this workspace - watch it with eyestruct-staging instead` })
 }
 
 let failed = false

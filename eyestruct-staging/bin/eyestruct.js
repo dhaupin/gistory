@@ -1,7 +1,6 @@
-#!/usr/bin/env node
-// eyestruct CLI dispatch - every command is one short process.
-// Exit contract (lib/reasons.js): 0 green/explained, 1 drift/refusal with a
-// named reason, 2 setup/capability. No bare stack traces ever.
+# eyestruct CLI dispatch - every command is one short process.
+# Exit contract (lib/reasons.js): 0 green/explained, 1 drift/refusal with a
+# named reason, 2 setup/capability. No bare stack traces ever.
 
 'use strict'
 
@@ -57,12 +56,25 @@ async function main() {
   const impl0 = COMMANDS[cmd]
   if (!impl0) fail('UNKNOWN_COMMAND', `"${cmd}" is not an eyestruct command`)
   const impl = typeof impl0 === 'function' ? impl0 : impl0.run
+  const args = argv.slice(1)
+  // The host-owned locations: gistory keeps its eyes at labs/.eyes (next to
+  // crashledger.json), other repos keep the .eyes default. usage() promised
+  // these flags; they were parsed nowhere before - the defaults were the
+  // only honored path. flags objects are READ here once and travel inside
+  // ctx, so every verb resolves the same two files the dispatch named.
   const code = await impl({
-    argv: argv.slice(1),
+    argv: args,
     cwd: process.cwd(),
     json: argv.includes('--json'),
+    manifest: flagValue(args, '--manifest'),
+    ledger: flagValue(args, '--ledger'),
   })
   process.exit(code === true || code === undefined ? 0 : code)
+}
+
+function flagValue(argv, flag) {
+  const i = argv.indexOf(flag)
+  return i === -1 ? null : argv[i + 1]
 }
 
 main().catch((err) => {

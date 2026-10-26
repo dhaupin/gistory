@@ -39,7 +39,14 @@ jobs:
       # `npm ci`, not `bun install`: package-lock.json is the lockfile that is
       # actually committed, so this is the install path that matches the repo.
       # (bun.lock exists locally but is untracked — do not switch CI to bun
-      # without committing a bun.lock in the same change.)
+      # without committing a bun.lock in the same change.) Deliberately root
+      # ONLY: the framework gate below composes the struct legs at their
+      # capability boundaries exactly as today's green runs do — a resvg-less
+      # raster leg is a named capability SKIP, not a silent pass. The raster
+      # gate currently REFUSES public/favicon.svg (a 310-byte flat-color
+      # render against the 512-byte floor) wherever eyestruct-staging deps ARE
+      # installed; that finding goes red WITH its own threshold receipt, not
+      # procedure-to-green overnight.
       - name: Install dependencies
         run: npm ci
 
@@ -113,7 +120,42 @@ jobs:
       # TEXT-REF (poststruct's eyes-reference pack: og:image must be REAL
       # pixels - exact dims vs declared, magic bytes, and SVG refs route
       # back through the eyestruct raster gate), and EYES-MEM (the
-      # committed .eyes/ ledger: 0 unexplained drift, all rows explained).
-      # Family exit contract; skips are NAMED, never fake passes.
+      # committed labs/.eyes/ ledger: 0 unexplained drift, all rows
+      # explained). Family exit contract; skips are NAMED, never fake
+      # passes.
       - name: Framework gate (poststruct x eyestruct legs)
         run: node scripts/framework-gate.mjs
+
+  # The staging repos are writing repos of their own — they tar over to
+  # dhaupin/poststruct and dhaupin/eyestruct — and this job is where their
+  # own batteries prove their loaders/packs/ledgers stay conformant with the
+  # packstruct spec all family legs share. Separate job, by receipt: the
+  # raster gate refuses public/favicon.svg (310-byte flat-color render
+  # against the 512-byte floor) wherever eyestruct-staging deps are
+  # installed, so this job installs staging deps deliberately and scopes
+  # itself to receipt-backed truths (loaders, packs, docs gates, smoke).
+  # Honest centerpiece: failures fail under their own name, and the
+  # framework gate in verify keeps its capability boundary until the raster
+  # threshold has one.
+  staging-hosts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install staging hosts
+        run: |
+          npm ci --prefix poststruct-staging
+          npm ci --prefix eyestruct-staging
+
+      - name: Poststruct battery (test + lint:packs + conform:packs)
+        run: npm run check --prefix poststruct-staging
+
+      - name: Eyestruct smoke (node:test spine)
+        run: npm test --prefix eyestruct-staging
+
+      - name: Eyestruct battery (docs gates + packs + lint:packs + conform:packs)
+        run: npm run check --prefix eyestruct-staging

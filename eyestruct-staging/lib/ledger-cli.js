@@ -31,8 +31,17 @@ function run(ctx) {
   fail('UNKNOWN_COMMAND', `ledger subcommand "${sub}" (list|show)`)
 }
 
+// The flag-value guard adopt.js carries: a token AFTER a --flag is that
+// flag's value (e.g. `--ledger labs/.eyes/ledger.json`), never a position
+// argument. Without it, `ledger list --ledger <path>` read the path as a
+// route filter and showed an empty ledger.
 function posArg(argv) {
-  return argv.find((a) => !a.startsWith('--'))
+  return argv.find((a) => !a.startsWith('--') && !isFlagValue(argv, a))
+}
+
+function isFlagValue(argv, a) {
+  const i = argv.indexOf(a)
+  return i > 0 && argv[i - 1].startsWith('--') && !argv[i - 1].includes('=')
 }
 
 module.exports = { run }
