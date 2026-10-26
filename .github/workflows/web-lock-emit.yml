@@ -1,0 +1,39 @@
+name: web-lock-emit
+# One-shot, dispatch-only: emit eyestruct-staging/web/package-lock.json from
+# the committed gzip+base64 payload (the 58KB file is the one thing that
+# never survived a text-lane carry; two casualties on main before this lane
+# existed). Runner-side byte-exact emit keyed on the sha256, then the
+# payload + this workflow remove themselves - origin keeps only the lock.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  workflows: write
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode payload and verify sha256
+        run: |
+          node -e "
+            const fs = require('fs');
+            const crypto = require('crypto');
+            const zlib = require('zlib');
+            const b64 = fs.readFileSync('horcrux/handoff/eyestruct-lock.gz.b64', 'utf8');
+            const bytes = zlib.gunzipSync(Buffer.from(b64, 'base64'));
+            const sha = crypto.createHash('sha256').update(bytes).digest('hex');
+            console.log('decoded bytes:', bytes.length, 'sha256:', sha.slice(0,16));
+            if (sha.slice(0,16) !== 'f47974f87e152364') { console.error('SHA MISMATCH'); process.exit(1); }
+            const j = JSON.parse(bytes.toString('utf8'));
+            if (j.name !== 'eyestruct-site') { console.error('NAME MISMATCH: ' + j.name); process.exit(1); }
+            fs.writeFileSync('eyestruct-staging/web/package-lock.json', bytes);
+          "
+      - name: Commit the lock, remove payload + workflow
+        run: |
+          git config user.name "Codebuff"
+          git config user.email "noreply@codebuff.com"
+          git add eyestruct-staging/web/package-lock.json
+          git rm -f horcrux/handoff/eyestruct-lock.gz.b64 .github/workflows/web-lock-emit.yml
+          git commit -m "eyestruct: land the renamed package-lock.json (runner-side byte-exact emit, sha f47974f87e152364)"
+          git push
