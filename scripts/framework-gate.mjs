@@ -63,6 +63,7 @@ if (fs.existsSync(STAGING.eyestruct)) {
   // only the second is sight.
   const stones = [
     'horcrux/gistory-p_gistory-castles-2026.svg',
+    'horcrux/gistory-p_gistory-castles-2026-2.svg',
     'horcrux/magpie-p_mirror-eyes-2026.svg',
     'horcrux/magpie-p_mirror-eyes-2026-2.svg',
     'horcrux/poststruct-p_wordprint-2026.svg',
