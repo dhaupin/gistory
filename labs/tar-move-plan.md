@@ -14,6 +14,33 @@ The pairing at a glance:
 |---|---|---|
 | `poststruct-staging/` | dhaupin/poststruct | exists; push needs a dhaupin-side machine (the App never got write grant on it) |
 | `eyestruct-staging/` | dhaupin/eyestruct | also dhaupin-side |
+| `monoforge-staging/` | dhaupin/monoforge | exists (labs/ + horcrux/ already upstream); mount holds the tool tree |
+
+### Monoforge notes (staging stood up 2026-10-26)
+
+The third family member parked in gistory as `monoforge-staging/` â€” the
+0.9.0 factory (stamp/doctor/cut/lock, zero-dep) unpacked from its own
+lock archive, transported tarball-first by the sha-gated monoforge
+ferry (sha256 `046908c6â€¦`, full value in the mount's horcrux README).
+What move day must respect:
+
+- **The lock carries the history.** `horcrux/monoforge-0.9.0-lock.tar.gz`
+  contains monoforge's own nested `.git` (upstream f8e45fb lineage), so
+  move day pushes that history onto dhaupin/monoforge and then overlays
+  the repo's labs/ + horcrux/ on top â€” no flattening, no history loss.
+- **The mount adds the receipts only:** `labs/TASKS.md` and
+  `horcrux/README.md`. The provisioner stone stays upstream-owned
+  (3.3MB â€” a size class the payload lane already burned once).
+- **Battery:** the zero-dep self-test (`node test/run.mjs`) runs in
+  gistory CI's staging-hosts leg with no install step; the same one
+  gate re-runs on move day in the standalone repo's own workflows
+  (already inside the lock).
+- **No npx-pin swap needed:** monoforge is not yet a gistory consumer â€”
+  gistory's lanes call poststruct/eyestruct, not monoforge. The factory
+  PRD's rule-of-three grading (component-family profile) is what rides
+  after move day, via cutlists, not via this plan's consumer-swap 
+  ladder.
+
 
 ## Why a tar, not a bare push
 
@@ -52,12 +79,12 @@ own heads and never carry a gistory-shaped transplant artifact.
      flips to an npx-resolved path with an honest version pin â€” never a
      bare `npx eyestruct` (the pin discipline the ecosystem carries
      everywhere else applies here too: same commit â†’ same findings).
-   - `EYES_REFERENCES_PROVIDER_TWIN_MAP` stays (env's own shape); the
+   - `EYES_REFERENCES_PROVIDER_TWIN_MAPÀ stays (env's own shape); the
      twin keys still NAME gistory, deliberately: gistory is this pack's
      first client, and after the tar it is the CLIENT, not the mount.
 2. **`scripts/check-language.cjs`** â€” no mechanical change needed: it
    lists `labs/` in its scan scope, which remains the repo-local labs/
-   tree (its own PRD, own TASKS). The gistory mention in its contract
+   tree (its own PRD, own TASSK#. The gistory mention in its contract
    comment rides as-is.
 
 ### What gistory keeps after poststruct leaves
@@ -152,13 +179,4 @@ own heads and never carry a gistory-shaped transplant artifact.
 - **Audit-diff:**
   eyestruct's raster leg gates gistory's horcrux stones + favicon; on
   dayâ€™s swap those paths are gistory-relative and must be fed as ARGV
-  (they already are â€” `eyestruct raster [file...]`) so the swap is a
-  path argument change, never a tool change.
-- **Firmware-lock drift:** poststruct's `packstruct@1.0.0` and
-  eyestruct's `packstruct@1.0.0` should bump TOGETHER with the crashtest
-  + gistory pins. The ecosystem's exact-pin discipline gets a companion
-  receipt row saying the four pins matched on 2026-10-26 â€” a later bump
-  is a deliberate, receipted event per repo.
-- **Law of cool: nothing self-heals.** If a standalone battery lapses
-  red, that is a red lane in the repo that owns it â€” gistory carries no
-  silent-swap fallbacks and never elsewhere hides the truth.
+  (they already are â€” eyestruct raster [file...]`ÉÍ¼Ñ¡”Íİ…À¥Ì„(€Á…Ñ …ÉÕµ•¹Ğ¡…¹”°¹•Ù•È„Ñ½½°¡…¹”¸(´€¨©¥Éµİ…É”µ±½¬‘É¥™Ğè¨¨Á½ÍÑÍÑÉÕĞÌÁ…­ÍÑÉÕÑ Ä¸À¸Á€…¹(€•å•ÍÑÉÕĞÌÁ…­ÍÑÉÕÑ Ä¸À¸Á€Í¡½Õ±‰ÕµÀQ<Q!Hİ¥Ñ Ñ¡”É…Í¡Ñ•ÍĞ(€€¬¥ÍÑ½ÉäÁ¥¹Ì¸Q¡”•½ÍåÍÑ•´Ì•á…ĞµÁ¥¸‘¥Í¥Á±¥¹”•ÑÌ„½µÁ…¹¥½¸(€É••¥ÁĞÉ½ÜÍ…å¥¹œÑ¡”™½ÕÈÁ¥¹Ìµ…Ñ¡•½¸€ÈÀÈØ´ÄÀ´ÈØƒŠP„±…Ñ•È‰ÕµÀ(€¥Ì„‘•±¥‰•É…Ñ”°É••¥ÁÑ••Ù•¹ĞÁ•ÈÉ•Á¼¸(´€¨©1…Ü½˜½½°è¹½Ñ¡¥¹œÍ•±˜µ¡•…±Ì¸¨¨%˜„ÍÑ…¹‘Õ±½¹”‰…ÑÑ•Éä±…ÁÍ•Ì(€É•°Ñ¡…Ğ¥Ì„É•±…¹”¥¸Ñ¡”É•Á¼Ñ¡…Ğ½İ¹Ì¥ĞƒŠP¥ÍÑ½Éä…ÉÉ¥•Ì¹¼(€Í¥±•¹ĞµÍİ…À™…±±‰…­Ì…¹¹•Ù•È•±Í•İ¡•É”¡¥‘•ÌÑ¡”ÑÉÕÑ ¸(Ğ
