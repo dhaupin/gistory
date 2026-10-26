@@ -4,14 +4,15 @@
 # against the offline value BEFORE anything unpacks.
 #
 # Why fetch instead of transport: a 15KB-per-part base64 hand lane was
-# tried first and corrupted on arrival (one fabricated tail landed as
-# mfpart-aa; truncated stdout, exactly the drift class this family
-# already knew); fetching from upstream transports NOTHING, and the
-# sha gate means a hostile or broken upstream cannot unpack a wrong
-# lock - the fetch is verified before tar ever opens it.
+# tried first and corrupted on arrival (one fabricated tail from a
+# truncated stdout, exactly the drift class this family already knew);
+# fetching from upstream transports NOTHING, and the sha gate means a
+# hostile or broken upstream cannot unpack a wrong lock - the fetch is
+# verified before tar ever opens it.
 #
-# The unpack merges over monoforge-staging/ (the receipts this mount adds
-# on top - labs/, horcrux/README - are not in the lock, so they
+# The unpack merges over monoforge-staging/ (the receipts this mount
+# adds on top - labs/, horcrux/README - are not in the lock, so they
+# survive; known limitation: a re-lock that DELETES a tool file leaves
 # the stale one behind, so re-locks should sweep first).
 #
 # Self-cleaning + self-healing: the job re-runs on every push and no-ops
@@ -41,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch the lock tarball from its upstream home (dhaupin/'monoforge)
+      - name: Fetch the lock tarball from its upstream home (dhaupin/monoforge)
         run: |
           set -euo pipefail
           curl -fsSL "https://raw.githubusercontent.com/dhaupin/monoforge/main/horcrux/monoforge-0.9.0-lock.tar.gz" \
@@ -89,3 +90,5 @@ jobs:
                        -m "The base64 part lane corrupted on arrival (a fabricated tail landed as mfpart-aa); the fetch-from-upstream + sha gate replaces it. Nothing else changes."
             git push origin main
           fi
+
+##END-##
