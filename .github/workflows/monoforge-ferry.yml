@@ -90,5 +90,3 @@ jobs:
                        -m "The base64 part lane corrupted on arrival (a fabricated tail landed as mfpart-aa); the fetch-from-upstream + sha gate replaces it. Nothing else changes."
             git push origin main
           fi
-
-##END-##
