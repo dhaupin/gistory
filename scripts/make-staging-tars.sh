@@ -42,6 +42,15 @@ for m in $MOUNTS; do
         git -C "$m" init -q -b main
     fi
     git -C "$m" symbolic-ref HEAD refs/heads/main
+    # A bomb of loose objects from `git add -A` can trip `git gc --auto` at
+    # the commit below, and the background gc then holds/creates
+    # .git/objects/maintenance.lock while the tar walks that same directory
+    # (the exact race that failed the ferry: "tar: .git/objects/maintenance
+    # .lock: File removed before we read it"). The mount's .git is rebuilt
+    # from seed on every ferry anyway, so auto-maintenance here is pure race
+    # surface and zero value: disable it before anything that writes.
+    git -C "$m" config gc.auto 0
+    git -C "$m" config gc.writeCommitGraph false
     GIT_AUTHOR_NAME="$GIT_NAME" GIT_AUTHOR_EMAIL="$GIT_EMAIL" \
     GIT_COMMITTER_NAME="$GIT_NAME" GIT_COMMITTER_EMAIL="$GIT_EMAIL" \
     GIT_AUTHOR_DATE="$GIT_DATE" GIT_COMMITTER_DATE="$GIT_DATE" \
