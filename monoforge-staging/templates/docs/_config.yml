@@ -3,7 +3,7 @@
 # presentation lives in _layouts/default.html, kramdown GFM + rouge,
 # permalink pretty; freestruct generates the sitemap post-build).
 title: __NAME__ docs
-description: __DESCRIPTION__
+description: The shared /packs SPEC - manifest contract, entry profiles, lifecycle, and the lint CLI.
 url: https://docs.creadev.org
 baseurl: /__NAME__
 
