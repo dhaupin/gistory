@@ -3,7 +3,7 @@
 # presentation lives in _layouts/default.html, kramdown GFM + rouge,
 # permalink pretty; freestruct generates the sitemap post-build).
 title: monoforge docs
-description: The shared /packs SPEC - manifest contract, entry profiles, lifecycle, and the lint CLI.
+description: stamps fleet repos from the proven template blocks, doctors them with the truth battery, and locks them with a checksum - generated green is never shipped.
 url: https://docs.creadev.org
 baseurl: /monoforge
 
