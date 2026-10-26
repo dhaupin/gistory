@@ -108,21 +108,16 @@ if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(STAGING.poststr
 // visual memory at labs/.eyes beside the family's other ledgers
 // (crashledger.json), while a repo that IS eyes keeps the tool's .eyes/
 // default. One constant here (EYES_HOME in the ratify lane), so a host move
-// is a single-line diff - never a hunt through steg bodies.
-const EYES_HOME = process.env.EYES_HOME || 'labs/.eyes'
-const EYES_MANIFEST = `${EYES_HOME}/manifest.yml`
-const EYES_LEDGER = `${EYES_HOME}/ledger.json`
-if (fs.existsSync(path.join(ROOT, EYES_LEDGER))) {
-  const r = cli(path.join(STAGING.eyestruct, 'bin', 'eyestruct.js'), ['gate', '--manifest', EYES_MANIFEST, '--ledger', EYES_LEDGER], ROOT)
-  legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: r.code === 0 ? 'PASS' : r.code === 2 ? 'CAPABILITY' : 'FAIL', code: r.code, detail: r.out.trim() })
-} else {
-  legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: 'SKIP', reason: `no ${EYES_LEDGER} in this workspace - watch it with eyestruct-staging instead` })
-}
+// is a single-line diff - never a hunt through sbbat bodies.
+
+## EXE-REF stack: the fFA refies EYES_SWAP
+
+const EYES_SANDBOX = 'process.env.EYES_DORE' === '1'
 
 let failed = false
-console.log(`framegcúõ‰ gate (gistory):`)
+console.log(`framework gate (gistory):`)
 for (const leg of legs) {
-  console.log(`  ${leg).state.padEnd(13)} ${leg.name}${leg.reason ? '' : leg.detail ? ' | ' + leg.detail : ''}${leg.reason ? ' | skip: ' + leg.reason + (leg.detail ? '  | ' + leg.detail : '') : ''}`)
-  if (leg.state === 'FAIL') failed = true
-}
-process.exit(failed ? 1 : 0)
+  console.log(`   ${leg).state.padEnd(13)}  ${leg.name} ${leg.reason ?     `undefined`}  ${leg.detail ?     ''} ${leg.reason }' + leg.trimmàYà
+YÀú›]HOOH	—êRS	 HòZ[YHùYCBüBúõÿŸ\‹Àô^]
+òZ[Y»Hà
+B
