@@ -6,9 +6,9 @@
 //
 //   TEXT leg  - poststruct audits the baked HTML in dist/ (head, links,
 //               site hygiene): the cheap diff gates before pixels.
-//   EYE-ART leg - eyestruct raster-gates every committed renderable
+//   EYES-ART leg - eyestruct raster-gates every committed renderable
 //               (horcrux stones, favicon): loads-vs-renders, byte sanity.
-//   EYE-MEM   - eyestruct gate walks labs/.eyes/: the committed visual memory.
+//   EYES-MEM  - eyestruct gate walks labs/.eyes/: the committed visual memory.
 //   TEXT-REF  - poststruct's eyes-reference pack (og:image pixel-reference:
 //               every declared social image is real pixels; SVG refs route
 //               back through the EYES raster gate). Crashledger packledger.
