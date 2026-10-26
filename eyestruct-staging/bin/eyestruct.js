@@ -1,6 +1,7 @@
-# eyestruct CLI dispatch - every command is one short process.
-# Exit contract (lib/reasons.js): 0 green/explained, 1 drift/refusal with a
-# named reason, 2 setup/capability. No bare stack traces ever.
+#!/usr/bin/env node
+// eyestruct CLI dispatch - every command is one short process.
+// Exit contract (lib/reasons.js): 0 green/explained, 1 drift/refusal with a
+// named reason, 2 setup/capability. No bare stack traces ever.
 
 'use strict'
 
