@@ -59,7 +59,7 @@ jobs:
           }
           mirror horcrux/stones/poststruct-p_wordprint-2026.svg \
                  poststruct-staging/horcrux/poststruct-p_wordprint-2026.svg
-          mirror horcrux/stones/magpie-p_mirror-eyes-2026-2.svg \
+          mirror horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg \
                  eyestruct-staging/horcrux/magpie-p_mirror-eyes-2026-2.svg
           if git diff --cached --quiet; then
             echo 'nothing to commit (all mirrored)'

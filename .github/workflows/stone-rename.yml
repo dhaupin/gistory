@@ -1,0 +1,17 @@
+# READ ME: stone-rename lands as dispatch-only; body rides at
+# .github/workflows/stone-rename.yml from the verify-checked disk emission
+# (blob 003b65f9, below).
+name: Stone rename (placeholder)
+
+on:
+  workflow_dispatch:
+    inputs:
+      token: {}
+permissions:
+  contents: write
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'placeholder; real ferry guarded by blob 003b65f9'
+FAILED_PERFECT_PLACEMENT
