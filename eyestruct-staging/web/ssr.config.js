@@ -28,7 +28,7 @@ export default {
       changefreq: 'yearly',
       meta: {
         title: 'Terms | eyestruct',
-        description: 'Terms of use for eyestruct and this site.',
+        description: 'Terms of use for eyestruct and this site.'
       },
     },
     {
@@ -37,7 +37,7 @@ export default {
       changefreq: 'yearly',
       meta: {
         title: 'Privacy | eyestruct',
-        description: 'What this site collects: nothing. No server, no accounts, no hidden states to find.',
+        description: 'What this site collects: nothing. No server, no accounts, no hidden states to find.'
       },
     },
     // add more routes per AppLayout.jsx

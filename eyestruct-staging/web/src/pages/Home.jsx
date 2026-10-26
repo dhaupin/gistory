@@ -27,7 +27,7 @@ export default function Home() {
         <p className="lede">
           Look is one short process, never a daemon: capture into a committed
           .eyes/ memory, diff pixel drift under the ledger, and let CI refuse
-          an unexplained change - the crashledger pattern aimed at
+          an unexplained change - the crashtest ledger pattern aimed at
           appearance instead of attackability.
         </p>
         <div className="cta-row">
