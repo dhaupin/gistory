@@ -1,17 +1,190 @@
-# READ ME: stone-rename lands as dispatch-only; body rides at
-# .github/workflows/stone-rename.yml from the verify-checked disk emission
-# (blob 003b65f9, below).
-name: Stone rename (placeholder)
+# One-shot stone rename - path-only, byte-stable, mirroring the reorg ferry:
+#
+#   1. MOVE   the four gistory/magpie stones onto the -r1 / -r2 suffixes via
+#             git mv (bare "-2" digits read as duplicates in the tree view;
+#             "r2" is self-describing). The bytes never change: the cutter
+#             gains a label= kwarg pinning each stone's BIRTH name into its
+#             SVG header, so regeneration is filename-independent and the
+#             ferry gate ids (0bde5b6d / a1a01c2d) travel untouched.
+#   2. PATCH  the live path references (two cutters, framework gate, the
+#             vault README) with anchored, count-checked replaces.
+#   3. COMMIT as one path-only rename commit (no new generation cut).
+#
+# poststruct-p_wordprint-2026.svg keeps its name: single-generation transfer
+# stone, suffix owes to a lineage not a birthmark; horcrux-reorg's guard
+# reads it as-is. The mount-internal stone copies (poststruct-staging/,
+# eyestruct-staging/) keep their own names - they tar-move to their own
+# repos and their references (smoke tests, READMEs) stay locally consistent.
+#
+# Lane precondition: stone-ferry.yml + mount-stone-mirror.yml land their
+# path updates via the dispatcher BEFORE this dispatches (GITHUB_TOKEN
+# cannot push workflow-file commits).
+#
+# Idempotent: on a renamed tree the first step says so and exits 0. Any
+# failure before the commit leaves main untouched.
+name: Stone rename
 
 on:
   workflow_dispatch:
-    inputs:
-      token: {}
+
 permissions:
   contents: write
+
+concurrency:
+  group: stone-rename-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  placeholder:
+  rename:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - run: echo 'placeholder; real ferry guarded by blob 003b65f9'
-FAILED_PERFECT_PLACEMENT
+      - uses: actions/checkout@v4
+
+      - name: Phase 1 - rename the four stones under HEAD bytes (git mv)
+        run: |
+          set -euo pipefail
+          if [ -f horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg ] \
+             && grep -q '2026-r2.svg' scripts/cut-stones.py; then
+            echo "already renamed (r1/r2 suffixes + scripts patched); nothing to do"
+            exit 0
+          fi
+          git mv horcrux/stones/gistory-p_gistory-castles-2026.svg   horcrux/stones/gistory-p_gistory-castles-2026-r1.svg
+          git mv horcrux/stones/gistory-p_gistory-castles-2026-2.svg horcrux/stones/gistory-p_gistory-castles-2026-r2.svg
+          git mv horcrux/stones/magpie-p_mirror-eyes-2026.svg        horcrux/stones/magpie-p_mirror-eyes-2026-r1.svg
+          git mv horcrux/stones/magpie-p_mirror-eyes-2026-2.svg      horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg
+
+      - name: Phase 2 gate - every move kept its exact content id
+        run: |
+          set -euo pipefail
+          check() {
+            old="$1"; new="$2"
+            expect="$(git rev-parse "HEAD:$old")"
+            actual="$(git hash-object "$new")"
+            test "$actual" = "$expect" \
+              || { echo "RENAME GATE FAIL: $new (=$actual) != HEAD:$old (=$expect)"; exit 1; }
+            echo "ok: $new = $expect"
+          }
+          check horcrux/stones/gistory-p_gistory-castles-2026.svg   horcrux/stones/gistory-p_gistory-castles-2026-r1.svg
+          check horcrux/stones/gistory-p_gistory-castles-2026-2.svg horcrux/stones/gistory-p_gistory-castles-2026-r2.svg
+          check horcrux/stones/magpie-p_mirror-eyes-2026.svg        horcrux/stones/magpie-p_mirror-eyes-2026-r1.svg
+          check horcrux/stones/magpie-p_mirror-eyes-2026-2.svg      horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg
+          echo "rename gate: all 4 stones byte-identical under their new names"
+
+      - name: Phase 3 - anchored patches (paths + birth-name labels)
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          #!/usr/bin/env python3
+          """Anchored, count-checked patcher: mixed states fail loudly."""
+
+          ROOT = '.'
+          PATCHES = [
+              ('scripts/cut-stones.py', [
+                  ('# horcrux/stones/magpie-p_mirror-eyes-2026.svg - parse, patch, re-encode, verify',
+                   '# horcrux/stones/magpie-p_mirror-eyes-2026-r1.svg - parse, patch, re-encode, verify', 1),
+                  ("STONE = ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026.svg'",
+                   "STONE = ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026-r1.svg'", 1),
+                  ("n1 = wrap_stone(ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026-2.svg', magpie_art,",
+                   "n1 = wrap_stone(ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg', magpie_art,", 1),
+                  ('def wrap_stone(dest, art, note, owner, stone_name, year, payload_text):',
+                   'def wrap_stone(dest, art, note, owner, stone_name, year, payload_text, label=None):', 1),
+                  ("    stem = pathlib.PurePath(dest).stem",
+                   "    # The wheel's identity is its BIRTH name: filenames are vault paths and may\n"
+                   "    # rename across generations (path-only), but the SVG's own header must stay\n"
+                   "    # byte-stable - the stone IS the bytes, the filename is only the address.\n"
+                   "    stem = pathlib.PurePath(dest).stem if label is None else pathlib.PurePath(label).stem", 1),
+                  ("                'dhaupin/magpie', 'mirror-eyes', '2026', magpie_payload)",
+                   "                'dhaupin/magpie', 'mirror-eyes', '2026', magpie_payload,\n"
+                   "                label='magpie-p_mirror-eyes-2026-2')", 1),
+              ]),
+              ('scripts/cut-gistory.py', [
+                  ("# (horcrux/stones/gistory-p_gistory-castles-2026.svg, brn:secret) stays",
+                   "# (horcrux/stones/gistory-p_gistory-castles-2026-r1.svg, brn:secret) stays", 1),
+                  ("n3 = wrap_stone(ROOT / 'horcrux/stones/gistory-p_gistory-castles-2026-2.svg', gistory_art,",
+                   "n3 = wrap_stone(ROOT / 'horcrux/stones/gistory-p_gistory-castles-2026-r2.svg', gistory_art,", 1),
+                  ('def wrap_stone(dest, art, note, owner, stone_name, year, payload_text):',
+                   'def wrap_stone(dest, art, note, owner, stone_name, year, payload_text, label=None):', 1),
+                  ("    stem = pathlib.PurePath(dest).stem",
+                   "    # The wheel's identity is its BIRTH name: filenames are vault paths and may\n"
+                   "    # rename across generations (path-only), but the SVG's own header must stay\n"
+                   "    # byte-stable - the stone IS the bytes, the filename is only the address.\n"
+                   "    stem = pathlib.PurePath(dest).stem if label is None else pathlib.PurePath(label).stem", 1),
+                  ("                'dhaupin/gistory', 'gistory-castles', '2026', gs_payload)",
+                   "                'dhaupin/gistory', 'gistory-castles', '2026', gs_payload,\n"
+                   "                label='gistory-p_gistory-castles-2026-2')", 1),
+              ]),
+              ('scripts/framework-gate.mjs', [
+                  ("    'horcrux/stones/gistory-p_gistory-castles-2026.svg',\n"
+                   "    'horcrux/stones/gistory-p_gistory-castles-2026-2.svg',\n"
+                   "    'horcrux/stones/magpie-p_mirror-eyes-2026.svg',\n"
+                   "    'horcrux/stones/magpie-p_mirror-eyes-2026-2.svg',\n",
+                   "    'horcrux/stones/gistory-p_gistory-castles-2026-r1.svg',\n"
+                   "    'horcrux/stones/gistory-p_gistory-castles-2026-r2.svg',\n"
+                   "    'horcrux/stones/magpie-p_mirror-eyes-2026-r1.svg',\n"
+                   "    'horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg',\n", 1),
+              ]),
+              ('horcrux/README.md', [
+                  ('| `gistory-p_gistory-castles-2026.svg` |', '| `gistory-p_gistory-castles-2026-r1.svg` |', 1),
+                  ('| `gistory-p_gistory-castles-2026-2.svg` |', '| `gistory-p_gistory-castles-2026-r2.svg` |', 1),
+                  ('| `magpie-p_mirror-eyes-2026.svg` |', '| `magpie-p_mirror-eyes-2026-r1.svg` |', 1),
+                  ('| `magpie-p_mirror-eyes-2026-2.svg` |', '| `magpie-p_mirror-eyes-2026-r2.svg` |', 1),
+                  ('`<brain>-p_<stone-word>-<year>[-<gen>].svg`', '`<brain>-p_<stone-word>-<year>[-rN].svg`', 1),
+                  ('FILENAME (the house convention — the filename is part of the vault key).',
+                   'FILENAME (the house convention — the filename is part of the vault key).\n'
+                   'Generation suffixes are `-r1`/`-r2` (bare digit `-2` names retired 2026-10-26,\n'
+                   'path-only: each cutter pins its stone\'s BIRTH name into the SVG header via\n'
+                   '`label=`, so bytes — and ferry gate ids — never move on a rename).', 1),
+              ]),
+          ]
+
+          import sys
+          pending_done, all_ok = [], True
+          for path, repls in PATCHES:
+              with open(f'{ROOT}/{path}', encoding='utf-8') as fh:
+                  text = fh.read()
+              fully_old = all(old in text for old, _, _ in repls)
+              fully_new = all(new in text for _, new, _ in repls)
+              fully_old_absent = all(old not in text for old, _, _ in repls)
+              if fully_new and fully_old_absent:
+                  pending_done.append(path)
+                  continue
+              if fully_new and not fully_old_absent:
+                  print(f'PATCH FAIL {path}: patched text present but old anchor still here', file=sys.stderr)
+                  all_ok = False
+                  continue
+              if not fully_old:
+                  print(f'PATCH FAIL {path}: anchor(s) missing and file not already patched', file=sys.stderr)
+                  all_ok = False
+                  continue
+              for old, new, count in repls:
+                  n = text.count(old)
+                  if n != count:
+                      print(f'PATCH FAIL {path}: anchor occurs {n}x, expected {count}: {old[:60]!r}', file=sys.stderr)
+                      all_ok = False
+                      break
+                  text = text.replace(old, new)
+              else:
+                  with open(f'{ROOT}/{path}', 'w', encoding='utf-8') as fh:
+                      fh.write(text)
+                  print(f'patched: {path}')
+          if not all_ok:
+              sys.exit(1)
+          if pending_done:
+              print('already current: ' + ', '.join(pending_done))
+          PY
+
+      - name: Phase 4 - commit the path-only rename
+        run: |
+          set -euo pipefail
+          git config user.name  "stone-rename"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A horcrux scripts
+          git status --porcelain > /tmp/changes.txt
+          if grep -Ev "^(R  horcrux/.*|M  horcrux/README[.]md|M  scripts/(cut-gistory|cut-stones)[.]py|M  scripts/framework-gate[.]mjs)" /tmp/changes.txt; then
+            echo "UNEXPECTED CHANGES (above)"; exit 1
+          fi
+          echo "whitelist clean: 4 renames + cutter/gate/README patches only"
+          git commit -m "stones: r1/r2 suffix rename (path-only, byte-stable)" \
+                     -m "The bare -2 digit suffixes read as duplicates in the tree view; the four gistory/magpie stones rename to -r1/-r2 via git mv from HEAD's own bytes. The cutters gain a label= kwarg that pins each stone's BIRTH name into the SVG header, so regeneration is filename-independent - bytes and ferry gate ids never move on a rename. poststruct keeps its name (single-generation transfer stone)."
+          git push origin main
