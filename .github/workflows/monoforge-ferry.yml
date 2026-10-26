@@ -1,0 +1,96 @@
+# Monoforge ferry - assembles the staging mount's tool tree from its
+# committed transport parts (.cut-tmp/mfparts/mfpart-*, landed during the
+# session whose payload lane refused to carry 150KB+ in one upsert).
+#
+# Law: the mount tree derives from its lock archive, never from memory.
+# The parts reassemble horcrux/monoforge-0.9.0-lock.tar.gz, which is
+# sha256-gated against the offline value BEFORE anything unpacks - a
+# corrupt lock can no more reach main than a corrupt stone could via the
+# stone ferry. The unpack merges over monoforge-staging/ (the receipts
+# this mount adds on top - labs/, horcrux/README, stone - are not in the
+# lock, so they survive; known limitation: a re-lock that DELETES a tool
+# file leaves the stale one behind, so re-locks should sweep first).
+#
+# Self-cleaning: after committing the assembled tree the parts are swept
+# (git rm), so later pushes find no parts and the job no-ops.
+
+name: Monoforge ferry
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: monoforge-ferry-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ferry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nothing to ferry until all 11 transport parts are on main
+        id: gate
+        run: |
+          n="$(find .cut-tmp/mfparts -name 'mfpart-*' 2>/dev/null | wc -l)"
+          echo "parts present: $n"
+          if [ ! -d .cut-tmp/mfparts ]; then
+            echo "no .cut-tmp/mfparts - the parts are consumed; nothing to ferry"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$n" -lt 11 ]; then
+            echo "still assembling (11 expected) - nothing to ferry yet"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reassemble the lock tarball from the parts, sha-gate it
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          cat .cut-tmp/mfparts/mfpart-* | base64 -d > /tmp/mf-lock.tar.gz
+          expect="046908c681a607d355925146234c7d4adf3726581a2e8799544954d7c4cf2952"
+          actual="$(sha256sum /tmp/mf-lock.tar.gz | cut -d' ' -f1)"
+          echo "expect: $expect"
+          echo "actual: $actual"
+          test "$actual" = "$expect" \
+            || { echo "FERRY GATE FAIL: lock tarball did not round-trip; refusing to commit"; exit 1; }
+          echo "ferry gate: lock tarball round-trips byte-exact"
+
+      - name: Land the lock + unpack the tool tree beside it
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p monoforge-staging/horcrux
+          cp /tmp/mf-lock.tar.gz monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz
+          tar -xzf /tmp/mf-lock.tar.gz -C monoforge-staging --strip-components=1
+          echo "unpacked $(find monoforge-staging -type f | wc -l) files"
+
+      - name: Prove the unpacked tool still self-tests green
+        if: steps.gate.outputs.run == 'true'
+        run: node test/run.mjs
+        working-directory: monoforge-staging
+
+      - name: Commit assembled mount, sweep the transport parts
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "monoforge-ferry"
+          git consig user.email "actions@users.noreply.github.com"
+          git add monoforge-staging/
+          if [ -d .cut-tmp/mfparts ]; then
+            git rm -r -q .cut-tmp/mfparts
+          fi
+          if ! git diff --cached --quiet; then
+            git commit -m "monoforge: assemble monoforge-staging mount from its lock archive (sha-gated ferry)" \
+                       -m "The mount's tool tree is 0.9.0 UNCHANGED, unpacked from horcrux/monoforge-0.9.0-lock.tar.gz (sha256 046908c6...), so the mount and its lock archive cannot drift in transit. The unpacked tool re-ran its own self-test (stamp + doctor + lock refusals) on the runner before anything was committed. Transport parts (.cut-tmp/mfparts/*) are swept in the same commit."
+            git push origin main
+          else
+            echo "nothing new to commit (mount already correct)"
+          fi

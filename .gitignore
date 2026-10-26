@@ -28,3 +28,7 @@ eyestruct-staging/.git
 # legs live in one workspace (source recovered from the historical
 # 0.9.0 lock tar; history stays canonical on dhaupin/poststruct).
 poststruct-staging/.git
+monoforge-staging/.git
+
+# stone-cutting scratch (disposables never ride)
+.cut-tmp/

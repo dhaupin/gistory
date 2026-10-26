@@ -17,7 +17,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."      # repo root
 TODAY="$(date -u +%F)"
-MOUNTS="poststruct-staging eyestruct-staging"
+MOUNTS="poststruct-staging eyestruct-staging monoforge-staging"
 GIT_NAME="Codebuff"
 GIT_EMAIL="noreply@codebuff.com"
 GIT_DATE="2026-10-26T00:00:00Z"
