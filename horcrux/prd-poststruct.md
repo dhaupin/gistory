@@ -8,7 +8,7 @@
 
 ## 1. One-line pitch
 
-**poststruct audits what shipped.** A zero-dependency CLI that walks a directory of baked HTML — any generator's output — and verifies it against a head/damage contract: SEO hygiene, link integrity, i18n, accessibility-lite, feeds. FAIL-level findings exit non-zero so CI gates regressions. It is the third leg of the struct family: prestruct puts SEO *in before* the build, freestruct puts SEO *in* after an SSG, poststruct checks what both of them (and everyone else) actually *shipped*.
+**poststruct audits what shipped.** A zero-dependency CLI that walks a directory of baked HTML — any generator's output — and verifies it against a head/damage contract: SEO hygiene, link integrity, i18n, accessibility-lite, feeds. FAIL-level findings exit non-zero so CI gates regressions. It is the third leg of the struct family: prestruct puts SEO *in before* the build, freestruct puts SEO *in after* an SSG, poststruct checks what both of them (and everyone else) actually *shipped*.
 
 ## 2. Naming & identity
 
@@ -154,7 +154,7 @@ Documentation for both engines' audit proposals gets repointed here (one new tra
 ### M0 — bootstrap (target: one working session)
 - [ ] Pack loader in the core from day 1: manifest validation, slug-namespaced ids, collision refusal, local-path sources. Ships empty (`packs/` dir absent = fine) but the contract is real code, not a stub
 - [x] Create `dhaupin/poststruct` — DONE (scaffolded 2026-10-23): full repo at 0.9.0 in hand — core (bake/audit/linkcheck/referencecheck modes), self-audit fixtures PASSING, packs mount, `.github/workflows/` (test.yml, publish.yml with the 0.x refusal gate, linkcheck.yml), README/AGENTS/CHANGELOG/DEPLOY/LICENSE, `labs/TASKS.md`, `horcrux/`. npm pack dry-run clean (8 files, 5.8 kB). BLOCKED on push: repo exists on GitHub but is not writable by the Freebuff agent — needs reconnection of the repo to the Freebuff GitHub App; publish first as 0.9.0 (manual), 1.0.0 flips OIDC per DEPLOY.md
-- [ ] Port `scripts/seo-audit.mjs` from creadev.org as the `head` + `site` modules verbatm (it already passed a negative test: doctored output → 2 FAILs → exit 1)
+- [ ] Port `scripts/seo-audit.mjs` from creadev.org as the `head` + `site` modules verbatim (it already passed a negative test: doctored output → 2 FAILs → exit 1)
 - [ ] Check registry + findings schema + CLI entry (`poststruct audit [dir]` / `--json` / `--module`)
 - [ ] Fixtures: `test/fixtures/good/` and `test/fixtures/bad/` (baked HTML copies) run in CI; **self-audit the fixtures and assert exact findings** — the negative test becomes a permanent CI job
 - [ ] npm publish + GitHub repo README with the check catalog
@@ -207,7 +207,7 @@ Documentation for both engines' audit proposals gets repointed here (one new tra
 
 ## 11. Honest risk register
 
-- **Fragment targets (`#foo`) in linkcheck** require in-page anchor extraction — small, but fiddly with SSR'd React attrs; ship anchors as WARN in M1, promote in M2 if stable.
+- **Fragment targets (']'foo') in linkcheck'** require in-page anchor extraction — small, but fiddly with SSR'd React attrs; ship anchors as WARN in M1, promote in M2 if stable.
 - **The a11y "informative image" heuristic is the oldest trap in automated a11y.** Decorative-vs-informative is context-dependent; we mark `alt=""` as decorative and everything else as informative, documented as a conservative policy — never claim WCAG conformance, only that these specific failures are caught.
 - **Cliche detection is lexicon-and-construction matching, not authorship forensics.** It catches known tells (dash bans being the only unambiguous one); it will miss fresh AI-isms and flag the odd human sentence that happens to contain "seamlessly." Policy: banned terms are configurable per org, default level WARN for lexicon hits (human review), FAIL reserved for the mechanical classes (dash characters, keyboard mashing, lorem ipsum in production). Never claim it proves human authorship — it proves the absence of named patterns, which is the thing you can actually enforce.
 - **Zero-dep discipline vs future HTML parsing.** The seed uses regexes and they've held fine (16 routes × 4 or so a day of rebuilds, dozens of tt runs). If a check needs a real parser, that's the moment one dependency becomes acceptable — decided then, not now.
