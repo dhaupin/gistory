@@ -260,6 +260,6 @@ jobs:
             echo "UNEXPECTED CHANGES (above)"; exit 1
           fi
           echo "whitelist clean: horcrux moves + the 9 patched files only"
-          git commit -m "horcrux: path-only reorg into stones/ tars/(+archive) prds/ handoff/" \\
+          git commit -m "horcrux: path-only reorg into stones/ tars/(+archive) prds/ handoff/" \
                      -m "Every artifact moves ON THE RUNNER from HEAD's own tracked bytes (git mv), so all blob ids - and the ferry gate pins (0bde5b6d / 295e5a17 / a1a01c2d) - hold by construction; live references patch by anchored, count-checked replaces. The vault index now lives in horcrux/README.md."
           git push origin main
