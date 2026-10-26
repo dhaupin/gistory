@@ -34,3 +34,19 @@ dhaupin/monoforge (labs/, upstream commit f8e45fb):
 - The templates/ blocks are the 2026-10-24 extraction and predate
   tonight: drift against the two struct instances is the known, watched
   risk (PRD §6), not something tonight changes.
+- **Completion sprint (2026-10-26, pre-move).** 1) Template-layer drift
+  repaired at the SOURCE: the docs layout shipped packstruct's nav
+  (SPEC v1 / linter pages) and footer identity, the configs shipped
+  packstruct's description, and a backreference artifact rode both -
+  every stamped repo would have inherited another tool's identity.
+  Templates now emit __SPECIES__/__DESCRIPTION__ tokens and a home+search
+  nav (the monoforge instance adds verbs/packs); the doctor-scoped
+  stamp-manifest law is untouched (self-test still green endpoints:
+  bad-config refused, stray dir refused, stamp ok, unfilled doctor FAIL,
+  refilled doctor PASS). 2) docs playbook grew from 2 pages to 4:
+  verbs.md (usage lines match bin/forge.mjs help exactly) and packs.md
+  (the contract + SPEC v1 link + the honest "no packs shipped yet by
+  design"). 3) site/ landing built per the PRD inventory: slogan, verb
+  grid, receipts-only numbers, limits, terms/privacy static pages
+  (footer links no longer point at 404s). Frontmatter/links/style/
+  language gates all PASS on the new pages.

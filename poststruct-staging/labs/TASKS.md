@@ -34,3 +34,20 @@ Last updated: 2026-10-24 (scaffold complete at 0.9.0; push pending crashtest#18)
       a static-site double (freestruct-docs-shapes precedent). Until then
       there is no transport surface worth an attack; the audit surface is
       covered by the negative-tested fixtures (8/8 expected FAIL ids).
+
+## 2026-10-26 - completion sprint (pre-move verification pass)
+
+- Batteries re-run locally and green: npm test + lint:packs (1 pack) +
+  conform:packs 8/8; the pack runner then LIVE-fired against a freshly
+  baked gistory dist - the eyes-reference og:image leg PASSED through
+  its local twin, and the framework gate's text/eyes-art/text-ref/
+  eyes-mem legs all PASSED on the same build (the raster gate rode the
+  renamed r1/r2 stones byte-stable).
+- The tar-move plan's injected change #1 turned out to be already
+  landed in the mount: run-packs.mjs carries POSTSTRUCT_DIST and
+  EYESTRUCT_BIN knobs with the agreed resolution order (--dist, env,
+  gistory-mount sibling, ./dist). Verified by reading, no edit needed;
+  the npx-pinned flip for EYESTRUCT_BIN stays a post-publish event.
+- No code changes this pass: the mount was already at its planned
+  shape; this entry is the local-green receipt so move-day can skip
+  re-verification.
