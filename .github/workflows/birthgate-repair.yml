@@ -1,0 +1,56 @@
+name: birthgate-repair
+# One-shot, dispatch-only: scripts/birth-gate.mjs rode the commit lane with a
+# few transcription drifts (landed blob bab34368 vs disk 657891f5): a mangled
+# f.reason field, a double space, and raw non-UTF8 bytes inside the CHECK-1
+# comment banner. The corrective lane carries ZERO file content: the run
+# performs pinpoint BYTE-level replacements on HEAD's own bytes, blob-gates on
+# the known-good disk shade BEFORE writing, and only then commits.
+# Workflow-file cleanup rides the commit lane afterwards (a run's push may
+# not patch .github/workflows).
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Pinpoint byte-level repair from HEAD bytes, blob-gate, commit
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          src = subprocess.run(['git','show','HEAD:scripts/birth-gate.mjs'],
+                               capture_output=True, check=True).stdout  # bytes
+          bad_detail = b'parts.push(`|  ${f.detail}`)'
+          good_detail = b'parts.push(`| ${f.detail}`)'
+          good_reason = b'    if (f.reason) parts.push(`| skip: ${f.reason}`)'
+          good_banner = b'// --- CHECK 1: workflow syntax ' + b'-' * 45
+          assert good_detail in src, 'expected double-space drift not found'
+          src = src.replace(good_detail, good_detail.replace(b'`|  ', b'`| '), 1)
+          # rebuild from scratch below: normalize each drift by line surgery
+          lines = src.split(b'\n')
+          for i, ln in enumerate(lines):
+              if b'.reasoni' in ln:
+                  lines[i] = good_reason
+          for i, ln in enumerate(lines):
+              if ln.startswith(b'// --- CHECK 1'):
+                  lines[i] = good_banner
+          src = b'\n'.join(lines)
+          blob = subprocess.run('git hash-object --stdin', input=src,
+                                capture_output=True, check=True, shell=True).stdout.decode().strip()
+          print('repaired blob:', blob, '(target 657891f52cd5630f9ec2568564e3e44fc31fad03)')
+          assert blob == '657891f52cd5630f9ec2568564e3e44fc31fad03', 'BLOB MISMATCH - refusing to write'
+          open('scripts/birth-gate.mjs', 'wb').write(src)
+          print('REPAIR APPLIED, blob gate satisfied')
+          PY
+      - name: Commit the repair
+        run: |
+          git config user.name  "Codebuff"
+          git config user.email "noreply@codebuff.com"
+          git add scripts/birth-gate.mjs
+          git commit -m "birth-gate: repair the commit-lane drift (byte-level, blob gate 657891f5)"
+          git push
+          echo "LANDED-OK $(git rev-parse HEAD)"
