@@ -1,7 +1,7 @@
 # Staging-tar ferry - builds and commits the reproducible pre-tar
 # snapshots of the struct-family staging mounts (horcrux/<mount>-git-
 # <YYYY-MM-DD>.tar.gz) from the CURRENT tracked tree state, using
-# scripts/make-staging-tars.sh. Dhaupin-side darok: untar -> git remote
+# scripts/make-staging-tars.sh. Dhaupin-side move-day: untar -> git remote
 # add origin ... && push (per labs/tar-move-plan.md).
 #
 # The build is byte-determinstic (fixed author/date identity in the
@@ -30,6 +30,21 @@ jobs:
 
       - name: Build the reproducible staging tars from the current tree
         run: bash scripts/make-staging-tars.sh
+
+      # The pack must be a property of the pipeline, not a hope: rebuild
+      # and compare bytes. gc is disabled inside the mounts (the birth
+      # gate asserts it), so the only reason two runs could differ is a
+      # real nondeterminism the build step was supposed to have killed.
+      # The script excludes today's own tarball from seed selection, so
+      # both runs take the identical code path by construction.
+      - name: Determinism proof (rebuild must be byte-identical)
+        run: |
+          set -euo pipefail
+          sha256sum horcrux/*-git-*.tar.gz > /tmp/tars-a.sha
+          bash scripts/make-staging-tars.sh
+          sha256sum horcrux/*-git-*.tar.gz > /tmp/tars-b.sha
+          diff /tmp/tars-a.sha /tmp/tars-b.sha
+          echo "Determinism proven: two consecutive builds produced byte-identical tars."
 
       - name: Commit any new/changed tarballs
         run: |
