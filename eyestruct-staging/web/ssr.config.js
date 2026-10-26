@@ -5,12 +5,12 @@
  * one entry per Route in AppLayout.jsx.
  */
 export default {
-  siteUrl:  'https://flowforge.creadev.org',
-  siteName: 'flowforge',
+  siteUrl:  'https://eyestruct.creadev.org',
+  siteName: 'eyestruct',
   author:   'dhaupin',
-  tagline:  'One repo, two sites, zero styling drift.',
-  ogImage:  'https://flowforge.creadev.org/og-image.png',
-  keywords: 'flowforge, boilerplate, shell, docs, jekyll, landing-page, prerender, github-pages, cloudflare-pages',
+  tagline:  'Eyes for production agents: deterministic look, committed visual memory, CI gates on drift.',
+  ogImage:  'https://eyestruct.creadev.org/og-image.png',
+  keywords: 'eyestruct, visual-testing, screenshot-diff, regression, eyes, ci, puppeteer, prerender, prestruct, cloudflare-pages',
 
   routes: [
     {
@@ -18,8 +18,8 @@ export default {
       priority: '1.0',
       changefreq: 'monthly',
       meta: {
-        title: 'flowforge - the shell the struct family ships sites from',
-        description: 'One repo, two sites, zero styling drift: the landing shell, the docs rig, and the CI/release plumbing the struct family keeps re-porting, with brand as data.',
+        title: 'eyestruct - eyes for production agents',
+        description: 'Deterministic look and look-diff with a committed visual memory (.eyes/) that CI can gate. Process-per-look: the only surviving state is git state.',
       },
     },
     {
@@ -27,8 +27,8 @@ export default {
       priority: '0.3',
       changefreq: 'yearly',
       meta: {
-        title: 'Terms | flowforge',
-        description: 'Terms of use for the flowforge shell and this site.',
+        title: 'Terms | eyestruct',
+        description: 'Terms of use for eyestruct and this site.',
       },
     },
     {
@@ -36,8 +36,8 @@ export default {
       priority: '0.3',
       changefreq: 'yearly',
       meta: {
-        title: 'Privacy | flowforge',
-        description: 'What this site collects: nothing hidden, no tracking states to find.',
+        title: 'Privacy | eyestruct',
+        description: 'What this site collects: nothing. No server, no accounts, no hidden states to find.',
       },
     },
     // add more routes per AppLayout.jsx

@@ -1,9 +1,9 @@
 {
-  "name": "flowforge-site",
+  "name": "eyestruct-site",
   "private": true,
   "version": "0.9.0",
   "type": "module",
-  "description": "flowforge site - the shell the struct family ships from (prestruct prerender + static hosting)",
+  "description": "eyestruct site - the landing for eyes for production agents (prestruct prerender + static hosting)",
   "scripts": {
     "dev": "vite",
     "build": "prestruct build && node scripts/repair-404.cjs",
