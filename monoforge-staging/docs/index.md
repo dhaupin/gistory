@@ -15,10 +15,7 @@ version: 0.9.0
 The struct-family factory: stamp a repo from proven template blocks, doctor it for truth, lock it verifiably.
 
 ```bash
-monoforge new <dir>       # stamp a fleet repo from that dir's factory.json
-monoforge doctor [dir]    # the truth battery - unfilled slots fail
-monoforge cut [dir]       # component-family workspace (cutlist.json + factory.json)
-monoforge lock [dir]      # doctor, then archive with a sha256 record
+# documented usage here (keep this line honest: usage in docs must match the CLI)
 ```
 
 The release ladder: 0.9.x is manual npm; 1.0.0 flips OIDC trusted publishing
