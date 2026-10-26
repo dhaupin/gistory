@@ -45,9 +45,9 @@ jobs:
           expect_magpie="0bde5b6db94edac65636a34648db13f116cb436e"
           expect_poststruct="295e5a170c6761e14e71cff0e9b34f70f08327ee"
           expect_gistory="a1a01c2d6bd46225b5178437f5e0e8de0536cd64"
-          actual_magpie="$(git hash-object horcrux/magpie-p_mirror-eyes-2026-2.svg)"
-          actual_poststruct="$(git hash-object horcrux/poststruct-p_wordprint-2026.svg)"
-          actual_gistory="$(git hash-object horcrux/gistory-p_gistory-castles-2026-2.svg)"
+          actual_magpie="$(git hash-object horcrux/stones/magpie-p_mirror-eyes-2026-2.svg)"
+          actual_poststruct="$(git hash-object horcrux/stones/poststruct-p_wordprint-2026.svg)"
+          actual_gistory="$(git hash-object horcrux/stones/gistory-p_gistory-castles-2026-2.svg)"
           echo "expect magpie r2 : $expect_magpie"
           echo "actual magpie r2 : $actual_magpie"
           echo "expect poststruct: $expect_poststruct"
@@ -67,14 +67,14 @@ jobs:
           set -euo pipefail
           git config user.name  "stone-ferry"
           git config user.email "actions@users.noreply.github.com"
-          git add horcrux/magpie-p_mirror-eyes-2026-2.svg \
-                  horcrux/poststruct-p_wordprint-2026.svg \
-                  horcrux/gistory-p_gistory-castles-2026-2.svg
+          git add horcrux/stones/magpie-p_mirror-eyes-2026-2.svg \\
+                  horcrux/stones/poststruct-p_wordprint-2026.svg \\
+                  horcrux/stones/gistory-p_gistory-castles-2026-2.svg
           if [ -d .cut-tmp/parts ]; then
             git rm -r -q .cut-tmp/parts
           fi
           if ! git diff --cached --quiet; then
-            git commit -m "horcrux: cut magpie r2 + poststruct seed + gistory r2 stones (sha-gated ferry)" \
+            git commit -m "horcrux: cut magpie r2 + poststruct seed + gistory r2 stones (sha-gated ferry)" \\
                        -m "Every stone regenerates from committed sources and is sha-gated against its offline blob id (0bde5b6d / 295e5a17 / a1a01c2d) before anything is committed - the CI-cut lane, not hand-carry. Brain parity copies ride .cut-tmp."
             git push origin main
           else
