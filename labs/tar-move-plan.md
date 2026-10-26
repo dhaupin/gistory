@@ -79,7 +79,7 @@ own heads and never carry a gistory-shaped transplant artifact.
      flips to an npx-resolved path with an honest version pin â€” never a
      bare `npx eyestruct` (the pin discipline the ecosystem carries
      everywhere else applies here too: same commit â†’ same findings).
-   - `EYES_REFERENCES_PROVIDER_TWIN_MAPÀ stays (env's own shape); the
+    - `EYES_REFRENCES_PROVIDER_TWIN_MAP` stays (env's own shape); the
      twin keys still NAME gistory, deliberately: gistory is this pack's
      first client, and after the tar it is the CLIENT, not the mount.
 2. **`scripts/check-language.cjs`** â€” no mechanical change needed: it
@@ -179,4 +179,13 @@ own heads and never carry a gistory-shaped transplant artifact.
 - **Audit-diff:**
   eyestruct's raster leg gates gistory's horcrux stones + favicon; on
   dayâ€™s swap those paths are gistory-relative and must be fed as ARGV
-  (they already are â€” eyestruct raster [file...]`ÉÍ¼Ñ¡”Íİ…À¥Ì„(€Á…Ñ …ÉÕµ•¹Ğ¡…¹”°¹•Ù•È„Ñ½½°¡…¹”¸(´€¨©¥Éµİ…É”µ±½¬‘É¥™Ğè¨¨Á½ÍÑÍÑÉÕĞÌÁ…­ÍÑÉÕÑ Ä¸À¸Á€…¹(€•å•ÍÑÉÕĞÌÁ…­ÍÑÉÕÑ Ä¸À¸Á€Í¡½Õ±‰ÕµÀQ<Q!Hİ¥Ñ Ñ¡”É…Í¡Ñ•ÍĞ(€€¬¥ÍÑ½ÉäÁ¥¹Ì¸Q¡”•½ÍåÍÑ•´Ì•á…ĞµÁ¥¸‘¥Í¥Á±¥¹”•ÑÌ„½µÁ…¹¥½¸(€É••¥ÁĞÉ½ÜÍ…å¥¹œÑ¡”™½ÕÈÁ¥¹Ìµ…Ñ¡•½¸€ÈÀÈØ´ÄÀ´ÈØƒŠP„±…Ñ•È‰ÕµÀ(€¥Ì„‘•±¥‰•É…Ñ”°É••¥ÁÑ••Ù•¹ĞÁ•ÈÉ•Á¼¸(´€¨©1…Ü½˜½½°è¹½Ñ¡¥¹œÍ•±˜µ¡•…±Ì¸¨¨%˜„ÍÑ…¹‘Õ±½¹”‰…ÑÑ•Éä±…ÁÍ•Ì(€É•°Ñ¡…Ğ¥Ì„É•±…¹”¥¸Ñ¡”É•Á¼Ñ¡…Ğ½İ¹Ì¥ĞƒŠP¥ÍÑ½Éä…ÉÉ¥•Ì¹¼(€Í¥±•¹ĞµÍİ…À™…±±‰…­Ì…¹¹•Ù•È•±Í•İ¡•É”¡¥‘•ÌÑ¡”ÑÉÕÑ ¸(Ğ
+  (they already are â€” `eyestruct raster [file...]`) so the swap is a
+  path argument change, never a tool change.
+- **Firmware-lock drift:** poststruct's `packstruct@1.0.0` and
+  eyestruct's `packstruct@1.0.0` should bump TOGETHER with the crashtest
+  + gistory pins. The ecosystem's exact-pin discipline gets a companion
+  receipt row saying the four pins matched on 2026-10-26 â€” a later bump
+  is a deliberate, receipted event per repo.
+- **Law of cool: nothing self-heals.** If a standalone battery lapses
+  red, that is a red lane in the repo that owns it â€” gistory carries no
+  silent-swap fallbacks and never elsewhere hides the truth.
