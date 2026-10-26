@@ -5,15 +5,19 @@
 # Manual dispatch only (workflow_dispatch) - not a push gate, on purpose:
 # pixel canon changes are deliberate events, and a red gate cannot adopt,
 # it can only refuse. If ratify finds DRIFT (baseline not reproducible),
-# it fails WITHOUT touching the ledger; the fix path is look -> fix the
-# real change -> adopt -> re-dispatch this. The ledger is append-only, so
-# every ratify run leaves its own proof rows - verify with
-# `eyestruct ledger list`.
+# the adopt-on-drift path proposes pinned-env captures; a fresh dispatch
+# is the independent witness that cuts canon. The ledger is append-only.
 #
-# What it does: fresh chromium (family ui:browsers pattern, on-demand
-# download) + the prestruct bake + a static serve of dist/ + eyestruct
-# ratify against the manifest pin. Environment drift across OS/GPU cannot
-# be argued around - only reproducibility inside the pin counts as canon.
+# gistory hosts the eyes at labs/.eyes (next to labs/crashledger.json -
+# the family's ledger home in the testbed), NOT the .eyes default, so
+# every verb below names BOTH --manifest and --ledger explicitly. Those
+# flags are wired in eyestruct-staging/bin/eyestruct.js; without them the
+# tool would silently fall back to .eyes/ and write nowhere useful.
+#
+# What it does: pinned chromium (manifest's exact version) + the prestruct
+# bake + a static serve of dist/ + eyestruct ratify against the manifest
+# pin. Environment drift across OS/GPU cannot be argued around - only
+# reproducibility inside the pin counts as canon.
 
 name: Eyes ratify (CI-cut canon)
 
@@ -24,11 +28,15 @@ concurrency:
   group: eyes-ratify
   cancel-in-progress: false
 
+env:
+  EYES_MANIFEST: labs/.eyes/manifest.yml
+  EYES_LEDGER: labs/.eyes/ledger.json
+
 jobs:
   ratify:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # the cut: appends its own proof rows to .eyes/ledger.json
+      contents: write # the cut: appends its own proof rows to the ledger
     steps:
       - uses: actions/checkout@v4
 
@@ -72,9 +80,8 @@ jobs:
 
       # THE CUT: byte-identical reproduction -> append-only ratify rows.
       # Drift exits 1 with a named reason and changes nothing - which is
-      # also the honest bootstrap the first dispatch needs: the committed
-      # baselines were cut on a different machine, and nothing in the
-      # toolchain writes .eyes/<slot>/current.png (walk keeps candidates,
+      # also the honest bootstrap a first dispatch needs: nothing in the
+      # toolchain writes <eyes>/<slot>/current.png (walk keeps candidates,
       # adopt writes rows, pixels move only by deliberate git action). So
       # on DRIFT this lane promotes the pinned-env captures into the slots
       # + adopt rows (ratified:false), commits, and a re-dispatch cuts
@@ -83,23 +90,24 @@ jobs:
       # baseline proposed in an EARLIER one.
       - name: Ratify the manifest routes (adopt-on-drift bootstrap)
         run: |
-          node eyestruct-staging/bin/eyestruct.js ratify http://localhost:4173/ && exit 0
+          node eyestruct-staging/bin/eyestruct.js ratify http://localhost:4173/ --manifest "$EYES_MANIFEST" --ledger "$EYES_LEDGER" && exit 0
           echo "drift: promoting pinned-env captures as proposals (walk -> slots -> adopt rows)"
-          node eyestruct-staging/bin/eyestruct.js walk http://localhost:4173/
-          cp .eyes-candidates/walk__root_desktop-1280-dark_dark.png .eyes/home/desktop-1280-dark/current.png
-          cp .eyes-candidates/walk__settings_desktop-1280-dark_dark.png .eyes/settings/desktop-1280-dark/current.png
-          node eyestruct-staging/bin/eyestruct.js adopt home/desktop-1280-dark --note "bootstrap: pinned-env capture (linux chrome 154.0.8037.57), replaces the cross-machine local baseline; canon cuts on the next ratify dispatch"
-          node eyestruct-staging/bin/eyestruct.js adopt settings/desktop-1280-dark --note "bootstrap: pinned-env capture (linux chrome 154.0.8037.57), replaces the cross-machine local baseline; canon cuts on the next ratify dispatch"
+          node eyestruct-staging/bin/eyestruct.js --manifest "$EYES_MANIFEST" --ledger "$EYES_LEDGER" walk http://localhost:4173/
+          mkdir -p labs/.eyes/home/desktop-1280-dark labs/.eyes/settings/desktop-1280-dark
+          cp .eyes-candidates/walk__root_desktop-1280-dark_dark.png labs/.eyes/home/desktop-1280-dark/current.png
+          cp .eyes-candidates/walk__settings_desktop-1280-dark_dark.png labs/.eyes/settings/desktop-1280-dark/current.png
+          node eyestruct-staging/bin/eyestruct.js adopt home/desktop-1280-dark --note "bootstrap: pinned-env capture (linux chrome 154.0.8037.57) at labs/.eyes; canon cuts on the next ratify dispatch" --manifest "$EYES_MANIFEST" --ledger "$EYES_LEDGER"
+          node eyestruct-staging/bin/eyestruct.js adopt settings/desktop-1280-dark --note "bootstrap: pinned-env capture (linux chrome 154.0.8037.57) at labs/.eyes; canon cuts on the next ratify dispatch" --manifest "$EYES_MANIFEST" --ledger "$EYES_LEDGER"
           echo "proposal committed; re-dispatch eyes-ratify to cut canon"
 
       - name: Commit the proof rows
         run: |
-          if git diff --quiet -- .eyes/; then
+          if git diff --quiet -- labs/.eyes/; then
             echo "No .eyes/ change - canon was already reproducible."
             exit 0
           fi
           git config user.name "eyestruct ratify"
           git config user.email "actions@users.noreply.github.com"
-          git add .eyes/
-          git commit -m "ratify: append-only proof rows in the pinned environment"
+          git add labs/.eyes/
+          git commit -m "ratify: append-only proof rows in the pinned environment (labs/.eyes)"
           git push

@@ -1,0 +1,33 @@
+# ONE-SHOT LANE — delete-me-on-run.
+# gistory hosts the family's ledger baselines under labs/ (crashledger.json
+# precedent), so the eyes move there too: labs/.eyes/manifest.yml +
+# labs/.eyes/ledger.json + the cut baselines. The bytes must move with real
+# git machinery (git mv) in ONE commit so the ledger never dangles: the
+# gate legs read manifest->dir->rows->artifacts as one snapshot, and a
+# chat-to-API push of 80KB PNGs would drop single characters (the lockfile
+# receipt, five times over). The tools then reach the new home via
+# --manifest / --ledger flags every CI lane passes - the .eyes default
+# stays the eyestruct tool's own convention for the repos that ARE eyes.
+name: Relocate .eyes to labs/.eyes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  relocate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: git mv the whole .eyes tree under labs/ (one atomic commit)
+        run: |
+          mkdir -p labs
+          git mv .eyes labs/.eyes
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -q .github/workflows/relocate-eyes.yml
+          git commit -q -m "relocate: .eyes -> labs/.eyes (family ledger home, atomic move)" -m "gistory keeps every family baseline under labs/ (labs/crashledger.json) - the eyes join them, bytes and ledger history intact via git mv. The ratify lane and the framework-gate EYES-MEM leg reach the new home with --manifest/--ledger; the .eyes default stays the tool convention for the repos that are eyes. This one-shot lane removes itself in the same push."
+          git push
