@@ -1,0 +1,258 @@
+# One-shot horcrux reorg - three phases, each byte-guarded:
+#
+#   1. MOVE   artifacts from the horcrux root into the new layout
+#             (stones/ tars/(+archive) prds/ handoff/) ON THE RUNNER via
+#             `git mv` - the exact tracked bytes, so every blob id and the
+#             ferry gate pins (0bde5b6d / 295e5a17 / a1a01c2d) hold by
+#             construction.
+#   2. PATCH  the live path references in scripts/workflows/AGENTS.md with
+#             anchored, count-checked replaces (a patch that cannot find its
+#             exact anchor fails the run instead of landing somewhere close).
+#   3. COMMIT the combined result as one path-only reorg commit.
+#
+# Why this shape: the staging tars (1-4MB binary) have NO hand lane (the
+# base64 carries of earlier passes corrupted twice), and the stones carried
+# historical hand lanes that produced the miss-a-word drift class. A
+# dispatch-only mover makes the bytes flow checkout -> disk with zero
+# transport; the patch anchors are <= a line, and the runner's own bytes are
+# the payload.
+#
+# Idempotent: on a fully-reorganized tree the first step says so and exits 0.
+# Any failure before the commit leaves main untouched.
+name: Horcrux reorg
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: horcrux-reorg-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  reorg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Phase 1 - move artifacts under HEAD bytes (git mv)
+        run: |
+          set -euo pipefail
+          if [ -f horcrux/stones/poststruct-p_wordprint-2026.svg ] \
+             && grep -q "horcrux/stones" scripts/cut-stones.py; then
+            echo "already reorganized (stones/ populated + scripts patched); nothing to do"
+            exit 0
+          fi
+          mkdir -p horcrux/stones horcrux/tars/archive horcrux/prds horcrux/handoff
+          git mv horcrux/gistory-p_gistory-castles-2026.svg horcrux/stones/
+          git mv horcrux/gistory-p_gistory-castles-2026-2.svg horcrux/stones/
+          git mv horcrux/magpie-p_mirror-eyes-2026.svg horcrux/stones/
+          git mv horcrux/magpie-p_mirror-eyes-2026-2.svg horcrux/stones/
+          git mv horcrux/poststruct-p_wordprint-2026.svg horcrux/stones/
+          git mv horcrux/poststruct-staging-git-2026-10-26.tar.gz horcrux/tars/
+          git mv horcrux/eyestruct-staging-git-2026-10-26.tar.gz horcrux/tars/
+          git mv horcrux/monoforge-staging-git-2026-10-26.tar.gz horcrux/tars/
+          git mv horcrux/eyestruct-staging-git-2026-10-25.tar.gz horcrux/tars/archive/
+          git mv horcrux/prd-eyes.md horcrux/prds/
+          git mv horcrux/prd-poststruct.md horcrux/prds/
+          git mv horcrux/prestruct-og-image.png horcrux/handoff/
+
+      - name: Phase 1 gate - every move kept its exact content id
+        run: |
+          set -euo pipefail
+          check() {
+            old="$1"; new="$2"
+            expect="$(git rev-parse "HEAD:$old")"
+            actual="$(git hash-object "$new")"
+            test "$actual" = "$expect" \
+              || { echo "REORG GATE FAIL: $new (=$actual) != HEAD:$old (=$expect)"; exit 1; }
+            echo "ok: $new = $expect"
+          }
+          check horcrux/gistory-p_gistory-castles-2026.svg       horcrux/stones/gistory-p_gistory-castles-2026.svg
+          check horcrux/gistory-p_gistory-castles-2026-2.svg     horcrux/stones/gistory-p_gistory-castles-2026-2.svg
+          check horcrux/magpie-p_mirror-eyes-2026.svg            horcrux/stones/magpie-p_mirror-eyes-2026.svg
+          check horcrux/magpie-p_mirror-eyes-2026-2.svg          horcrux/stones/magpie-p_mirror-eyes-2026-2.svg
+          check horcrux/poststruct-p_wordprint-2026.svg          horcrux/stones/poststruct-p_wordprint-2026.svg
+          check horcrux/poststruct-staging-git-2026-10-26.tar.gz horcrux/tars/poststruct-staging-git-2026-10-26.tar.gz
+          check horcrux/eyestruct-staging-git-2026-10-26.tar.gz  horcrux/tars/eyestruct-staging-git-2026-10-26.tar.gz
+          check horcrux/monoforge-staging-git-2026-10-26.tar.gz  horcrux/tars/monoforge-staging-git-2026-10-26.tar.gz
+          check horcrux/eyestruct-staging-git-2026-10-25.tar.gz  horcrux/tars/archive/eyestruct-staging-git-2026-10-25.tar.gz
+          check horcrux/prd-eyes.md                              horcrux/prds/prd-eyes.md
+          check horcrux/prd-poststruct.md                        horcrux/prds/prd-poststruct.md
+          check horcrux/prestruct-og-image.png                   horcrux/handoff/prestruct-og-image.png
+          echo "reorg gate: all 12 artifacts byte-identical after move"
+
+      - name: Phase 2 - anchored path patches in the live references
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          #!/usr/bin/env python3
+          """Path-only reorg patcher: anchored, count-checked, idempotent.
+
+          For every (path, [(old, new, count), ...]) pair, `old` must occur
+          exactly `count` times (never 2, never the patched text itself).
+          If all olds are gone AND all news present, the file is already
+          patched - skip. Mixed states fail loudly.
+          """
+
+          ROOT = '.'
+          PATCHES = [
+              ('AGENTS.md', [
+                  ('`horcrux/prestruct-og-image.png` (handoff',
+                   '`horcrux/handoff/prestruct-og-image.png` (handoff', 1),
+              ]),
+              ('.github/workflows/mount-stone-mirror.yml', [
+                  ('          mirror horcrux/poststruct-p_wordprint-2026.svg \\\n'
+                   '                 poststruct-staging/horcrux/poststruct-p_wordprint-2026.svg\n'
+                   '          mirror horcrux/magpie-p_mirror-eyes-2026-2.svg \\\n'
+                   '                 eyestruct-staging/horcrux/magpie-p_mirror-eyes-2026-2.svg\n',
+                   '          mirror horcrux/stones/poststruct-p_wordprint-2026.svg \\\n'
+                   '                 poststruct-staging/horcrux/poststruct-p_wordprint-2026.svg\n'
+                   '          mirror horcrux/stones/magpie-p_mirror-eyes-2026-2.svg \\\n'
+                   '                 eyestruct-staging/horcrux/magpie-p_mirror-eyes-2026-2.svg\n', 1),
+              ]),
+              ('.github/workflows/stone-ferry.yml', [
+                  ('          actual_magpie="$(git hash-object horcrux/magpie-p_mirror-eyes-2026-2.svg)"\n'
+                   '          actual_poststruct="$(git hash-object horcrux/poststruct-p_wordprint-2026.svg)"\n'
+                   '          actual_gistory="$(git hash-object horcrux/gistory-p_gistory-castles-2026-2.svg)"\n',
+                   '          actual_magpie="$(git hash-object horcrux/stones/magpie-p_mirror-eyes-2026-2.svg)"\n'
+                   '          actual_poststruct="$(git hash-object horcrux/stones/poststruct-p_wordprint-2026.svg)"\n'
+                   '          actual_gistory="$(git hash-object horcrux/stones/gistory-p_gistory-castles-2026-2.svg)"\n', 1),
+                  ('          git add horcrux/magpie-p_mirror-eyes-2026-2.svg \\\n'
+                   '                  horcrux/poststruct-p_wordprint-2026.svg \\\n'
+                   '                  horcrux/gistory-p_gistory-castles-2026-2.svg\n',
+                   '          git add horcrux/stones/magpie-p_mirror-eyes-2026-2.svg \\\n'
+                   '                  horcrux/stones/poststruct-p_wordprint-2026.svg \\\n'
+                   '                  horcrux/stones/gistory-p_gistory-castles-2026-2.svg\n', 1),
+              ]),
+              ('.github/workflows/staging-tars.yml', [
+                  ('# snapshots of the struct-family staging mounts (horcrux/<mount>-git-\n'
+                   '# <YYYY-MM-DD>.tar.gz) from the CURRENT tracked tree state, using\n',
+                   '# snapshots of the struct-family staging mounts (horcrux/tars/<mount>-\n'
+                   '# git-<YYYY-MM-DD>.tar.gz) from the CURRENT tracked tree state, using\n', 1),
+                  ('          sha256sum horcrux/*-git-*.tar.gz > /tmp/tars-a.sha\n'
+                   '          bash scripts/make-staging-tars.sh\n'
+                   '          sha256sum horcrux/*-git-*.tar.gz > /tmp/tars-b.sha\n',
+                   '          sha256sum horcrux/tars/*-git-*.tar.gz > /tmp/tars-a.sha\n'
+                   '          bash scripts/make-staging-tars.sh\n'
+                   '          sha256sum horcrux/tars/*-git-*.tar.gz > /tmp/tars-b.sha\n', 1),
+                  ('          TARS=$(ls horcrux/*-git-$(date -u +%F).tar.gz 2>/dev/null || true)\n',
+                   '          TARS=$(ls horcrux/tars/*-git-$(date -u +%F).tar.gz 2>/dev/null || true)\n', 1),
+              ]),
+              ('scripts/build-og.mjs', [
+                  ("//   horcrux/prestruct-og-image.png \u2192 handoff asset for dhaupin/prestruct:",
+                   "//   horcrux/handoff/prestruct-og-image.png \u2192 handoff asset for dhaupin/prestruct:", 1),
+                  ("  [prestructCard, 'horcrux/prestruct-og-image.png'],",
+                   "  [prestructCard, 'horcrux/handoff/prestruct-og-image.png'],", 1),
+              ]),
+              ('scripts/cut-gistory.py', [
+                  ("# (horcrux/gistory-p_gistory-castles-2026.svg, brn:secret) stays",
+                   "# (horcrux/stones/gistory-p_gistory-castles-2026.svg, brn:secret) stays", 1),
+                  ("n3 = wrap_stone(ROOT / 'horcrux/gistory-p_gistory-castles-2026-2.svg', gistory_art,",
+                   "n3 = wrap_stone(ROOT / 'horcrux/stones/gistory-p_gistory-castles-2026-2.svg', gistory_art,", 1),
+              ]),
+              ('scripts/cut-stones.py', [
+                  ("# horcrux/magpie-p_mirror-eyes-2026.svg - parse, patch, re-encode, verify",
+                   "# horcrux/stones/magpie-p_mirror-eyes-2026.svg - parse, patch, re-encode, verify", 1),
+                  ("STONE = ROOT / 'horcrux/magpie-p_mirror-eyes-2026.svg'",
+                   "STONE = ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026.svg'", 1),
+                  ("n1 = wrap_stone(ROOT / 'horcrux/magpie-p_mirror-eyes-2026-2.svg', magpie_art,",
+                   "n1 = wrap_stone(ROOT / 'horcrux/stones/magpie-p_mirror-eyes-2026-2.svg', magpie_art,", 1),
+                  ("n2 = wrap_stone(ROOT / 'horcrux/poststruct-p_wordprint-2026.svg', poststruct_art,",
+                   "n2 = wrap_stone(ROOT / 'horcrux/stones/poststruct-p_wordprint-2026.svg', poststruct_art,", 1),
+              ]),
+              ('scripts/framework-gate.mjs', [
+                  ("  const stones = [\n"
+                   "    'horcrux/gistory-p_gistory-castles-2026.svg',\n"
+                   "    'horcrux/gistory-p_gistory-castles-2026-2.svg',\n"
+                   "    'horcrux/magpie-p_mirror-eyes-2026.svg',\n"
+                   "    'horcrux/magpie-p_mirror-eyes-2026-2.svg',\n"
+                   "    'horcrux/poststruct-p_wordprint-2026.svg',\n"
+                   "    'public/favicon.svg',\n"
+                   "  ].filter((f) => fs.existsSync(path.join(ROOT, f)))\n",
+                   "  const stones = [\n"
+                   "    'horcrux/stones/gistory-p_gistory-castles-2026.svg',\n"
+                   "    'horcrux/stones/gistory-p_gistory-castles-2026-2.svg',\n"
+                   "    'horcrux/stones/magpie-p_mirror-eyes-2026.svg',\n"
+                   "    'horcrux/stones/magpie-p_mirror-eyes-2026-2.svg',\n"
+                   "    'horcrux/stones/poststruct-p_wordprint-2026.svg',\n"
+                   "    'public/favicon.svg',\n"
+                   "  ].filter((f) => fs.existsSync(path.join(ROOT, f)))\n", 1),
+                  ("legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no renderable stones in horcrux/ or public/' })",
+                   "legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no renderable stones in horcrux/stones/ or public/' })", 1),
+              ]),
+              ('scripts/make-staging-tars.sh', [
+                  ("# seed tarball under horcrux/ (or a fresh init when no seed exists yet),",
+                   "# seed tarball under horcrux/tars/ (or a fresh init when no seed exists yet),", 1),
+                  ("# The result lands under horcrux/<mount>-git-<TODAY>.tar.gz. Byte",
+                   "# The result lands under horcrux/tars/<mount>-git-<TODAY>.tar.gz. Byte", 1),
+                  ("    # newest seed tarball by filename suffix (date; lexical sort is enough)\n"
+                   "    for s in $(ls horcrux/${m}-git-*.tar.gz 2>/dev/null | sort -r); do\n",
+                   "    # newest seed tarball by filename suffix (date; lexical sort is enough).\n"
+                   "    # The archive/ dir is IN the search: today's own tar is excluded as seed,\n"
+                   "    # so on same-day re-runs (e.g. right after a path reorg) the chain must be\n"
+                   "    # able to fall back to a superseded seed in archive/ \u2014 a fresh init here\n"
+                   "    # would silently orphan the mount's snapshot history.\n"
+                   "    for s in $(ls horcrux/tars/${m}-git-*.tar.gz \\\n"
+                   "                    horcrux/tars/archive/${m}-git-*.tar.gz 2>/dev/null | sort -r); do\n", 1),
+                  ('        if [ "$s" != "horcrux/${m}-git-${TODAY}.tar.gz" ]; then',
+                   '        if [ "$s" != "horcrux/tars/${m}-git-${TODAY}.tar.gz" ]; then', 1),
+                  ("horcrux/${m}-git-",
+                   "horcrux/tars/${m}-git-", 2),
+              ]),
+          ]
+
+          import sys
+          pending_done, all_ok = [], True
+          for path, repls in PATCHES:
+              with open(f'{ROOT}/{path}', encoding='utf-8') as fh:
+                  text = fh.read()
+              fully_old = all(old in text for old, _, _ in repls)
+              fully_new = all(new in text for _, new, _ in repls)
+              fully_old_absent = all(old not in text for old, _, _ in repls)
+              if fully_new and fully_old_absent:
+                  pending_done.append(path)
+                  continue
+              if fully_new and not fully_old_absent:
+                  print(f'PATCH FAIL {path}: patched text present but old anchor still here', file=sys.stderr)
+                  all_ok = False
+                  continue
+              if not fully_old:
+                  print(f'PATCH FAIL {path}: anchor(s) missing and file not already patched', file=sys.stderr)
+                  all_ok = False
+                  continue
+              for old, new, count in repls:
+                  n = text.count(old)
+                  if n != count:
+                      print(f'PATCH FAIL {path}: anchor occurs {n}x, expected {count}: {old[:60]!r}', file=sys.stderr)
+                      all_ok = False
+                      break
+                  text = text.replace(old, new)
+              else:
+                  with open(f'{ROOT}/{path}', 'w', encoding='utf-8') as fh:
+                      fh.write(text)
+                  print(f'patched: {path}')
+          if not all_ok:
+              sys.exit(1)
+          if pending_done:
+              print('already current: ' + ', '.join(pending_done))
+          PY
+
+      - name: Phase 3 - commit the path-only reorg
+        run: |
+          set -euo pipefail
+          git config user.name  "horcrux-reorg"
+          git config user.email "actions@users.noreply.github.com"
+          # whitelist what may be dirty: horcrux moves + the 9 patched files
+          git status --porcelain > /tmp/changes.txt
+          if grep -Ev "^(R  horcrux/.*|M  AGENTS\\.md|M  scripts/(build-og\\.mjs|cut-gistory\\.py|cut-stones\\.py|framework-gate\\.mjs|make-staging-tars\\.sh)|M  \\.github/workflows/(mount-stone-mirror|stone-ferry|staging-tars)\\.yml)" /tmp/changes.txt; then
+            echo "UNEXPECTED CHANGES (above)"; exit 1
+          fi
+          echo "whitelist clean: horcrux moves + the 9 patched files only"
+          git add -A horcrux scripts AGENTS.md .github/workflows/stone-ferry.yml .github/workflows/mount-stone-mirror.yml .github/workflows/staging-tars.yml
+          git commit -m "horcrux: path-only reorg into stones/ tars/(+archive) prds/ handoff/" \
+                     -m "Every artifact moves ON THE RUNNER from HEAD's own tracked bytes (git mv), so all blob ids - and the ferry gate pins (0bde5b6d / 295e5a17 / a1a01c2d) - hold by construction; live references patch by anchored, count-checked replaces. The vault index now lives in horcrux/README.md."
+          git push origin main
