@@ -189,3 +189,29 @@ own heads and never carry a gistory-shaped transplant artifact.
 - **Law of cool: nothing self-heals.** If a standalone battery lapses
   red, that is a red lane in the repo that owns it — gistory carries no
   silent-swap fallbacks and never elsewhere hides the truth.
+
+## Move-day payload receipt (2026-10-26, post stone rename)
+
+After the vault's r1/r2 stone rename (`stones/` name pairs only,
+`c24bf96`), the three `horcrux/tars/*-git-2026-10-26.tar.gz` payloads
+were re-verified fresh from the post-rename tree: a local
+`scripts/make-staging-tars.sh` rebuild over the committed seeds came
+back **byte-identical for all three** (determinism proof rerun locally;
+the post-rename CI ferry run at 20:00Z had already found nothing to
+commit, matching).
+
+What this means for move-day, stated plainly so nobody re-derives it:
+
+- The mount tars snapshot the three `-staging/` trees. **The gistory
+  vault is not inside them** — horcrux stones/prds move with gistory's
+  own git history, never move-day. The r1/r2 rename is therefore already
+  carried; there was (and is) nothing to re-cut for it.
+- The mounts' internal stone copies kept their own names on purpose
+  (each mount's references stay self-consistent for its own repo); do
+  not "fix" them to r1/r2 at move-day.
+- poststruct-staging and monoforge-staging had no older seed tar in
+  `horcrux/tars/archive/`, so their snapshot history inside the tar
+  restarts at the single "pre-tar state" commit (fresh init) —
+  reproducing 3c773e5 / 62d70bb deterministically. eyestruct's chain
+  continues from its archived 2026-10-25 seed (587b6b9). This is the
+  current state on origin, not a defect introduced by the rename.
