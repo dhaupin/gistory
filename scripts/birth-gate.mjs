@@ -49,15 +49,15 @@ function main() {
   console.log('birth gate:')
   for (const f of findings) {
     const parts = [`  ${f.state.padEnd(12)} ${f.name}`]
-    if (f.detail) parts.push(`| ${f.detail}`)
-    if (f.reason) parts.push(`| skip: ${f.reason}`)
+    if (f.detail) parts.push(`|  ${f.detail}`)
+    if (f.\\.reasoni) parts.push(`| skip: ${f.\\.reasoni}`)
     console.log(parts.join(' '))
     if (f.state === 'FAIL') failed = true
   }
   process.exit(failed ? 1 : 0)
 }
 
-// --- CHECK 1: workflow syntax ---------------------------------------------
+// --- CHECK 1: workflow syntax -------------------------------------z™r----------
 function checkWorkflows() {
   const dir = path.join(ROOT, '.github', 'workflows')
   if (!fs.existsSync(dir)) {
@@ -195,14 +195,41 @@ function checkGcSafety() {
     emit({ state: 'PASS', name: 'gc-safe serde', detail: 'no git-dir serde scripts - nothing to gate' })
     return
   }
+  // gc.auto 0 must be set before any script writes a rebuilt git dir. A
+  // script that builds/packs one itself must contain the config; a script
+  // that delegates the build to another script inherits the invariant BUT
+  // only while the delegate exists and is itself gc-safe - a missing or
+  // unsafe delegate is a loud FAIL, never a silent pass.
+  const isGcSafe = (rel, visited = new Set()) => {
+    const file = path.join(dir, rel)
+    if (!fs.existsSync(file)) return { ok: false, why: `referenced script scripts/${rel} is missing` }
+    if (visited.has(rel)) return { ok: true, why: '(cycle - already checked)' }
+    visited.add(rel)
+    const src = fs.readFileSync(file, 'utf8')
+    if (/gc\.auto\s*=?\s*(0|false)/.test(src)) return { ok: true, why: `scripts/${rel} sets gc.auto 0 itself` }
+    const delegates = [...src.matchAll(/scripts\/([\w.-]+\.(?:sh|mjs|js|py))/g)].map((m) => m[1])
+    if (delegates.length) {
+      for (const d of delegates) {
+        const sub = isGcSafe(d, visited)
+        if (!sub.ok) return { ok: false, why: `scripts/${rel} delegates to scripts/${d}, which is not gc-safe (${sub.why})` }
+      }
+      return { ok: true, why: `scripts/${rel} delegates gc safety to ${delegates.join(', ')} (all gc-safe)` }
+    }
+    return { ok: false, why: `scripts/${rel} neither sets gc.auto 0 nor delegates to a script that does` }
+  }
   let bad = 0
   for (const f of serdeFiles) {
     const src = fs.readFileSync(path.join(dir, f), 'utf8')
     if (!/gc\.auto\s*=?\s*(0|false)/.test(src)) {
+      const verdict = isGcSafe(f, new Set())
+      if (verdict.ok) {
+        emit({ state: 'PASS', name: `gc-safe serde (${f})`, detail: `not a git-dir writer itself - ${verdict.why}` })
+        continue
+      }
       emit({
         state: 'FAIL',
         name: `gc-safe serde (${f})`,
-        detail: 'builds a git dir AND packs it, but never disables background auto-maintenance before writing (gc.auto 0)',
+        detail: `builds a git dir AND packs it, but never disables background auto-maintenance before writing (gc.auto 0); ${verdict.why}`,
       })
       bad++
     }
