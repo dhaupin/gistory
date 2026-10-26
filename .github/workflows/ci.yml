@@ -159,3 +159,7 @@ jobs:
 
       - name: Eyestruct battery (docs gates + packs + lint:packs + conform:packs)
         run: npm run check --prefix eyestruct-staging
+
+      - name: Monoforge battery (self-test: stamp + doctor + lock refusals)
+        run: node test/run.mjs
+        working-directory: monoforge-staging
