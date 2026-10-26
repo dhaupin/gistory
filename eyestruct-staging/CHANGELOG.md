@@ -19,34 +19,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The first cut, grown in the gistory staging ecosystem end to end
 (eyestruct-staging mount, its own nested git history, tar-ferry
-provenance). Receipts: `labs/TASTS.md` in-repo; the vaulted PRD Rides
+provenance). Receipts: `labs/TASKS.md` in-repo; the vaulted PRD rides
 the family horcrux.
 
 ### Added
 - CLI spine per the PRD (`labs/prd-eyes.md`): `bin/eyestruct.js` dispatch
-  over `lib/  with the exit contract 0-1-2 and a named code on every
-  refusal - diagnostics carry reasons, never bare crashes "kB
-  bare/errors".
-- manifest`: pin + route matrix via the strict hand-editable subset
+  over `lib/` with the exit contract 0-1-2 and a named code on every
+  refusal - diagnostics carry reasons, never bare crashes ("NO
+  bare/errors").
+- `manifest`: pin + route matrix via the strict hand-editable subset
   parser; `ledger`: append-only and atomic, corruption refuses loudly;
   `gate`: crashledger semantics (unexplained drift exits 1, capability
   trouble exits 2).
 - `adopt`: note required at write time; a local adopt is an unratified
   proposal - canon is CI-cut.
-- `look`, `diff`, `walk`: engine seam declared; rMfuses honestly until
+- `look`, `diff`, `walk`: engine seam declared; refuses honestly until
   the pinned browser image exists (never fake-passes).
 - `raster`: strict parse + render + byte sanity.
-- `mcp`: post-MVP surface: honest refusal until it lands.
+- `mcp`: post-MVP surface; honest refusal until it lands.
 - 13/13 smoke tests; `lint:docs` 5/5 gates.
-- Web landing rebrand (12 fields: ssr identity block, Home copy + CTAŠ	 nav brand/links/badge, footer, manifest, theme key both ends, package
+- Web landing rebrand (12 fields: ssr identity block, Home copy + CTAs,
+  nav brand/links/badge, footer, manifest, theme key both ends, package
   name) - `prestruct build` green with zero flowforge strings in dist,
   `inject-brand` populating the eyestruct identity.
 - Own CI: `.github/workflows/test.yml` (node 20, `npm ci` hermetic,
   `npm test` + `npm run check`) - the first standalone push after the
   move is gated by this repo's own battery.
-- docs/ on the family Jekyll / Freestruct rig: identity pages in hyphen
+- docs/ on the family Jekyll + Freestruct rig: identity pages in hyphen
   voice (the PRD keeps em-dash voice at `labs/`), `docs/verbs.md` usage
   lines matching bin dispatch exactly, plus the frontmatter/style/language
   gates.
 - `package.json` + `package-lock.json` agree on the eyestruct name; the
-  lock landed byte-exact (origin inder TaBubnieCxiH5U€ÌÔÄÄàäàÑ™”¸¸¸Í¥Ñ”œ¤((ŒŒŒ9½Ñ•Ì(´€À¸ä¹à¥ÌÑ¡”µ…¹Õ…°É•±•…Í”±…‘‘•È…Ğµ½Ù”Ñ¥µ”ìÑ¡”™…µ¥±äÁÕ‰±¥Í (€İ½É­™±½ÜÉ•™ÕÍ•Ì€À¹àÑ…Ì°…¹€Ä¸À¸À™±¥ÁÌÑÉÕÍÑ•ÁÕ‰±¥Í¡¥¹œ¸(´‘½ÌÙ½¥”±…ÜÍÕÉÙ¥Ù•Ñ¡”İÉ¥Ñ”è±½…Ñ¥½¹Ì…¹ÍÕÉ™…•ÌÍÑ…Ñ”™…ÑÌ(€¥¸½¹”Ù½¥”Á•ÈÍÕÉ™…”€¡•´µ‘…Í AI°¡åÁ¡•¸‘½Ì¤¸(
+  lock landed byte-exact (origin blob 3518984fe... == disk).
+
+### Notes
+- 0.9.x is the manual release ladder at move time; the family publish
+  workflow refuses 0.x tags, and 1.0.0 flips trusted publishing.
+- docs voice law survived the write: locations and surfaces state facts
+  in one voice per surface (em-dash PRD, hyphen docs).
