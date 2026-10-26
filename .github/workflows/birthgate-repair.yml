@@ -28,9 +28,9 @@ jobs:
           good_detail = b'parts.push(`| ${f.detail}`)'
           good_reason = b'    if (f.reason) parts.push(`| skip: ${f.reason}`)'
           good_banner = b'// --- CHECK 1: workflow syntax ' + b'-' * 45
-          assert good_detail in src, 'expected double-space drift not found'
-          src = src.replace(good_detail, good_detail.replace(b'`|  ', b'`| '), 1)
-          # rebuild from scratch below: normalize each drift by line surgery
+          assert bad_detail in src, 'expected double-space drift not found'
+          src = src.replace(bad_detail, good_detail, 1)
+          # normalize each remaining drift by line surgery
           lines = src.split(b'\n')
           for i, ln in enumerate(lines):
               if b'.reasoni' in ln:
