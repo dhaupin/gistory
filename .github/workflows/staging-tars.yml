@@ -1,0 +1,48 @@
+# Staging-tar ferry - builds and commits the reproducible pre-tar
+# snapshots of the struct-family staging mounts (horcrux/<mount>-git-
+# <YYYY-MM-DD>.tar.gz) from the CURRENT tracked tree state, using
+# scripts/make-staging-tars.sh. Dhaupin-side darok: untar -> git remote
+# add origin ... && push (per labs/tar-move-plan.md).
+#
+# The build is byte-determinstic (fixed author/date identity in the
+# snapshot commit + sorted/owner=0/epoch tar flags + gzip -n), so a
+# re-run over an unchanged tree produces no diff and no commit.
+name: Staging tars ferry
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: staging-tars-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tars:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the reproducible staging tars from the current tree
+        run: bash scripts/make-staging-tars.sh
+
+      - name: Commit any new/changed tarballs
+        run: |
+          set -euo pipefail
+          git config user.name  "staging-tars"
+          git config user.email "actions@users.noreply.github.com"
+          TARS=$(ls horcrux/*-git-$(date -u +%F).tar.gz 2>/dev/null || true)
+          if [ -n "$TARS" ]; then
+            git add $TARS
+          fi
+          if ! git diff --cached --quiet; then
+            git commit -m "tars: staging-tar ferry snapshot $(date -u +%F) (deterministic, sha-gated)"
+            git push origin main
+          else
+            echo "nothing new to commit (tars already current)"
+          fi
