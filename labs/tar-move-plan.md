@@ -79,12 +79,12 @@ own heads and never carry a gistory-shaped transplant artifact.
      flips to an npx-resolved path with an honest version pin — never a
      bare `npx eyestruct` (the pin discipline the ecosystem carries
      everywhere else applies here too: same commit → same findings).
-    - `EYES_REFRENCES_PROVIDER_TWIN_MAP` stays (env's own shape); the
+   - `EYES_REFERENCES_PROVIDER_TWIN_MAP` stays (env's own shape); the
      twin keys still NAME gistory, deliberately: gistory is this pack's
      first client, and after the tar it is the CLIENT, not the mount.
 2. **`scripts/check-language.cjs`** — no mechanical change needed: it
    lists `labs/` in its scan scope, which remains the repo-local labs/
-   tree (its own PRD, own TASSK#. The gistory mention in its contract
+   tree (its own PRD, own TASKS). The gistory mention in its contract
    comment rides as-is.
 
 ### What gistory keeps after poststruct leaves
