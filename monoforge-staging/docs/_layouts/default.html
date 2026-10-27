@@ -127,7 +127,11 @@
         .highlight .c, .highlight .c1, .highlight .cm, .highlight .cd { color: var(--ink-soft); font-style: italic; }
         blockquote { margin: 0 0 14px; padding: 12px 18px; color: var(--ink-soft);
             border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 8px 8px 0; }
-        table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 14px 0; }
+        /* Wide tables scroll in their own box (gistory#16 family guard;
+   eyestruct 138fda9 worked example). */
+        table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 14px 0;
+            display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table td code { white-space: nowrap; }
         th { text-align: left; background: var(--raised); padding: 8px 12px;
             border-bottom: 1px solid var(--line); }
         td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
