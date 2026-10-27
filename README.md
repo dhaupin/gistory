@@ -1,7 +1,7 @@
 # gistory-sync
 
 [![npm](https://img.shields.io/npm/v/gistory-sync)](https://www.npmjs.com/package/gistory-sync)
-[![License: MIT](https://img.shields.io/badge/LICENSE-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![docs](https://img.shields.io/badge/docs-docs.creadev.org%2Fgistory-blue)](https://docs.creadev.org/gistory)
 [![app](https://img.shields.io/badge/app-gistory.creadev.org-blue)](https://gistory.creadev.org)
 
