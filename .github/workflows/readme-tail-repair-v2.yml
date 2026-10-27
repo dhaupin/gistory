@@ -28,6 +28,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The lane reads a blob from GITHUB HISTORY (e2568de0), so a
+          # shallow checkout cannot serve the first cat-file run 1 proved
+          # that the hard way: 'bad file' before the sha gate even started.
+          fetch-depth: 0
 
       - name: Rebuild the README from the historical blob + six link re-plants
         run: |
