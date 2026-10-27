@@ -72,7 +72,6 @@
     "build": "tsc -b && prestruct build && node scripts/build-sw.mjs",
     "build:lib": "node scripts/build-lib.mjs && tsc -p tsconfig.lib.json",
     "build:og": "node scripts/build-og.mjs",
-    "build:og": "node scripts/build-og.mjs",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
     "lint": "npm run lint:eslint && npm run lint:language && npm run lint:docs",
     "lint:docs": "node scripts/check-docs.mjs",
