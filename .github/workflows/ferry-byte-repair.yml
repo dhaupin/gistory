@@ -10,9 +10,11 @@ name: ferry byte repair
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-  workflows: write
+# GitHub's parser rejects the bare `workflows` key in this repo's
+# permission model (the eyestruct repair flow hit the same 422), but a
+# workflow-file commit needs the workflows scope - so request write-all,
+# which supersedes the map and parses clean.
+permissions: write-all
 
 concurrency:
   group: ferry-byte-repair
