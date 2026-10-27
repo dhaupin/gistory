@@ -31,3 +31,12 @@ monoforge-staging/.git
 
 # scratch fetch dir from the eyestruct-parity work (never project content)
 .eyestruct-stage/
+
+# Docs build products (gistory#19, eyestruct worked-example gitignore block):
+# an accidental in-tree Jekyll build taints nothing. CI resolves the bundle
+# fresh each run, so no Gemfile.lock is ever indexed.
+docs/.bundle/
+docs/vendor/
+docs/_site/
+docs/Gemfile.lock
+m«\
