@@ -1,0 +1,119 @@
+# ONE-SHOT: emit the monoforge rig-overlay lanes - carrying ZERO payload
+# bytes (the 48KB rig patch corrupted class; hand base64 is not a shape in
+# this family). Everything derives from bytes already in the repo:
+#   - the rig generation of the ten lock-owned paths <- each path's holder
+#     commit in main's history (listed below; verified blob-gated)
+#   - the "before" side of the patch <- a fresh unpack of the sha-gated
+#     0.9.0 lock from the committed tree
+#   - the lock's site/ retirement <- swept here (the rig web/ replaces it)
+# The patch is dry-run-gated against a SECOND fresh unpack, and the
+# restored mount re-runs its own self-test before anything commits.
+# The standing monoforge ferry's converge step then applies this patch on
+# every interleaved lane run. The workflow retires through the commit lane
+# after receipts.
+name: mono-rig-emit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore the rig generation (per-path holder commits, blob-gated)
+        run: |
+          set -euo pipefail
+          restore() {
+            local path="$1" commit="$2" want="$3"
+            local got
+            got="$(git ls-tree "$commit" -- "$path" | awk '{print $3}')"
+            if [ "$got" != "$want" ]; then
+              echo "RESTORE GATE FAIL $path: holder blob $got != expected $want"; exit 1
+            fi
+            git show "$commit:$path" > "$path"
+            local now
+            now="$(git hash-object "$path")"
+            if [ "$now" != "$want" ]; then
+              echo "RESTORE GATE FAIL $path: written blob $now != expected $want"; exit 1
+            fi
+            echo "restored $path (blob ${want:0:16})"
+          }
+          # Each holder = the newest commit carrying the rig bytes; the blob
+          # gate makes a wrong record loud instead of silent.
+          restore monoforge-staging/.github/workflows/test.yml       9740d513e450d3d79bc2e8ffcdebbb3155e37e00 648e6a565664f6195acd8a4f26e4c17bc6a5ba41
+          restore monoforge-staging/package.json                     2040a768be3d0d0c25016027d9a86bef40aa4710 28afefcfb1d4038c836884082975ffa348ad8ab4
+          restore monoforge-staging/docs/_config.yml                 2040a768be3d0d0c25016027d9a86bef40aa4710 680791ec7d57dc7c5ae5fec4c39954cdd288a415
+          restore monoforge-staging/docs/_layouts/default.html       1364db8a652544b0d7b5b856046de19488680bd5 0f697d2bf6cc40d379ebcb243307ba31730504db
+          restore monoforge-staging/docs/freestruct.config.yml       2040a768be3d0d0c25016027d9a86bef40aa4710 92943143807462fb16b72868f95c34adfe6cbc31
+          restore monoforge-staging/docs/index.md                    337e78b210c241136ca5a7b16677563fb0d85aec 53d6127b8606636300c8082b825352ac6f6a9743
+          restore monoforge-staging/docs/search.md                   69f1c217ad4ac0474a9ce5fb2f5f3db0fc607d0d 5a68dcb80f98e5c3844e927ef6fc1632e9abdbe5
+          restore monoforge-staging/scripts/check-docs-frontmatter.cjs 1262d382466867cd1f688ca5ca127538fb542230 79626009a69035a3ff152781d1ab1eb5956ea2b7
+          restore monoforge-staging/scripts/check-docs-links.cjs     69f1c217ad4ac0474a9ce5fb2f5f3db0fc607d0d f778bb2deb97744783be59731ef6f711c1b96a47
+          restore monoforge-staging/scripts/check-docs-style.cjs     1262d382466867cd1f688ca5ca127538fb542230 f66b4c3ca96d236390d738c108ca0cb710cf7011
+          # The retired static site/ rides the lock; the rig web/ replaces it.
+          rm -rf monoforge-staging/site
+          echo "site/ retired (rig web/ is the landing)"
+
+      - name: Prove the restored mount still self-tests green
+        run: node test/run.mjs
+        working-directory: monoforge-staging
+
+      - name: Emit horcrux/rig-overlay.patch (fresh lock unpack -> restored rig bytes)
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/lockbase && mkdir -p /tmp/lockbase
+          tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/lockbase
+          base="/tmp/lockbase/$(ls /tmp/lockbase)"
+          LIST=".github/workflows/test.yml package.json docs/_config.yml docs/_layouts/default.html docs/freestruct.config.yml docs/index.md docs/search.md scripts/check-docs-frontmatter.cjs scripts/check-docs-links.cjs scripts/check-docs-style.cjs"
+          : > /tmp/rig-overlay.patch
+          for f in $LIST; do
+            diff -u "$base/$f" "monoforge-staging/$f" \
+              --label "a/monoforge-staging/$f" --label "b/monoforge-staging/$f" \
+              >> /tmp/rig-overlay.patch
+          done
+          cp /tmp/rig-overlay.patch horcrux/rig-overlay.patch
+          echo "patch sha256: $(sha256sum horcrux/rig-overlay.patch | cut -d' ' -f1)"
+          echo "patch paths:"; grep -c '^--- a/' horcrux/rig-overlay.patch
+
+      - name: Gate the patch (dry-run over a second fresh unpack, cmp byte-exact)
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/locktest && mkdir -p /tmp/locktest
+          tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/locktest
+          base="/tmp/locktest/$(ls /tmp/locktest)"
+          # temporary repo look-alike so the monoforge-staging/ target paths resolve
+          rm -rf /tmp/patchtest && mkdir -p /tmp/patchtest/monoforge-staging
+          cp -r "$base"/. /tmp/patchtest/monoforge-staging/
+          ( cd /tmp/patchtest && patch -p1 --force --quiet < "$oldpwd/horcrux/rig-overlay.patch" )
+          LIST=".github/workflows/test.yml package.json docs/_config.yml docs/_layouts/default.html docs/freestruct.config.yml docs/index.md docs/search.md scripts/check-docs-frontmatter.cjs scripts/check-docs-links.cjs scripts/check-docs-style.cjs"
+          for f in $LIST; do
+            cmp "/tmp/patchtest/monoforge-staging/$f" "monoforge-staging/$f" \
+              || { echo "PATCH GATE FAIL: $f diverges after patch"; exit 1; }
+          done
+          echo "PATCH GATE PASS: the emitted patch converges the lock to the rig generation"
+
+      - name: Commit the patch + the restored mount (no-op when already correct)
+        run: |
+          set -euo pipefail
+          git config user.name  "mono-rig-emit"
+          git config user.email "actions@users.noreply.github.com"
+          git add horcrux/rig-overlay.patch monoforge-staging
+          if ! git diff --cached --quiet; then
+            git commit -m "mono-rig-emit: restore the rig generation + land horcrux/rig-overlay.patch (deriving from history, zero payload bytes)" \
+                       -m "The rig bytes of the ten lock-owned paths are restored from each path's holder commit in main's history (blob-gated), the patch is derived from a fresh sha-gated lock unpack, and a second unpack dry-run proves the patch converges byte-exact. The standing monoforge ferry's converge step then keeps every interleaved lane run byte-exact."
+            git push origin main
+          else
+            echo "nothing to commit (patch + restore already current)"
+          fi
