@@ -78,3 +78,31 @@ Last updated: 2026-10-24 (scaffold complete at 0.9.0; push pending crashtest#18)
 - Riders: monoforge shell gets the same title-comment fix; prestruct#65
   filed (og:image dims/alt + optional JSON-LD in inject-brand); family
   terms/privacy parity filed on eyestruct#7 + packstruct#34 + crashtest#45.
+
+## 2026-10-27 (late) - the payload ferry: binary payload landed, zero bytes carried
+
+- The eight remaining artifact paths (web/package-lock.json,
+  web/public/{favicon-32,icon-192,icon-512,apple-touch-icon,og-image}.png,
+  docs/assets/icon.svg, docs/og-image.png) landed through
+  `.github/workflows/poststruct-web-emit.yml` - a one-shot run from
+  workflow_dispatch, retired through the commit lane after receipts
+  (mono-web-emit is the proven shape).
+- web/package-lock.json is minted runner-side from the COMMITTED
+  web/package.json (`npm install --package-lock-only --ignore-scripts`) and
+  sha-gated. No sibling lock to derive from: the dep sets match the
+  monoforge/eyestruct web trees exactly, but poststruct resolved
+  rollup 4.65.1 where those locks sit at 4.65.0. First dispatch FAILED the
+  gate against stale harness bytes (7959565e != the retired fb27a3d3 local
+  lock) - that is the gate doing its job; the npm-10 mint was then
+  reproduced byte-identically harness-side (node v22.23.3 / npm 10.9.9
+  tarball run), adopted as the canonical snapshot, and the rerun passed
+  (electron-to-chromium 1.5.467 vs 1.5.466 is the one registry-currency
+  node between the mints - a browserslist db refresh, not a build change).
+- The icon set + og cards are rendered by the COMMITTED make-icons.mjs +
+  build-og.mjs with @resvg/resvg-js@2.6.2 (the family's provably
+  cross-site-identical renderer), Liberation fonts present on the runner,
+  and every PNG sha-gated against the locally verified build. resvg is
+  installed OUTSIDE the tree so nothing stray enters the commit.
+- ALL EIGHT origin blobs verified byte-exact against the local builds
+  post-run (blob-sha walk). The web/ + docs identity payload is complete:
+  poststruct-staging on origin == the verified local build.
