@@ -1,7 +1,8 @@
 # Tasks-insert ferry - splices a committed part file into labs/TASKS.md
-# at the "## Now" head, so a fresh pass entry never has to hand-carry the
-# 120KB log through the transport lane (the drift class the sha audit
-# keeps catching). One-shot lane: parts land under .cut-tmp/task-parts/,
+# (the 120KB rolling log is never hand-carried: the entry rides as committed
+# parts, the runner splices them at the byte anchor and gates the assembly
+# against the offline blob id before committing) - the drift class the sha
+# audit keeps catching. One-shot lane: parts land under .cut-tmp/task-parts/,
 # the runner concatenates them in lexical order, splices at the byte
 # anchor, sha-gates the assembly against the offline blob id, commits,
 # and sweeps the parts - after which the workflow no-ops (no parts).
@@ -40,16 +41,16 @@ jobs:
               sys.exit(0)
           part = ''.join(pathlib.Path(p).read_text(encoding='utf-8') for p in parts)
           # Anti-transport: a landing lane that appends a trailing newline
-          # to the part (it legitimately ends mid-sentence at the anchor)
+          # to the part (it legitimately ends mid-line at the anchor)
           # must not be able to corrupt the splice - strip exactly the
           # trailing newline and nothing else.
           part = part.rstrip('\n')  # a correct part has no trailing newline
           log_path = pathlib.Path('labs/TASKS.md')
           base = log_path.read_text(encoding='utf-8')
           # The part is the new file PREFIX: preamble + the fresh Now entry,
-          # ending right before the OG card line's suffix. Splice = prefix
+          # ending right before the suffix anchor. Splice = prefix
           # replacement at that byte anchor; everything after rides intact.
-          ANCHOR = ' `public/og-image.png` rendered its'
+          ANCHOR = 'Brain r2 stone ferry closed (2026-10-26).**'
           if base.count(ANCHOR) < 1:
               print('splice anchor not found in the base log; refusing')
               sys.exit(1)
@@ -62,7 +63,7 @@ jobs:
         if: hashFiles('.cut-tmp/task-parts/*.md') != ''
         run: |
           set -euo pipefail
-          expect="4d3c98817584228d814e40e71f6f06e36f6dc007"
+          expect="3fdccad7607439c5d321a1ed827bfc445ce4734a"
           actual="$(git hash-object labs/TASKS.md)"
           echo "expect TASKS: $expect"
           echo "actual TASKS: $actual"
@@ -78,6 +79,6 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add labs/TASKS.md
           git rm -r -q .cut-tmp/task-parts
-          git commit -m "tasks: splice the brain-r2 ferry receipt into the Now head (CI-assembled, sha-gated)" \
-                     -m "The 120KB rolling log is never hand-carried: the entry rides as committed parts, the runner splices them at the byte anchor and gates the assembly against the offline blob id (4d3c9881) before committing."
+          git commit -m "tasks: splice the family-parity receipt into the Now head (CI-assembled, sha-gated)" \
+                     -m "The 120KB rolling log is never hand-carried: the entry rides as committed parts, the runner splices them at the byte anchor and gates the assembly against the offline blob id (3fdccad7) before committing."
           git push origin main
