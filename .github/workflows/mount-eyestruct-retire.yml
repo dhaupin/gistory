@@ -66,7 +66,7 @@ jobs:
           EOF
           # Tracked deletions first (ignore-unmatch so a partial tree is safe),
           # then the untracked clutter (the nested .git) off disk, then a
-          # final add -A so the commit records everything actual.
+          # final add sweep so the commit records everything actual.
           git rm -r --quiet --ignore-unmatch eyestruct-staging \
             horcrux/tars/eyestruct-staging-git-2026-10-26.tar.gz \
             horcrux/tars/eyestruct-staging-git-2026-10-27.tar.gz || true
@@ -76,7 +76,11 @@ jobs:
           rm -f horcrux/tars/eyestruct-staging-git-2026-10-26.tar.gz \
                 horcrux/tars/eyestruct-staging-git-2026-10-27.tar.gz \
                 horcrux/tars/archive/eyestruct-staging-git-2026-10-25.tar.gz
-          git add -A -- eyestruct-staging horcrux/tars labs/TASKS.md
+          # git rm already staged the deletions; this add sweeps the receipt
+          # + tar paths only - eyestruct-staging is GONE by now (rm -rf), so
+          # a bare pathspec would read as "did not match any files".
+          git add -A -- horcrux/tars labs/TASKS.md
+          if [ -d eyestruct-staging ]; then git add -A -- eyestruct-staging; fi
           if git diff --cached --quiet; then
             echo "nothing to retire (already gone)"
             exit 0
