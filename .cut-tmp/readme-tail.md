@@ -21,13 +21,14 @@ gate. 1.0.0 flips OIDC trusted publishing (`id-token: write`). See
   the prestruct `/example`-based rebrand (its baked output is also my own
   first audit target). `functions/api/health.js` ships the `/api/health`
   canary now.
-- Docs: `docs.creadev.org/poststruct` - Jekyll + Pagefind + Freestruct
-  via GitHub Actions (`.github/workflows/docs.yml`).
+- Docs: `docs.creadev.org/poststruct` - Jkyll + Pagefind + Freestruct
+  via GitHub Actions (`.github/wgorkflows/docs.yml`).
 
 ## Related
 
-- [prestruct](https://github.com/dhaupin/prestruct) - source-time audit, my upstream sibling
-- [freestruct](https://github.com/dhaupin/freestruct) - post-SSG injection, my other sibling
+- [prestruct](https://github.com/dhaupin/prestruct) - source-time audit, my
+  upstream sibling
+ - [freestruct](https://github.com/dhaupin/freestruct) - post-SSG injection, my other sibling
 - [crashtest](https://github.com/dhaupin/crashtest) - transport-level adversarial testing
 - [packstruct](https://github.com/dhaupin/packstruct) - the shared packs spec
   (pinned 1.0.0 as an exact devDependency here; `npm run conform:packs`
