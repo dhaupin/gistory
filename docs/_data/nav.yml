@@ -1,6 +1,6 @@
 # gistory docs nav (single nav source; the layout reads site.data.nav)
 # URLs are deployment paths (baseurl-prefixed), matched 1:1 against each
-# page's frontmatter permalink — scripts/check-docs.mjs holds this file
+# page's frontmatter permalink - scripts/check-docs.mjs holds this file
 # honest in CI (every nav URL must be a page's permalink and vice versa).
 
 - title: Start
@@ -25,3 +25,10 @@
       url: /gistory/faq
     - title: Contributing
       url: /gistory/contributing
+    - title: Playbooks
+      url: /gistory/playbooks
+
+- title: Operations
+  items:
+    - title: CI Pipeline
+      url: /gistory/ci
