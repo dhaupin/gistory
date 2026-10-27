@@ -51,6 +51,9 @@ jobs:
       - name: Boundary pre-pass + the family lane (defaults reproduce)
         run: |
           set -euo pipefail
+          # .cut-tmp/ is gitignored disposable scratch: absent in a fresh
+          # checkout, and sharp refuses to write into a missing directory
+          mkdir -p .cut-tmp
           node scripts/fix-logo-corners.mjs
           node scripts/adopt-icons.mjs .cut-tmp/gistory-logo-fixed.png
           # the lane wrote the icon set on ITS defaults; the favicon svg and
