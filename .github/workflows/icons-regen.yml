@@ -1,0 +1,102 @@
+# Icons regen - the derived-asset lane for the family icon set, mirror of
+# the tasks-insert contract (the runner regenerates from committed sources
+# and byte-gates every output; nothing binary hand-carries across the
+# transport lane, which is the drift class the previous passes caught).
+#
+# Sources already committed:
+#   public/gistory-logo.jpg          - the real art (the user's logo, 2048px)
+#   scripts/fix-logo-corners.mjs     - boundary pre-pass (repaints the white
+#                                      outside the tile's superellipse curve
+#                                      dark, so the ink mask holds only art)
+#   scripts/adopt-icons.mjs          - the family lane; defaults now come
+#                                      from the gistry-sync FAMILY map entry
+#                                      (probe 90 / work 2048 / accent #4d81e7 /
+#                                      tile #111216 / docsCopy favicon.svg)
+#
+# Outputs (whitelisted; every one sha-gated before commit):
+#   public/icon.svg public/favicon.svg docs/favicon.svg
+#   public/favicon-32.png public/icon-192.png public/icon-512.png
+#   public/apple-touch-icon.png scripts/brand-mark.json
+#
+# The pinned ids below are the CURRENT one-shot contract: a regenerate pass
+# lands with fresh ids here. Changed bytes answer "the derivation drifted" -
+# never commit by hand. Helpers are pinned to the versions this lane was
+# landed with (extraneous in the app tree: build-local, never the lockfile).
+name: Icons regen
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: icons-regen-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the pinned build-local helpers
+        run: |
+          set -euo pipefail
+          npm ci --no-fund --no-audit
+          npm i --no-save --no-fund --no-audit sharp@0.35.5 potrace@2.1.8
+          node -e "require('sharp'); require('potrace'); console.log('helpers ok')"
+
+      - name: Boundary pre-pass + the family lane (defaults reproduce)
+        run: |
+          set -euo pipefail
+          node scripts/fix-logo-corners.mjs
+          node scripts/adopt-icons.mjs .cut-tmp/gistory-logo-fixed.png
+          # the lane wrote the icon set on ITS defaults; the favicon svg and
+          # the docs copy must be byte-identical to public/icon.svg
+          cmp public/icon.svg public/favicon.svg
+          cmp public/icon.svg docs/favicon.svg
+
+      - name: Sha-gate every generated file (the offline contract)
+        run: |
+          set -euo pipefail
+          declare -A WANT=(
+            ["public/icon.svg"]="800ed35b175ee9546c5daa6ce2463b771d0f099f"
+            ["public/favicon.svg"]="800ed35b175ee9546c5daa6ce2463b771d0f099f"
+            ["docs/favicon.svg"]="800ed35b175ee9546c5daa6ce2463b771d0f099f"
+            ["public/favicon-32.png"]="04fe021f48abbaea386fdb9151f72bbd85fb10d7"
+            ["public/icon-192.png"]="9fc4e229bfdb4e7d1c281df48b51375cf8b275eb"
+            ["public/icon-512.png"]="a7c7627b1d482c42efa87f077d3386552f829ac4"
+            ["public/apple-touch-icon.png"]="f847b6c1665ca296b4421df6f0c2c3127221a412"
+            ["scripts/brand-mark.json"]="25d95dd3e2046e63588021179342993a62b5eb8d"
+          )
+          ok=1
+          for f in "${!WANT[@]}"; do
+            if [ ! -f "$f" ]; then echo "GATE FAIL: $f missing after regen"; ok=0; continue; fi
+            actual="$(git hash-object "$f")"
+            if [ "$actual" != "${WANT[$f]}" ]; then
+              echo "GATE FAIL: $f (=$actual) != contract (${WANT[$f]})"; ok=0
+            else
+              echo "ok: $f = $actual"
+            fi
+          done
+          [ "$ok" = 1 ] || { echo "the derivation drifted; refusing to commit"; exit 1; }
+          echo "gate: the whole generated set is byte-identical to the contract"
+
+      - name: Commit the generated set (whitelisted)
+        run: |
+          set -euo pipefail
+          git config user.name  "icons-regen"
+          git config user.email "actions@users.noreply.github.com"
+          git add public/icon.svg public/favicon.svg docs/favicon.svg \
+                  public/favicon-32.png public/icon-192.png public/icon-512.png \
+                  public/apple-touch-icon.png scripts/brand-mark.json
+          git status --porcelain > /tmp/changes.txt
+          if grep -Ev "^(M  |A  )(public/(icon(\.svg|-32\.png|-192\.png|-512\.png)|favicon(-32\.png|\.svg)|apple-touch-icon\.png)|docs/favicon\.svg|scripts/brand-mark\.json)" /tmp/changes.txt; then
+            echo "UNEXPECTED CHANGES (above)"; exit 1
+          fi
+          if [ -z "$(cat /tmp/changes.txt)" ]; then echo "nothing to commit"; exit 0; fi
+          git commit -m "icons: regenerate the family icon set from the real art (CI-built, sha-gated)" \
+                     -m "The set derives from public/gistory-logo.jpg through scripts/fix-logo-corners.mjs (boundary pre-pass) plus scripts/adopt-icons.mjs defaults (probe 90 / work 2048 / accent 4d81e7 / tile 111216); every output sha-gated against the offline contract before committing. The generated favicon replaces the authored hand-cut G-mark at the favicon references (index.html + docs layout carry the png/apple-touch links)."
+          git push origin main
