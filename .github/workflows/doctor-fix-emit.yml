@@ -117,6 +117,7 @@ jobs:
         working-directory: monoforge-staging
 
       - name: Behavioral gate (three classes quiet, intact detection kept)
+        working-directory: monoforge-staging
         run: |
           set -euo pipefail
           rm -rf /tmp/mf-fixture
