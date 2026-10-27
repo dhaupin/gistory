@@ -1802,3 +1802,24 @@ exactly like crashtest/packstruct (eyes:gate ledger + eyes:packs
   they are independent repos with their own lanes, and were only being
   swept from the wrong tree). 
 
+
+- **EYESTRUCT RETIRED (2026-10-27):** eyestruct graduated upstream
+  (dhaupin/eyestruct); its staging mount + tar chain retire from gistory.
+  - Parity sweep before the delete: upstream is NEWER than the mount
+    snapshot (#32 lint-packs verb + BAD_FLAG_VALUE triage already in).
+    The one mount-only carry is the C1 flags-before-verb dispatch -
+    filed upstream as dhaupin/eyestruct#3 with a composed-on-upstream
+    diff (newer guards kept) + probe receipts + a pristine-vs-patched
+    suite control (identical except random temp-dir names).
+  - Consumers retargeted to upstream: ci.yml staging-hosts + framework
+    gate checkout dhaupin/eyestruct into eyestruct-upstream/;
+    framework-gate.mjs resolves the bin via EYESTRUCT_BIN (legacy
+    fallback only in the retirement window); eyes-ratify + mono-web-emit
+    checkout upstream; mount-stone-mirror drops the magpie pair (upstream
+    carries its own mirrors); horcrux-reorg tolerates the retired tar
+    chain; make/verify-staging-tars MOUNTS lose eyestruct; gitignore/
+    eslint/docs prose updated; poststruct run-packs.mjs gains a
+    ../eyestruct fallback rung.
+  - Deletion lands via this one-shot: the mount dir + horcrux/tars/
+    eyestruct-* go in THIS commit, so CI on it is the green
+    upstream-consumed shape.
