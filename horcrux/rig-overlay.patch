@@ -72,6 +72,29 @@
 +
 +      - name: Language gate (English-only prose)
 +        run: npm run lint:language
+--- a/monoforge-staging/bin/forge.mjs
++++ b/monoforge-staging/bin/forge.mjs
+@@ -11,6 +11,7 @@
+   monoforge doctor [dir]    run the truth battery (default: cwd)
+   monoforge cut [dir]       cut a component-family workspace (cutlist.json + factory.json required)
+   monoforge lock [dir]      doctor, then archive with a checksum
++  monoforge lint-packs      packstruct passthrough over the repo's own install (loud exit 2 until the packs land)
+   monoforge help            this
+ 
+ factory.json (in <dir>, required):
+@@ -44,6 +45,12 @@
+   if (!r.ok) { console.error(`lock: ${r.error}`); if (r.doctor) { for (const f of r.doctor.findings) console.log(`  ${f.level.toUpperCase()} ${f.id}: ${f.message}`) } process.exit(1) }
+   console.log(`lock: OK (sha256 ${r.sha}...) archived ${r.archive}`)
+   process.exit(0)
++} else if (cmd === 'lint-packs') {
++  // The pack lint lane as a discoverable verb (mirrors crashtest's
++  // lint-packs, issue #32): ready now, honest exit 2 until the factory's
++  // own packs + packstruct devDep land - never a silent skip.
++  const { runLintPacks } = await import('../src/lint-packs.mjs')
++  process.exit(runLintPacks({ argv: process.argv.slice(3), cwd: process.cwd(), json: process.argv.includes('--json') }))
+ } else {
+   console.log(Help)
+   process.exit(2)
 --- a/monoforge-staging/docs/_config.yml
 +++ b/monoforge-staging/docs/_config.yml
 @@ -3,7 +3,7 @@
@@ -520,12 +543,13 @@
  </div>
 --- a/monoforge-staging/package.json
 +++ b/monoforge-staging/package.json
-@@ -15,7 +15,10 @@
+@@ -15,7 +15,11 @@
      "templates/"
    ],
    "scripts": {
 -    "test": "node test/run.mjs"
 +    "test": "node test/run.mjs",
++    "lint:packs": "node bin/forge.mjs lint-packs --deep",
 +    "lint:docs": "node scripts/check-docs-frontmatter.cjs && node scripts/check-docs-links.cjs && node scripts/check-docs-style.cjs && node scripts/check-fiction-signatures.cjs && node scripts/check-jekyll-filters.cjs",
 +    "lint:language": "node scripts/check-language.cjs",
 +    "check": "npm test && npm run lint:docs && npm run lint:language"
