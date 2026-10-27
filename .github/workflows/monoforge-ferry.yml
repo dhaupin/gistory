@@ -86,8 +86,25 @@ jobs:
           # the rig bytes.
           if [ ! -f horcrux/rig-overlay.patch ]; then
             echo "no rig-overlay yet (mono-rig-emit has not run); unpack stands bare"
-          else
-            patch -p1 --force --quiet -i horcrux/rig-overlay.patch
+          elif ! patch -p1 --force --quiet -i horcrux/rig-overlay.patch; then
+            # Tolerant converge (2026-10-27 receipt, run 40468994469): a hunk
+            # whose target is DIRECTLY CARRIED on main (the docs identity
+            # receipts: _layouts/default.html, freestruct.config.yml) fails
+            # by construction - those bytes already won. That path converges
+            # from HEAD's own committed bytes (the receipts law: direct-carried
+            # files do not ride the ferry), the .rej debris is swept, and only
+            # a conflict WITHOUT committed bytes (a genuinely new path with no
+            # main-side truth) fails the ferry.
+            find monoforge-staging -name '*.rej' | while read -r rej; do
+              f="${rej%.rej}"
+              if git show "HEAD:$f" > "$f" 2>/dev/null; then
+                echo "converged from HEAD: $f"
+              else
+                echo "FERRY CONVERGE FAIL: no HEAD bytes for conflicted $f"
+                exit 1
+              fi
+              rm -f "$rej"
+            done
           fi
           rm -rf monoforge-staging/site
           echo "overlay applied: mount converges to the rig generation over the sha-gated lock"
