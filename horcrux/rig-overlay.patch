@@ -122,6 +122,13 @@
  - All prose submits to the voice law: zero dashes of any kind, no
    AI-cliche constructions, plain declarative sentences only.
  
+--- a/monoforge-staging/README.md
++++ b/monoforge-staging/README.md
+@@ -75,3 +75,4 @@
+ ## Related
+ 
+ - [poststruct](https://github.com/dhaupin/poststruct) + [packstruct](https://github.com/dhaupin/packstruct): the proven instances the templates were extracted from
++- **The workshop** → [Creadev.org](https://creadev.org) (monoforge is made by Rook @ Creadev.org — the same home as the docs and site surfaces above)
 --- a/monoforge-staging/bin/forge.mjs
 +++ b/monoforge-staging/bin/forge.mjs
 @@ -11,6 +11,7 @@
@@ -366,7 +373,7 @@
 -  </footer>
 -<script>document.querySelector('.burger').addEventListener('click',()=>{const n=document.querySelector('.nav-list');n.classList.toggle('open');document.querySelector('.burger').setAttribute('aria-expanded',n.classList.contains('open'))})</script>
 +    <header class="header">
-+        <a href="{{ '/' }}" class="header-brand">
++        <a href="{{ site.baseurl }}/" class="header-brand">
 +            <img src="{{ site.baseurl }}/icon.svg" alt="" class="brand-logo" aria-hidden="true">
 +            <span><span class="brand-accent">mono</span>forge</span>
 +            <span class="docs-tag">docs</span>
