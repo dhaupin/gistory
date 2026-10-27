@@ -96,7 +96,7 @@ jobs:
           # temporary repo look-alike so the monoforge-staging/ target paths resolve
           rm -rf /tmp/patchtest && mkdir -p /tmp/patchtest/monoforge-staging
           cp -r "$base"/. /tmp/patchtest/monoforge-staging/
-          ( cd /tmp/patchtest && patch -p1 --force --quiet < "$oldpwd/horcrux/rig-overlay.patch" )
+          ( cd /tmp/patchtest && patch -p1 --force --quiet < "$GITHUB_WORKSPACE/horcrux/rig-overlay.patch" )
           LIST=".github/workflows/test.yml package.json docs/_config.yml docs/_layouts/default.html docs/freestruct.config.yml docs/index.md docs/search.md scripts/check-docs-frontmatter.cjs scripts/check-docs-links.cjs scripts/check-docs-style.cjs"
           for f in $LIST; do
             cmp "/tmp/patchtest/monoforge-staging/$f" "monoforge-staging/$f" \
