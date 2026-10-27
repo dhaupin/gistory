@@ -1,8 +1,10 @@
 # ONE-SHOT: emit the monoforge web payload files - carrying ZERO payload
 # bytes (labs/transport.md: text-lane carries of this size class corrupted
 # twice tonight; hand-echoed base64 drifted twice at the blob gate). Instead
-# the runner derives everything from files already in the repo:
-#   - web/package-lock.json  <- eyestruct's committed lock + the two name
+# the runner derives/copies everything from files already in the repo:
+#   - web engine files + docs-gate scripts <- copied from eyestruct's
+#     committed tree (monoforge keeps them byte-identical)
+#   - web/package-lock.json <- eyestruct's committed lock + the two name
 #     swaps (proven byte-identical harness-side) + sha256 gate
 #   - public/*.png + og-image.png <- rendered with @resvg/resvg-js@2.6.2
 #     from the committed monoforge SVGs + sha256 gates
@@ -26,6 +28,34 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Copy the unchanged engine files from eyestruct's committed tree
+        run: |
+          set -euo pipefail
+          mkdir -p monoforge-staging/web/src/hooks monoforge-staging/web/src/pages monoforge-staging/web/src/components monoforge-staging/web/scripts
+          for f in \
+            src/main.jsx src/App.jsx src/AppLayout.jsx src/AppIslands.jsx src/islands.js \
+            src/hooks/usePageMeta.js src/pages/NotFound.jsx src/styles.css vite.config.js \
+            scripts/repair-404.cjs public/_headers public/_redirects public/robots.txt \
+            .gitignore; do
+            mkdir -p "monoforge-staging/web/$(dirname "$f")"
+            cp "eyestruct-staging/web/$f" "monoforge-staging/web/$f"
+            echo "copied $f"
+          done
+
+      - name: Copy the rig docs-gate scripts from eyestruct's committed tree
+        run: |
+          set -euo pipefail
+          for f in check-docs-frontmatter.cjs check-docs-style.cjs check-fiction-signatures.cjs check-jekyll-filters.cjs; do
+            cp "eyestruct-staging/scripts/$f" "monoforge-staging/scripts/$f"
+            echo "copied scripts/$f"
+          done
+          # the link checker is the one script monoforge rebrands: SITE_PREFIX
+          sed "s|const SITE_PREFIX = '/eyestruct';.*|const SITE_PREFIX = '/monoforge'; // the docs baseurl - mirror docs/_config.yml|" \
+            eyestruct-staging/scripts/check-docs-links.cjs \
+            > monoforge-staging/scripts/check-docs-links.cjs
+          echo "wrote scripts/check-docs-links.cjs with SITE_PREFIX /monoforge"
+          cp monoforge-staging/web/public/icon.svg monoforge-staging/docs/icon.svg
 
       - name: Emit the lock (derived from eyestruct's committed lock, sha-gated)
         run: |
@@ -76,6 +106,6 @@ jobs:
         run: |
           git config user.name Codebuff
           git config user.email noreply@codebuff.com
-          git add monoforge-staging/web
-          git commit -m "mono-web-emit: land the web payloads (lock + rendered marks), derived and sha-gated"
+          git add monoforge-staging
+          git commit -m "mono-web-emit: land the web payloads (lock + rendered marks + copied engine/scripts), derived and sha-gated"
           git push
