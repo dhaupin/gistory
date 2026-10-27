@@ -12,8 +12,9 @@
 #
 # poststruct-p_wordprint-2026.svg keeps its name: single-generation transfer
 # stone, suffix owes to a lineage not a birthmark; horcrux-reorg's guard
-# reads it as-is. The mount-internal stone copies (poststruct-staging/,
-# eyestruct-staging/) keep their own names - they tar-move to their own
+# reads it as-is. The mount-internal stone copies (poststruct-staging/;
+# eyestruct's mirrors moved upstream into dhaupin/eyestruct when the mount
+# retired 2026-10-27) keep their own names - they tar-move to their own
 # repos and their references (smoke tests, READMEs) stay locally consistent.
 #
 # Lane precondition: stone-ferry.yml + mount-stone-mirror.yml land their
@@ -130,11 +131,11 @@ jobs:
                   ('| `magpie-p_mirror-eyes-2026.svg` |', '| `magpie-p_mirror-eyes-2026-r1.svg` |', 1),
                   ('| `magpie-p_mirror-eyes-2026-2.svg` |', '| `magpie-p_mirror-eyes-2026-r2.svg` |', 1),
                   ('`<brain>-p_<stone-word>-<year>[-<gen>].svg`', '`<brain>-p_<stone-word>-<year>[-rN].svg`', 1),
-                  ('FILENAME (the house convention — the filename is part of the vault key).',
-                   'FILENAME (the house convention — the filename is part of the vault key).\n'
+                  ('FILENAME (the house convention - the filename is part of the vault key).',
+                   'FILENAME (the house convention - the filename is part of the vault key).\n'
                    'Generation suffixes are `-r1`/`-r2` (bare digit `-2` names retired 2026-10-26,\n'
                    'path-only: each cutter pins its stone\'s BIRTH name into the SVG header via\n'
-                   '`label=`, so bytes — and ferry gate ids — never move on a rename).', 1),
+                   '`label=`, so bytes - and ferry gate ids - never move on a rename).', 1),
               ]),
           ]
 
