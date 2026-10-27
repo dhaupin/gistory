@@ -49,15 +49,18 @@ const localTwinRels = new Map([
   ['https://docs.creadev.org/gistory/og-image.png', ['../gistory/docs/og-image.png']],
 ])
 
-// EYESTRUCT_BIN: the raster leg's reference-tool HOST DECISION knob.
-// In this mount the sibling staging tree is the reference; once eyestruct
-// publishes 0.9.0 the standalone default flips to an npx-resolved path
-// with an honest version pin - never a bare `npx eyestruct` (the pin
-// discipline the ecosystem carries everywhere else). The env knob
-// OUTRANKS the sibling guess so a checkout picks its own truth.
+// EYESTRUCT_BIN: the raster leg's host-decision knob. Eyestruct graduated
+// upstream (dhaupin/eyestruct; the gistory staging mount retired
+// 2026-10-27), so a checkout of the eye's own repo is the reference and
+// the env knob OUTRANKS any sibling guess - a checkout picks its own
+// truth. Once eyestruct publishes to npm the standalone default flips to
+// an npx-resolved path with a pinned version - never a bare `npx
+// eyestruct` (the pin discipline the ecosystem carries everywhere else).
 const eyestructBin = process.env.EYESTRUCT_BIN
   ? path.resolve(process.env.EYESTRUCT_BIN)
-  : path.resolve(ROOT, '..', 'eyestruct-staging', 'bin', 'eyestruct.js')
+  : [path.resolve(ROOT, '..', 'eyestruct-staging', 'bin', 'eyestruct.js'),
+     path.resolve(ROOT, '..', 'eyestruct', 'bin', 'eyestruct.js')].find((p) => fs.existsSync(p))
+     || path.resolve(ROOT, '..', 'eyestruct-staging', 'bin', 'eyestruct.js')
 
 function twinBuf(rel) {
   for (const twin of localTwinRels.get(rel) || []) {

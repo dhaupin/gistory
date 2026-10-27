@@ -36,7 +36,7 @@ export default tseslint.config(
       // conventions (plain CJS/ESM node, their own lint lanes). Gistory's
       // ESLint passes are TS/React-shaped and would drown their whole trees
       // in no-undef/no-require noise they neither need nor read.
-      'eyestruct-staging/**', 'poststruct-staging/**', 'monoforge-staging/**',
+      'poststruct-staging/**', 'monoforge-staging/**',
       // Crashtest build output (generated before every run by
       // scripts/build-crashtest.mjs) — lint the entry + fixture, not the bundle.
       'crashtest/handlers.mjs',
