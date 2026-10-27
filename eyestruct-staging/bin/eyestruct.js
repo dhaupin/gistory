@@ -47,9 +47,42 @@ function posArg(argv) {
   return argv.find((a) => !a.startsWith('--'))
 }
 
+// gistory#9 C1: global flags may ride in FRONT of the verb too
+// ("eyestruct --manifest X gate" now dispatches like "eyestruct gate
+// --manifest X"). The leading window is an uninterrupted run of the two
+// value-carrying globals (--ledger PATH, --manifest PATH) and the boolean
+// global (--json); anything else leading still refuses UNKNOWN_COMMAND, so
+// a typo can never silently reorder into a verb's positional.
+const GLOBAL_VALUE_FLAGS = ['--ledger', '--manifest']
+const GLOBAL_BOOL_FLAGS = ['--json']
+
+function pullGlobalPrefix(argv) {
+  const flags = []
+  let i = 0
+  while (i < argv.length && argv[i].startsWith('--')) {
+    const t = argv[i]
+    if (GLOBAL_VALUE_FLAGS.includes(t)) {
+      if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) {
+        fail('UNKNOWN_COMMAND', `"${t}" expects a value before the verb`)
+      }
+      flags.push(t, argv[i + 1])
+      i += 2
+      continue
+    }
+    if (GLOBAL_BOOL_FLAGS.includes(t)) {
+      flags.push(t)
+      i += 1
+      continue
+    }
+    break
+  }
+  return { verb: argv[i], flags, after: i + 1 }
+}
+
 async function main() {
-  const argv = process.argv.slice(2)
-  const cmd = argv[0]
+  const argv0 = process.argv.slice(2)
+  const prefix = argv0.length && argv0[0].startsWith('--') ? pullGlobalPrefix(argv0) : null
+  const cmd = prefix ? prefix.verb : argv0[0]
   if (!cmd || cmd === '--help' || cmd === '-h') {
     process.stdout.write(usage())
     process.exit(0)
@@ -57,7 +90,9 @@ async function main() {
   const impl0 = COMMANDS[cmd]
   if (!impl0) fail('UNKNOWN_COMMAND', `"${cmd}" is not an eyestruct command`)
   const impl = typeof impl0 === 'function' ? impl0 : impl0.run
-  const args = argv.slice(1)
+  const args = prefix
+    ? [...prefix.flags, ...argv0.slice(prefix.after + 1)]
+    : argv0.slice(1)
   // The host-owned locations: gistory keeps its eyes at labs/.eyes (next to
   // crashledger.json), other repos keep the .eyes default. usage() promised
   // these flags; they were parsed nowhere before - the defaults were the
@@ -66,7 +101,7 @@ async function main() {
   const code = await impl({
     argv: args,
     cwd: process.cwd(),
-    json: argv.includes('--json'),
+    json: args.includes('--json'),
     manifest: flagValue(args, '--manifest'),
     ledger: flagValue(args, '--ledger'),
   })
