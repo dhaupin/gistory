@@ -1,0 +1,65 @@
+# Readme tail repair - one-shot: the landed poststruct README tail was destroyed
+# by a malformed transport base64 (blob 804e9bfb is a 1983-byte file whose tail
+# is garbage). The repair is the tasks-insert pattern, byte-gated: the tail
+# rides as a committed part, the runner splices it at the byte anchor where the
+# landed prefix is still clean, sha-gates the assembly against the offline
+# blob id (3d503cee), commits, and sweeps the part - a splice that does not
+# round-trip refuses to commit.
+# This lane no-ops after: no parts => nothing to splice, gate already green.
+name: readme tail repair
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: readme-tail-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Splice the tail part at the byte anchor
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys
+          part = pathlib.Path('.cut-tmp/readme-tail.md').read_text(encoding='utf-8')
+          part = part.rstrip('\n')  # a correct part has no trailing newline
+          target = pathlib.Path('poststruct-staging/README.md')
+          base = target.read_text(encoding='utf-8')
+          ANCHOR = 'The `/packs` mount follows the shared\n'
+          if base.count(ANCHOR) < 1:
+              print('splice anchor not found in the base; refusing')
+              sys.exit(1)
+          spliced = base[:base.index(ANCHOR) + len(ANCHOR)] + part + '\n'
+          target.write_text(spliced, encoding='utf-8', newline='\n')
+          print(f'spliced tail part at the byte anchor; {len(spliced.encode("utf-8"))} bytes total')
+          PY
+
+      - name: Sha-gate the assembled file (offline blob id, git hash-object)
+        run: |
+          set -euo pipefail
+          expect="3d503ceec768ef49ee22e12279ddaba1b3f35b29"
+          actual="$(git hash-object poststruct-staging/README.md)"
+          echo "expect README: $expect"
+          echo "actual README: $actual"
+          test "$actual" = "$expect" \\
+            || { echo "GATE FAIL: the splice did not round-trip; refusing to commit"; exit 1; }
+          echo "gate: the file round-trips; committing"
+
+      - name: Commit the repaired file, sweep the part
+        run: |
+          set -euo pipefail
+          git config user.name  "readme-repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add poststruct-staging/README.md
+          git rm -q .cut-tmp/readme-tail.md
+          git commit -m "readme: splice the poststruct tail from its committed part (CI-assembled, sha-gated 3d503cee)" \\
+                     -m "The tail was destroyed by a malformed transport base64 in 8a7b7f9f; the repair follows the tasks-insert pattern: the tail rides as a committed part, the runner splices at the byte anchor and gates the assembly against the offline blob id (3d503cee) before committing."
+          git push origin main
