@@ -5,19 +5,3 @@ site:
   url: https://docs.creadev.org
   description: The fleet factory - stamp a repo from proven template blocks, doctor it for truth, lock it verifiably.
 basePath: /monoforge
-
-# Author identity: ships as a schema.org Person under "founder" on the
-# injected Organization JSON-LD block - the same ownership shape the
-# product site carries (issue gistory#13).
-author:
-  name: Creadev.org
-  url: https://creadev.org
-
-# Maintainer identity: custom JSON-LD appended after the built-in
-# Organization + WebSite blocks (missing-only gate keeps pages that arrive
-# with their own ld+json untouched).
-jsonLd:
-  - "@type": Person
-    name: dhaupin
-    url: https://github.com/dhaupin
-    jobTitle: monoforge maintainer
