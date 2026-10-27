@@ -1,0 +1,15 @@
+{
+  "name": "poststruct",
+  "short_name": "poststruct",
+  "description": "Audit what shipped: walk baked HTML, verify head hygiene and the site contract, gate CI on FAIL findings.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0f0a",
+  "theme_color": "#0c0f0a",
+  "lang": "en",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

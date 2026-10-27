@@ -1,0 +1,5 @@
+# poststruct site - crawler policy (all the way open, it's a library site)
+User-agent: *
+Allow: /
+
+Sitemap: https://poststruct.creadev.org/sitemap.xml
