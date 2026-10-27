@@ -1,8 +1,9 @@
 ---
-version: 0.9.0
-permalink: /verbs/
+version: '1.0'
+permalink: verbs/
 layout: default
 title: Verbs
+description: Every monoforge command is one short process - stamp, doctor, cut, lock. Four verbs, zero dependencies; the doctor refuses to ship generated green.
 nav_order: 2
 ---
 
