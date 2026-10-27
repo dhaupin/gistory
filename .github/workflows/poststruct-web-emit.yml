@@ -6,7 +6,9 @@
 #     web/package.json by a fresh `npm install --package-lock-only`
 #     (no sibling lock to derive from: the dep sets are equal but poststruct
 #     resolved rollup 4.65.1 where the monoforge/eyestruct locks carry
-#     4.65.0), then sha256 + name gated against the verified local build
+#     4.65.0), then sha256 + name gated against the npm-10 mint snapshot
+#     (reproduced byte-exact harness-side on npm 10.9.9; a registry bump
+#     that shifts resolution makes the gate loud instead of silent)
 #   - web/public/{favicon-32,icon-192,icon-512,apple-touch-icon,og-image}.png
 #   - docs/assets/icon.svg + docs/og-image.png
 #     <- rendered with @resvg/resvg-js@2.6.2 (the version the family's
@@ -42,7 +44,7 @@ jobs:
           rm -f package-lock.json
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           got="$(sha256sum package-lock.json | cut -d' ' -f1)"
-          want="fb27a3d3e8f978c2c6cf4152facbfa0d8e68689de195f0cda3597047a83834da"
+          want="7959565ef15c71754674b2694a9ded5856bb18352761980a752929b8ff728e34"
           if [ "$got" != "$want" ]; then echo "LOCK SHA GATE FAIL: $got"; exit 1; fi
           name="$(node -e "console.log(JSON.parse(require('fs').readFileSync('package-lock.json','utf8')).name)")"
           if [ "$name" != "poststruct-site" ]; then echo "LOCK ROOT NAME FAIL: $name"; exit 1; fi
@@ -97,8 +99,8 @@ jobs:
             poststruct-staging/docs/assets/icon.svg \
             poststruct-staging/docs/og-image.png
           if ! git diff --cached --quiet; then
-            git commit -m "poststruct-web-emit: land the web payload by derivation (the shuttles zero-payload-bite shape; resvg render + lock mint, every artifact sha-gated)" \
-                       -m "The lock is minted runner-side from the committed web/package.json, the icon set + og cards are rendered by the committed make-icons.mjs/build-og.mjs with @resvg/resvg-js@2.6.2, and each artifact passes its sha256 gate against the verified local build before anything commits. No payload bytes are carried in the workflow."
+            git commit -m "poststruct-web-emit: land the web payload by derivation (the shuttles zero-bite shape; resvg render + lock mint, every artifact sha-gated)" \
+                       -m "The lock is minted runner-side from the committed web/package.json (npm 10 mint snapshot), the icon set + og cards are rendered by the committed make-icons.mjs/build-og.mjs with @resvg/resvg-js@2.6.2, and each artifact passes its sha256 gate against the verified local build before anything commits. No payload bytes are carried in the workflow."
             git push origin main
           else
             echo "nothing to commit (payload already current)"
