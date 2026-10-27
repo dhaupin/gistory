@@ -18,6 +18,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # House law (labs/transport.md): anything that reads history or
+          # races the concurrent ferry lanes needs the full object store -
+          # a shallow checkout cannot pull --rebase when another lane
+          # pushed between our checkout and our push (run 40448586327).
+          fetch-depth: 0
 
       - name: Gate + copy the vault PRD into the mount (blob-gated, byte-exact)
         run: |
@@ -47,6 +53,12 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "monoforge: the mount carries its own merged PRD (byte-exact copy of the vault's horcrux/prds/prd-monoforge.md)" \
                        -m "The merged PRD (factory + creadev-mono unified) now ships INSIDE the monoforge mount's labs/, matching eyestruct and poststruct convention (each mount's labs/ holds its PRD). Blob-gated against the vault copy c7271d20 - zero payload bytes transported, git-history rebuild shape."
+            # Race the lanes, never force: fetch + rebase, then push. If the
+            # rebase ever moved the vault PRD blob, the gate already ran on
+            # OUR head - re-verify before pushing the rebased result is
+            # covered by the no-op tolerance below (the copy is byte-exact
+            # against the vault path by construction of cp).
+            git pull --rebase origin main
             git push origin main
           else
             echo "nothing to commit (PRD copy already present)"
