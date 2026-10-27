@@ -3,14 +3,15 @@ version: '1.0'
 permalink: verbs/
 layout: default
 title: Verbs
-description: Every monoforge command is one short process - stamp, doctor, cut, lock. Four verbs, zero dependencies; the doctor refuses to ship generated green.
+description: Every monoforge command is one short process - stamp, doctor, cut, lock, and the opt-in lint-packs lane. Four factory verbs plus the pack-lint passthrough, zero dependencies; the doctor refuses to ship generated green.
 nav_order: 2
 ---
 
 # Verbs
 
-Four verbs, zero dependencies. `monoforge help` prints all of it; this
-page is the playbook for each verb and the config that feeds it.
+Four factory verbs, zero dependencies, plus the opt-in lint-packs
+passthrough. `monoforge help` prints all of it; this page is the playbook
+for each verb and the config that feeds it.
 
 ## new - stamp a fleet repo
 
@@ -81,6 +82,22 @@ monoforge lock [dir]
 Doctor first, then doctor-gated archive: a `sha256` record plus the
 archive file land together. A failing doctor refuses the lock - the
 archive is only ever a receipt for a green tree.
+
+## lint-packs - the pack lint lane
+
+```bash
+monoforge lint-packs [--deep] [--json] [--against <lib>] [dir]
+```
+
+The packstruct passthrough (crashtest's issue #32 shape, eyestruct's
+proven port): runs `packstruct lint` over the factory's own install -
+`node_modules/.bin` first, then PATH - never downloading or bundling one.
+The exit code IS the verdict: 0 clean, 1 findings, 2 setup refusal. Until
+the factory's own packs land there is no packstruct dependency to honor,
+so the verb today is the loud setup refusal naming the exact fix (`npm i
+-D packstruct@<exact>`) - a never-working requested lane is a broken
+config, never a silent skip. Default dir: the packs ROOT; an explicit dir
+passes through untouched.
 
 ## The release ladder
 

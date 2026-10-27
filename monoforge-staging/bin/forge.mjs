@@ -11,6 +11,7 @@ Usage:
   monoforge doctor [dir]    run the truth battery (default: cwd)
   monoforge cut [dir]       cut a component-family workspace (cutlist.json + factory.json required)
   monoforge lock [dir]      doctor, then archive with a checksum
+  monoforge lint-packs      packstruct passthrough over the repo's own install (loud exit 2 until the packs land)
   monoforge help            this
 
 factory.json (in <dir>, required):
@@ -44,7 +45,13 @@ if (cmd === 'new') {
   if (!r.ok) { console.error(`lock: ${r.error}`); if (r.doctor) { for (const f of r.doctor.findings) console.log(`  ${f.level.toUpperCase()} ${f.id}: ${f.message}`) } process.exit(1) }
   console.log(`lock: OK (sha256 ${r.sha}...) archived ${r.archive}`)
   process.exit(0)
+} else if (cmd === 'lint-packs') {
+  // The pack lint lane as a discoverable verb (mirrors crashtest's
+  // lint-packs, issue #32): ready now, honest exit 2 until the factory's
+  // own packs + packstruct devDep land - never a silent skip.
+  const { runLintPacks } = await import('../src/lint-packs.mjs')
+  process.exit(runLintPacks({ argv: process.argv.slice(3), cwd: process.cwd(), json: process.argv.includes('--json') }))
 } else {
-  console.log(Help)
+  console.log Help)
   process.exit(2)
 }

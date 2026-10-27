@@ -16,6 +16,7 @@
   ],
   "scripts": {
     "test": "node test/run.mjs",
+    "lint:packs": "node bin/forge.mjs lint-packs --deep",
     "lint:docs": "node scripts/check-docs-frontmatter.cjs && node scripts/check-docs-links.cjs && node scripts/check-docs-style.cjs && node scripts/check-fiction-signatures.cjs && node scripts/check-jekyll-filters.cjs",
     "lint:language": "node scripts/check-language.cjs",
     "check": "npm test && npm run lint:docs && npm run lint:language"
