@@ -1,8 +1,9 @@
 ---
-version: 0.9.0
-permalink: /packs/
+version: '1.0'
+permalink: packs/
 layout: default
 title: Packs
+description: How monoforge stamped templates and the /packs SPEC relate - template blocks are extracted, not packs; the SPEC governs what a stamped repo may adopt.
 nav_order: 3
 ---
 
