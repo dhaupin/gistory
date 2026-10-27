@@ -56,8 +56,10 @@ jobs:
           mkdir -p .cut-tmp
           node scripts/fix-logo-corners.mjs
           node scripts/adopt-icons.mjs .cut-tmp/gistory-logo-fixed.png
-          # the lane wrote the icon set on ITS defaults; the favicon svg and
-          # the docs copy must be byte-identical to public/icon.svg
+          # the lane writes public/icon.svg + the docsCopy target; the
+          # favicon name is a byte-identical alias of the same svg, so the
+          # two faces and the web head reference one mark
+          cp public/icon.svg public/favicon.svg
           cmp public/icon.svg public/favicon.svg
           cmp public/icon.svg docs/favicon.svg
 
