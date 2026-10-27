@@ -1045,6 +1045,18 @@
  
        # Pagefind LAST - index over the FINAL html (freestruct-injected)
        - name: Index search with Pagefind
+--- a/monoforge-staging/templates/docs/_layouts/default.html
++++ b/monoforge-staging/templates/docs/_layouts/default.html
+@@ -14,7 +14,8 @@
+       <a href="{{ '/' | relative_url }}">home</a> ·
+       <a href="{{ '/spec' | relative_url }}">SPEC v1</a> ·
+       <a href="{{ '/linter' | relative_url }}">linter</a> ·
+-      <a href="{{ '/search' | relative_url }}">search</a>
++      <a href="{{ '/search' | relative_url }}">search</a> ·
++      <a href="__SITE_URL__">web</a>
+     </nav>
+   </header>
+   <main>
 --- a/monoforge-staging/templates/scripts/build-docs.sh
 +++ b/monoforge-staging/templates/scripts/build-docs.sh
 @@ -7,6 +7,6 @@
