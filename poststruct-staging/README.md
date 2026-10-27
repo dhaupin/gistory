@@ -46,6 +46,4 @@ Deleting or degrading a check breaks the test - that is the point.
 
 The `/packs` mount follows the shared
 packstruct]https://github.com/dhaupin/packstruct) SPEC v1, check profile:
-Fpublic/&nc2d;/pack.json` + entry exporting { { checks: [...] }, id
-namereph pack loader is realized here: FPac+ed pshared id first.
-config pp/eye-reference/ ships the refererence-shrar8SU QP irŞïaÁÕÉÕÍÍĞ±¥¹ĞµÁ…­Ì‚° ´å¡ÑÑÕÍÑ…±±°Á…­Ìè€…¹••¤¡•áÑÉ”¸Õ‘••àZYXÚÛX]
+Fpublic/&cnc;/pack./pack.js
