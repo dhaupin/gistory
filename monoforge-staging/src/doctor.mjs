@@ -9,13 +9,34 @@ import { join, relative } from 'node:path'
 
 const TODO_MARK = 'FORGE-TODO'
 
+// Untracked scratch trees used to land in the battery through the walk
+// (prestruct's beta false-positive class): a .gitignore at the root is the
+// cheap truth about what is scratch, and scratch is by definition not
+// shipped, so it never self-flags truth slots. Prefix/name matching covers
+// the common classes (ignored dirs, trailing-slash dirs, *.log globs,
+// top-level names); full glob semantics stay out of scope on purpose.
+function gitignorePatterns(dir) {
+  try {
+    return readFileSync(join(dir, '.gitignore'), 'utf8').split('\n')
+      .map((l) => l.trim()).filter((l) => l && !l.startsWith('#') && !l.startsWith('!'))
+      .map((l) => l.replace(/\\/g, '/').replace(/\*+$/, '').replace(/\/+$/, ''))
+      .filter(Boolean)
+  }
+  catch { return [] }
+}
+
 function walkFiles(dir, skip = new Set(['.git', 'node_modules', 'docs/_site'])) {
+  const ignored = gitignorePatterns(dir)
+  const ignoreHit = (relp, name) =>
+    ignored.some((g) => relp === g || relp.startsWith(g + '/') || name === g || (g.includes('/') && name === g.split('/').pop()))
   const out = []
-  const rec = (d) => {
+  const rec = (d, rel = '') => {
     for (const f of readdirSync(d, { withFileTypes: true })) {
       if (skip.has(f.name)) continue
+      const relp = rel ? rel + '/' + f.name : f.name
+      if (ignoreHit(relp, f.name)) continue
       const p = join(d, f.name)
-      if (f.isDirectory()) rec(p)
+      if (f.isDirectory()) rec(p, relp)
       else out.push(p)
     }
   }
@@ -82,10 +103,11 @@ export default async function doctor(dir, opts = {}) {
       if (pkg?.exports) {
         for (const v of Object.values(pkg.exports)) {
           const p2 = typeof v === 'string' ? v : v?.import
-          if (p2 && !existsSync(join(dir, p2))) fail('exports-path', `exports entry ${p2} does not exist`)
+          if (p2 && !p2.includes('*') && !existsSync(join(dir, p2))) fail('exports-path', `exports entry ${p2} does not exist`) // deep-import glob passthroughs are valid package.json (prestruct beta class #1)
         }
       }
       for (const f of pkg.files || []) {
+        if (f.startsWith('!')) continue // negation: npm's exclude mechanism inside the whitelist, never a must-exist path (prestruct beta class #2)
         const p3 = join(dir, f)
         if (!existsSync(p3) && !f.includes('*')) fail('files-path', `files entry ${f} does not exist in the tree`)
       }
