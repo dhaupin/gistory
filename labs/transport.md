@@ -11,7 +11,7 @@ that skips that gate does not exist.
 | Shape | Shown safe up to | Evidence (blob, commit) |
 |-------|------------------|--------------------------|
 | naive plain text body | ~2KB prose | most TASKS-scale receipts tonight; also the earliest casualties (b653dc7a, 1d5bd74d - stone carries WITHOUT wrapping) |
-| 76-char wrapped base64 | ~41KB, drift-checked | magpie r2 transfer stone (`horcrux/stones/`); landed once dimm, and NOT drift-immune - a later 224-row payload took a two-row scramble near row 117. The wrap is not the guarantee; the blob check is.
+| 76-char wrapped base64 | ~41KB, drift-checked | magpie r2 transfer stone (`horcrux/stones/`); landed once dimm, and NOT drift-immune - a later 224-row payload took a two-row scramble near row 117. The wrap is not the guarantee; the blob check is. |
 | single-line pure base64 | ~10KB, first try | monoforge `lock-archive-overlay.patch` (blob 44a0c4a9, prose + embedded unified diff) - zero newline surface to scramble, landed byte-exact on attempt 1 |
 | gz+b64 wrapped payload + runner-side emit | the rest - use this | the 58.7KB eyestruct package-lock.json (sha f47974f87e152364; runner-side repair+emit one-shot, decayed payload caught by sha gate) - for anything ~10KB and up |
 | git history rebuild + heredoc, sha-gated | any - use this for whole-file receipts | receipts-restore one-shot: base bodies from `git show <commit>:<path>` (zero carried content), receipt appendices from heredocs, sha256 gates d053fe79/1f380f27 - refusing to push until both match |
@@ -79,3 +79,19 @@ Every carry, regardless of shape, passes these five before it counts:
   Failure means "the snapshot in the repo is stale / the tree moved since
   the ferry last came through - re-run the ferry pack before move day,"
   not "determinism is broken".
+- `scripts/verify-transport-lands.mjs` (npm run `transport:lands`, CI
+  step in ci.yml) - the phased landing gate (2026-10-27). Phase 1 SHAPE:
+  every tracked byte-carry shape (`chunk.*.part` families anywhere,
+  `*.gz.b64`, `*.b64`) still decodes as the shape it claims - gzip magic,
+  contained base64, chunk-family contiguity - catching the mid-payload
+  transcription drift class before a landing. Phase 2 PARITY: every
+  carried path matches git HEAD with zero uncommitted overwrite (so what
+  an agent is about to push is the bytes the repo just landed, not a
+  stale local view). Phase 3 ORIGIN (--origin owner/repo ref, pre-push
+  leg): read-back parity from raw.githubusercontent against local sha256
+  - the independent-of-git read of what actually landed. Self-testing
+  (`--self-test` refuses a corrupted fixture). House receipt: the
+  2026-10-27 chunk re-land, where three transcription typos (one byte in
+  a wrapped row, one word-boundary byte, one missed wrap newline) were
+  found only by hand-diffing the landed copies against the pristine local
+  buffers; this gate makes that class a named refusal instead.
