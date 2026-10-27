@@ -12,5 +12,9 @@
       url: /eyestruct/verbs
     - title: Packs
       url: /eyestruct/packs
+    - title: Playbooks
+      url: /eyestruct/playbooks
+    - title: CI
+      url: /eyestruct/ci
     - title: PRD
       url: /eyestruct/labs/prd-eyes

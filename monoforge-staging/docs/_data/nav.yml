@@ -12,3 +12,9 @@
       url: /monoforge/packs
     - title: Search
       url: /monoforge/search
+- title: Operations
+  items:
+    - title: Playbooks
+      url: /monoforge/playbooks
+    - title: CI
+      url: /monoforge/ci
