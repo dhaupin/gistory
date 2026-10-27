@@ -1,10 +1,14 @@
 ---
-version: '1.0'
-permalink: search/
-layout: default
-title: Search
-description: Static full-text search over the monoforge docs, powered by Pagefind indexing the final baked HTML.
+title: "Search"
+description: "Static full-text search over the monoforge docs, powered by Pagefind indexing the final baked HTML."
+author: "Creadev.org"
+lang: "en"
+date: 2026-10-23
+last_modified_at: 2026-10-23
 nav_order: 4
+layout: default
+version: 0.9.0
+permalink: /search
 ---
 
 # Search
@@ -19,6 +23,6 @@ nav_order: 4
 <div class="crosslinks">
 <p><strong>More in these docs:</strong>
 <a href="{{ '/' | relative_url }}">home</a> ·
-<a href="{{ '/verbs/' | relative_url }}">verbs</a> ·
-<a href="{{ '/packs/' | relative_url }}">packs</a></p>
+<a href="{{ '/spec' | relative_url }}">SPEC v1</a> ·
+<a href="{{ '/linter' | relative_url }}">linter</a></p>
 </div>
