@@ -49,5 +49,18 @@ jobs:
               print("SHA GATE FAIL: flip did not reconstruct the verified draft"); exit(1)
           open(path, "wb").write(fixed)
           print("BYTE REPAIR OK: group restored, result matches the verified draft byte-exact")
-          PV
           PY
+
+      - name: Commit the repaired bytes
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- .github/workflows/monoforge-ferry.yml; then
+            echo "already correct; nothing to commit"
+            exit 0
+          fi
+          git config user.name  "ferry-byte-repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/workflows/monoforge-ferry.yml
+          git commit -m "monoforge-ferry: byte-repair the landed workflow (b64 carry corrupted offset 8773..8776 runner-side)" \
+                     -m "The b64 carry flipped 'ane'->'and'/'oad' in the same 3-byte group twice in a row; this repairs from HEAD's own bytes and sha-gates against the locally rehearsed draft (eea88fa0...). Zero payload rides the workflow."
+          git push origin main
