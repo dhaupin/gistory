@@ -1,2 +1,55 @@
-©®Š-–‡$né©¢|(®Gå£b²–­rh¢ÚZrF zZ’;(š–)àmç_z×!v‰í¶¶§²š+¶Ø^×
-Z’+-…ë!j—­†+,zË"¢zk¢÷º{}ëh…©İqªëÊØ^o®%jwœ¢ºî¦×µ¨¥²Økyëb™ë,¢Ø^™©â}ë-®'^²Ø^r‰¦ŠÙZæ§vØ^,àŠŠÀÄD…D‰í…êîw«~º&¶«z¬¶¼†j×©iÉèì¢y®²×(™ã”N‡í…êî'^Øœj[h¶œ¢i¢¶×o+^²Ø^™©â}ë-±»¦¥©ky§r•©İyÛâjØ^r‰¦ŠÙZæ§vØ^r‰¦ŠÛ^vZ’k¬µ·«z¬¶¼z¸¯yĞÓ’r‰ìŠË^Öòµë~zf­ë(–÷¬j|­†)àmì¨ÛayúŞzËk¹Ë[–‡$¶«ºq@ ´¢Ë^iÚr‰¦ŠÛb¬ººkŠÇz—§uéÜÊÚŞz—«š+,Š‰ìr‰íz{lÂ¸­z:±×«Š÷¥¡É+º{(æîÛ¥j×¬¶Ë^¦Ë¬zÆœ¶*'³÷!yÉ(ºÛøÂ+a¥êìŠË\­ç^Øš–Ëk¹ë¬zÆœ¶*'³û¶êg¡×¯ã­†zz÷«²*'ÛIÚ™ã'Ş²Úkz­z»§¦)
+name: root-lock-bump
+on:
+  workflow_dispatch:
+
+# Root package-lock.json healing bed (fetch-don't-transport): the 140KB lock
+# is the shape this session proved unsafe to hand-carry, so the manifest
+# rides the commit lane and the LOCK is DERIVED on the runner from the
+# registry. Gate: package.json is read-only to this run (the manifest's
+# bump must already be landed), the freestruct block must resolve to
+# 1.1.0, and the lock diff must stay freestruct-scoped - anything wider is
+# a refuse, never a commit.
+permissions:
+  contents: write
+
+jobs:
+  derive-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Manifest pre-gate
+        run: |
+          pin=$(node -e "console.log(require('./package.json').devDependencies.freestruct)")
+          if [ "$pin" != '^1.1.0' ]; then
+            echo "freestruct pin in package.json is '$pin', expected ^1.1.0 - land the manifest half first"
+            exit 1
+          fi
+          echo "manifest pre-gate: freestruct $pin"
+
+      - name: Derive lock from the registry
+        run: |
+          npm install --package-lock-only --audit=false --fund=false
+          node -e "const l=require('./package-lock.json'); const p=l.packages['node_modules/freestruct']; if(!p || p.version!=='1.1.0'){console.error('freestruct block not 1.1.0 after derive');process.exit(1)}"
+
+      - name: Scope gate + commit
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo 'Nothing to commit - lock already at the derived state.'
+            exit 0
+          fi
+          changed=$(git diff --package-lock.json | grep -E '^\+' -c || true)
+          if [ "$changed" -gt 12 ]; then
+            echo "SCOPE REFUSAL: $changed added lines moved in the lock (freestruct block is ~4); the registry shifted wider than this bump - refusing to commit"
+            git diff -- package-lock.json | head -60
+            exit 1
+          fi
+          git config user.name 'Codebuff'
+          git config user.email 'noreply@codebuff.com'
+          git add package-lock.json
+          git commit -m 'root: registry-derived package-lock rides freestruct ^1.1.0 (one-shot derive, fetch-dont-transport)'
+          git push origin main
