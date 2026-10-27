@@ -39,7 +39,7 @@ npm test
 ```
 
 The corpus is `test/fixtures/good` (must audit clean) and
-`test/fixtures/bad` (must hit EXACTLY the expected FAIL ids, warns included).
+test/fixtures/bad (must hit EXACTLY the expected FAIL ids, warns included).
 Deleting or degrading a check breaks the test - that is the point.
 
 ## Packs (realized)
@@ -79,3 +79,4 @@ gate. 1.0.0 flips OIDC trusted publishing (`id-token: write`). See
 - [packstruct](https://github.com/dhaupin/packstruct) - the shared packs spec
   (pinned 1.0.0 as an exact devDependency here; `npm run conform:packs`
   proves the pack loader itself conforms - 8/8 audit cases honored)
+- **The workshop** → [Creadev.org](https://creadev.org) (poststruct is made by Rook @ Creadev.org — the same home as the landing and docs surfaces above)
