@@ -44,7 +44,7 @@ jobs:
       # capability boundaries exactly as today's green runs do — a resvg-less
       # raster leg is a named capability SKIP, not a silent pass. The raster
       # gate currently REFUSES public/favicon.svg (a 310-byte flat-color
-      # render against the 512-byte floor) wherever eyestruct-staging deps ARE
+      # render against the 512-byte floor) wherever eyestruct's deps ARE
       # installed; that finding goes red WITH its own threshold receipt, not
       # procedure-to-green overnight.
       - name: Install dependencies
@@ -143,16 +143,27 @@ jobs:
       # committed labs/.eyes/ ledger: 0 unexplained drift, all rows
       # explained). Family exit contract; skips are NAMED, never fake
       # passes.
+      - name: Checkout eyestruct upstream (the EYES legs' tool of record)
+        uses: actions/checkout@v4
+        with:
+          repository: dhaupin/eyestruct
+          path: eyestruct-upstream
+
+      - name: Install eyestruct upstream
+        run: npm ci --prefix eyestruct-upstream
+
       - name: Framework gate (poststruct x eyestruct legs)
+        env:
+          EYESTRUCT_BIN: eyestruct-upstream/bin/eyestruct.js
         run: node scripts/framework-gate.mjs
 
   # The staging repos are writing repos of their own — they tar over to
-  # dhaupin/poststruct and dhaupin/eyestruct — and this job is where their
-  # own batteries prove their loaders/packs/ledgers stay conformant with the
-  # packstruct spec all family legs share. Separate job, by receipt: the
-  # raster gate refuses public/favicon.svg (310-byte flat-color render
-  # against the 512-byte floor) wherever eyestruct-staging deps are
-  # installed, so this job installs staging deps deliberately and scopes
+  # dhaupin/poststruct, while eyestruct graduated upstream outright — and
+  # this job is where the batteries prove their loaders/packs/ledgers stay
+  # conformant with the packstruct spec all family legs share. Separate
+  # job, by receipt: the raster gate refuses public/favicon.svg (310-byte
+  # flat-color render against the 512-byte floor) wherever eyestruct deps
+  # are installed, so this job installs them deliberately and scopes
   # itself to receipt-backed truths (loaders, packs, docs gates, smoke).
   # Honest centerpiece: failures fail under their own name, and the
   # framework gate in verify keeps its capability boundary until the raster
@@ -162,23 +173,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Eyestruct: upstream repo (the staging mount retired 2026-10-27).
+      - uses: actions/checkout@v4
+        with:
+          repository: dhaupin/eyestruct
+          path: eyestruct-upstream
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install staging hosts
+      - name: Install (poststruct staging + eyestruct upstream)
         run: |
           npm ci --prefix poststruct-staging
-          npm ci --prefix eyestruct-staging
+          npm ci --prefix eyestruct-upstream
 
       - name: Poststruct battery (test + lint:packs + conform:packs)
+        env:
+          EYESTRUCT_BIN: eyestruct-upstream/bin/eyestruct.js
         run: npm run check --prefix poststruct-staging
 
-      - name: Eyestruct smoke (node:test spine)
-        run: npm test --prefix eyestruct-staging
+      - name: Eyestruct smoke (node:test spine, upstream)
+        run: npm test --prefix eyestruct-upstream
 
-      - name: Eyestruct battery (docs gates + packs + lint:packs + conform:packs)
-        run: npm run check --prefix eyestruct-staging
+      - name: Eyestruct battery (docs gates + packs + lint:packs + conform:packs, upstream)
+        run: npm run check --prefix eyestruct-upstream
 
       - name: "Monoforge battery (self-test: stamp + doctor + lock refusals)"
         run: node test/run.mjs
