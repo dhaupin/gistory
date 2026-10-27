@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="ogbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141822"/>
+      <stop offset="1" stop-color="#10131a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#ogbg)"/>
+  <rect width="1200" height="10" fill="#7dd3a8"/>
+  <!-- icon tile, left -->
+  <g transform="translate(150 185) scale(0.5)">
+    <rect width="512" height="512" rx="96" fill="#181c26"/>
+    <rect x="24" y="24" width="464" height="464" rx="80" fill="none" stroke="#2a3140" stroke-width="8"/>
+    <rect x="150" y="150" width="212" height="212" rx="28" fill="none" stroke="#7dd3a8" stroke-width="26"/>
+    <rect x="216" y="216" width="80" height="80" rx="12" fill="#7dd3a8"/>
+  </g>
+  <!-- three template blocks feeding one stamped output, right of the tile -->
+  <g stroke="#3a4354" stroke-width="10" fill="none">
+    <rect x="480" y="230" width="120" height="120" rx="16"/>
+    <rect x="480" y="390" width="120" height="120" rx="16"/>
+    <rect x="480" y="310" width="120" height="120" rx="16" fill="none"/>
+  </g>
+  <path d="M620 370 h60 v-140 h120" stroke="#7dd3a8" stroke-width="10" fill="none"/>
+  <path d="M620 450 h100 v-180 h80" stroke="#7dd3a8" stroke-width="10" fill="none"/>
+  <rect x="840" y="255" width="150" height="150" rx="20" fill="none" stroke="#7dd3a8" stroke-width="12"/>
+  <rect x="900" y="315" width="30" height="30" rx="6" fill="#7dd3a8"/>
+</svg>
