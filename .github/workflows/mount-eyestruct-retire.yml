@@ -1,0 +1,83 @@
+# ONE-SHOT: retire the eyestruct staging mount + its tar chain from gistory.
+#
+# eyestruct graduated upstream (dhaupin/eyestruct): the mount's tree, brain,
+# stone mirrors and docs live at the upstream repo now, and gistory's CI
+# already consumes eyestruct from there (staging-hosts checks it out into
+# eyestruct-upstream/, the framework gate + eyes-ratify + mono-web-emit
+# resolve it via the same checkout / EYESTRUCT_BIN knit). What is left here
+# is dead weight: the tracked mount files and the three move-day tar
+# snapshots. This one-shot deletes them, and appends the labs/TASKS receipt
+# in the same commit so the reading order matches the fact. Requires the
+# consumer rewiring to have landed first (CI on this commit must be the
+# green, upstream-consumed shape).
+#
+# Not a workflow-file push: plain tracked-file deletions + one text append
+# only (GITHUB_TOKEN cannot push workflow-file commits; this file rides in
+# via the commit lane).
+name: mount-eyestruct-retire
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  retire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Retire the mount + tar chain (receipt rides in the same commit)
+        run: |
+          set -euo pipefail
+          # Receipt first: the rolling log records this pass on the tree that
+          # still HAS the mount (matching every sibling receipt's convention
+          # "write back before closing"), then the deletion lands under it.
+          cat >> labs/TASKS.md <<'EOF'
+
+- **EYESTRUCT RETIRED (2026-10-27):** eyestruct graduated upstream
+  (dhaupin/eyestruct); its staging mount + tar chain retire from gistory.
+  - Parity sweep before the delete: upstream is NEWER than the mount
+    snapshot (#32 lint-packs verb + BAD_FLAG_VALUE triage already in).
+    The one mount-only carry is the C1 flags-before-verb dispatch -
+    filed upstream as dhaupin/eyestruct#3 with a composed-on-upstream
+    diff (newer guards kept) + probe receipts + a pristine-vs-patched
+    suite control (identical except random temp-dir names).
+  - Consumers retargeted to upstream: ci.yml staging-hosts + framework
+    gate checkout dhaupin/eyestruct into eyestruct-upstream/;
+    framework-gate.mjs resolves the bin via EYESTRUCT_BIN (legacy
+    fallback only in the retirement window); eyes-ratify + mono-web-emit
+    checkout upstream; mount-stone-mirror drops the magpie pair (upstream
+    carries its own mirrors); horcrux-reorg tolerates the retired tar
+    chain; make/verify-staging-tars MOUNTS lose eyestruct; gitignore/
+    eslint/docs prose updated; poststruct run-packs.mjs gains a
+    ../eyestruct fallback rung.
+  - Deletion lands via this one-shot: the mount dir + horcrux/tars/
+    eyestruct-* go in THIS commit, so CI on it is the green
+    upstream-consumed shape.
+EOF
+          # Tracked deletions first (ignore-unmatch so a partial tree is safe),
+          # then the untracked clutter (the nested .git) off disk, then a
+          # final add -A so the commit records everything actual.
+          git rm -r --quiet --ignore-unmatch eyestruct-staging \
+            horcrux/tars/eyestruct-staging-git-2026-10-26.tar.gz \
+            horcrux/tars/eyestruct-staging-git-2026-10-27.tar.gz || true
+          git rm --quiet --ignore-unmatch \
+            horcrux/tars/archive/eyestruct-staging-git-2026-10-25.tar.gz || true
+          rm -rf eyestruct-staging
+          rm -f horcrux/tars/eyestruct-staging-git-2026-10-26.tar.gz \
+                horcrux/tars/eyestruct-staging-git-2026-10-27.tar.gz \
+                horcrux/tars/archive/eyestruct-staging-git-2026-10-25.tar.gz
+          git add -A -- eyestruct-staging horcrux/tars labs/TASKS.md
+          if git diff --cached --quiet; then
+            echo "nothing to retire (already gone)"
+            exit 0
+          fi
+          git config user.name Codebuff
+          git config user.email noreply@codebuff.com
+          git commit -m "eyestruct retired: mount dir + tar chain deleted, receipt landed (graduated to dhaupin/eyestruct)" \
+                     -m "The mount's tree, brain, stone mirrors and docs live at dhaupin/eyestruct; gistory's CI consumes eyestruct from there (staging-hosts checkout, EYESTRUCT_BIN for the framework gate + poststruct pack runner, eyes-ratify + mono-web-emit upstream checkouts). The three move-day tars ride upstream's git history now. gistory#9 C1 was carried upstream in an issue."
+          git push origin main
