@@ -1,21 +1,19 @@
 ---
-title: "monoforge"
-description: "stamps fleet repos from the proven template blocks (docs system, workflows, release ladder, gates), doctors them with the truth battery, and locks them with a checksum. The doctor refuses unfilled FORGE-TODO slots: generated green is never shipped."
-author: "Creadev.org"
-lang: "en"
-date: 2026-10-24
-last_modified_at: 2026-10-24
-nav_order: 1
+version: '1.0'
 permalink: /
 layout: default
-version: 0.9.0
+title: monoforge
+description: The fleet factory - stamps fleet repos from the proven template blocks (docs system, workflows, release ladder, gates), doctors them with the truth battery, and locks them with a checksum. The doctor refuses unfilled FORGE-TODO slots: generated green is never shipped.
 ---
 # monoforge
 
 The struct-family factory: stamp a repo from proven template blocks, doctor it for truth, lock it verifiably.
 
 ```bash
-# documented usage here (keep this line honest: usage in docs must match the CLI)
+monoforge new ./my-tool      # stamp a fleet repo from factory.json
+monoforge doctor ./my-tool   # the truth battery (refuses FORGE-TODO, broken gates)
+monoforge lock ./my-tool     # doctor must pass, then archive + checksum
+monoforge cut ./family       # component-family workspace from a living lib
 ```
 
 The release ladder: 0.9.x is manual npm; 1.0.0 flips OIDC trusted publishing
