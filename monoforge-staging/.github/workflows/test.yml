@@ -1,29 +1,21 @@
-# monoforge's own battery - the tar-move plan's injected change #1, so
-# move day's first standalone push is gated by its own CI, not the borrow.
-# The factory is zero-dep: no install step exists to run. The battery is
-# the negative test (test/run.mjs) plus the docs gates and the language
-# gate - the same lanes gistory's staging-hosts leg runs for the mounts.
 name: test
-
 on:
-  push:
-  pull_request:
-
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
 jobs:
-  battery:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Factory self-test (stamp + doctor refusals)
-        run: npm test
-
-      - name: Docs gates (rig checkers)
-        run: npm run lint:docs
-
-      - name: Language gate (English-only prose)
-        run: npm run lint:language
+        with: { node-version: 20 }
+      - run: npm install --no-fund --no-audit
+      - run: npm test
+      - name: lint the repo's own conformance fixtures + shipped packs through the CLI
+        run: |
+          node bin/cli.mjs lint test/fixtures/good/packs
+          if node bin/cli.mjs lint test/fixtures/bad/packs >/dev/null 2>&1; then
+            echo "lint should have failed on broken fixtures"; exit 1
+          fi
+          # dogfood: the repo's own packs tree (the crashtest scenario pack) is itself SPEC-v1 shaped
+          node bin/cli.mjs lint packs

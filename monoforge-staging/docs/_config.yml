@@ -3,7 +3,7 @@
 # presentation lives in _layouts/default.html, kramdown GFM + rouge,
 # permalink pretty; freestruct generates the sitemap post-build).
 title: monoforge docs
-description: The fleet factory - stamp a repo from proven template blocks, doctor it for truth, lock it verifiably.
+description: The shared /packs SPEC - manifest contract, entry profiles, lifecycle, and the lint CLI.
 url: https://docs.creadev.org
 baseurl: /monoforge
 

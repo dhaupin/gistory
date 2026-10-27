@@ -3,5 +3,5 @@
 site:
   name: monoforge docs
   url: https://docs.creadev.org
-  description: The fleet factory - stamp a repo from proven template blocks, doctor it for truth, lock it verifiably.
+  description: The shared /packs SPEC — manifest contract, entry profiles, lifecycle, and the lint CLI.
 basePath: /monoforge
