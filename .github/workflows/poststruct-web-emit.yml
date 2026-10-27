@@ -1,0 +1,105 @@
+# ONE-SHOT: emit the poststruct web payload files - carrying ZERO payload
+# bytes (labs/transport.md: hand-echoed base64 is not a shape in this family
+# at any size class; the monoforge ferry, mono-web-emit.yml, is the proven
+# shape). Everything derives from files already in the repo:
+#   - web/package-lock.json <- minted runner-side from the COMMITTED
+#     web/package.json by a fresh `npm install --package-lock-only`
+#     (no sibling lock to derive from: the dep sets are equal but poststruct
+#     resolved rollup 4.65.1 where the monoforge/eyestruct locks carry
+#     4.65.0), then sha256 + name gated against the verified local build
+#   - web/public/{favicon-32,icon-192,icon-512,apple-touch-icon,og-image}.png
+#   - docs/assets/icon.svg + docs/og-image.png
+#     <- rendered with @resvg/resvg-js@2.6.2 (the version the family's
+#     committed icon set provably renders identical across all three sites)
+#     by the COMMITTED web/scripts/make-icons.mjs + build-og.mjs, then
+#     sha-gated against the same verified local build
+# The workflow file itself retires through the commit lane after receipts.
+name: poststruct-web-emit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Emit the lock (minted from the committed package.json, sha-gated)
+        run: |
+          set -euo pipefail
+          cd poststruct-staging/web
+          rm -f package-lock.json
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          got="$(sha256sum package-lock.json | cut -d' ' -f1)"
+          want="fb27a3d3e8f978c2c6cf4152facbfa0d8e68689de195f0cda3597047a83834da"
+          if [ "$got" != "$want" ]; then echo "LOCK SHA GATE FAIL: $got"; exit 1; fi
+          name="$(node -e "console.log(JSON.parse(require('fs').readFileSync('package-lock.json','utf8')).name)")"
+          if [ "$name" != "poststruct-site" ]; then echo "LOCK ROOT NAME FAIL: $name"; exit 1; fi
+          echo "LOCK EMIT OK name=$name sha ${got:0:16}"
+
+      - name: Render the marks (committed scripts, resvg 2.6.2, sha-gated)
+        run: |
+          set -euo pipefail
+          # resvg lives outside the tree so nothing stray enters the commit
+          rm -rf /tmp/emitgen && mkdir -p /tmp/emitgen
+          ( cd /tmp/emitgen && npm init -y >/dev/null \
+              && npm install --no-audit --no-fund @resvg/resvg-js@2.6.2 >/dev/null )
+          ln -s /tmp/emitgen/node_modules poststruct-staging/node_modules
+          # build-og needs the Liberation family at the usual system path; on
+          # a runner that lacks it the missing-font check below errors with
+          # the fix (FONTS_DIR) instead of producing wrong bytes.
+          for f in LiberationSans-Regular.ttf LiberationSans-Bold.ttf LiberationMono-Regular.ttf; do
+            if [ ! -e "/usr/share/fonts/truetype/liberation/$f" ]; then
+              echo "MISSING FONT $f - set FONTS_DIR or add fonts-liberation to the runner"; exit 2
+            fi
+          done
+          ( cd poststruct-staging && node web/scripts/make-icons.mjs && node web/scripts/build-og.mjs )
+          check() {
+            got="$(sha256sum "$1" | cut -d' ' -f1)"
+            if [ "$got" != "$2" ]; then echo "SHA GATE FAIL $1: $got"; exit 1; fi
+            echo "OK $1 sha ${got:0:16}"
+          }
+          # make-icons contract: the docs copy is byte-identical to the seal
+          cmp poststruct-staging/docs/assets/icon.svg poststruct-staging/web/public/icon.svg \
+            || { echo "DOC SEAL COPY GATE FAIL: docs/assets/icon.svg diverges from web/public/icon.svg"; exit 1; }
+          check poststruct-staging/web/public/favicon-32.png        b48304fcf5fb18370dc7bb6708fa41d0f089c7fe282caae6d5759605d3fded49
+          check poststruct-staging/web/public/icon-192.png          3b925b570ba8f2c11f3ef17f3fabcf824eac83a18eb43b8b5d41f4747a3f7a2a
+          check poststruct-staging/web/public/icon-512.png          da11528596f902f738da484deba20e40afecfd2ea7450a455eba6b4064eb8a28
+          check poststruct-staging/web/public/apple-touch-icon.png  2bfc8ee073ab574738f6e4652d90495b101f58a3df3756a2145400cabb851e68
+          check poststruct-staging/web/public/og-image.png          e08900d8e598923c763f7cc7454d77268ac0aa07ee18c7ed51f12198e74d5e6b
+          check poststruct-staging/docs/assets/icon.svg             36bac81fb7ef5b5ea488dad9cf526757f9aa6ea2644b2b41bff802a9cdd40e1d
+          check poststruct-staging/docs/og-image.png                4b708574346f4cbb19c9a6a31f70a430c69f91495a7e2ccf66d9e19b40dc6a64
+
+      - name: Commit the payload (no-op when already correct)
+        run: |
+          set -euo pipefail
+          rm -f poststruct-staging/node_modules
+          git config user.name  "poststruct-web-emit"
+          git config user.email "actions@users.noreply.github.com"
+          git add \
+            poststruct-staging/web/package-lock.json \
+            poststruct-staging/web/public/favicon-32.png \
+            poststruct-staging/web/public/icon-192.png \
+            poststruct-staging/web/public/icon-512.png \
+            poststruct-staging/web/public/apple-touch-icon.png \
+            poststruct-staging/web/public/og-image.png \
+            poststruct-staging/docs/assets/icon.svg \
+            poststruct-staging/docs/og-image.png
+          if ! git diff --cached --quiet; then
+            git commit -m "poststruct-web-emit: land the web payload by derivation (the shuttles zero-payload-bite shape; resvg render + lock mint, every artifact sha-gated)" \
+                       -m "The lock is minted runner-side from the committed web/package.json, the icon set + og cards are rendered by the committed make-icons.mjs/build-og.mjs with @resvg/resvg-js@2.6.2, and each artifact passes its sha256 gate against the verified local build before anything commits. No payload bytes are carried in the workflow."
+            git push origin main
+          else
+            echo "nothing to commit (payload already current)"
+          fi
