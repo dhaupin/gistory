@@ -6,4 +6,10 @@ dist/
 docs/_site/
 docs/pagefind/
 pagefind-*.tar.gz
+
+# Docs build products (family gitignore block, gistory#19 via eyestruct): an
+# accidental in-tree Jekyll build taints nothing; CI resolves the bundle fresh.
+docs/.bundle/
+docs/vendor/
+docs/Gemfile.lock
 .DS_Store
