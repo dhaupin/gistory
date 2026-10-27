@@ -6,7 +6,15 @@
   <title>{{ page.title | default: site.title }}</title>
   <!-- Freestruct completes canonical/OG/Twitter/JSON-LD post-render; the head stays honest upstream -->
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
-</head>
+  <!-- Wide tables scroll in their own box (gistory#16 family guard; eyestruct
+      138fda9 worked example) - the jekyll default theme pins the page to a
+      table's min-content width on phones otherwise. -->
+  <style>
+    main { min-width: 0; }
+    main table { display: block; width: 100%; overflow-x: auto;
+      -webkit-overflow-scrolling: touch; border-collapse: collapse; }
+    main table td code { white-space: nowrap; }
+  </style></head>
 <body>
   <header>
     <button class="burger" aria-label="Toggle menu" aria-expanded="false">☰</button>
@@ -14,6 +22,8 @@
       <a href="{{ '/' | relative_url }}">home</a> ·
       <a href="{{ '/checks' | relative_url }}">check catalog</a> ·
       <a href="{{ '/packs' | relative_url }}">packs</a> ·
+      <a href="{{ '/playbooks' | relative_url }}">playbooks</a> ·
+      <a href="{{ '/ci' | relative_url }}">ci</a> ·
       <a href="{{ '/search' | relative_url }}">search</a>
     </nav>
   </header>
