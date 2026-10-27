@@ -165,6 +165,6 @@ jobs:
           if [ -d .cut-tmp/mfparts ]; then
             git rm -r -q .cut-tmp/mfparts || true
             git commit -m "monoforge ferry: sweep the retired transport parts" \
-                       -m "The base64 part load corrupted on arrival (a fabricated tail landed as mfpart-aa); the fetch-from-upstream + sha gate replaces it. Nothing else changes."
+                       -m "The base64 part lane corrupted on arrival (a fabricated tail landed as mfpart-aa); the fetch-from-upstream + sha gate replaces it. Nothing else changes."
             git push origin main
           fi
