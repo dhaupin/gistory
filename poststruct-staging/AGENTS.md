@@ -19,9 +19,10 @@
 ## Mechanical conventions (this repo)
 - Layout: `src/core.mjs` (walk + page model), `src/checks/head.mjs` +
   `src/checks/site.mjs` (the check modules), `src/index.mjs`
-  (`runAudit`, the programmatic entry), `bin/cli.mjs` (CLI: one mode,
-  `audit [dir] [--json]`). Keep `package.json` `exports`/`bin` pointing
-  at both entry files.
+  (`runAudit`, the programmatic entry), `bin/cli.mjs` (CLI: two verbs,
+  `audit [dir] [--json] [--module x]` and the pack lint lane
+  `lint-packs [--deep] [--json] [--against <lib>] [dir]`). Keep
+  `package.json` `exports`/`bin` pointing at both entry files.
 - **Fixtures are law.** `test/fixtures/good/` must audit clean.
   `test/fixtures/bad/` must hit EXACTLY the FAIL id list (plus warn list)
   asserted in `test/run.mjs`. If you change a check or an id, update the
@@ -36,6 +37,15 @@
   profile default export `{ checks: [...] }`, ids namespaced by pack
   slug, instant nameable refusals, and `packstruct lint packs/` before
   any merge that touches packs.
+- **Packs ARE realized here** (the gistory#14 battery landed with the
+  lint-packs wrapper verb): `packs/public/eye-reference/` ships the
+  reference-shape pack with a committed `packs/eye-ledger.json` baseline,
+  packstruct rides an exact devDependency pin (1.0.0), the battery is
+  `npm run check` = test + `lint:packs` (the wrapper, repo's own
+  install) + `conform:packs` (audit-conformance through the campaign
+  runner), and `packstruct lint --deep` runs inside the wrapper. Adding
+  a pack or touching pack ids must keep the ledger green in the same
+  commit.
 - All prose in shipped templates, fixtures, README and AGENTS submits to
   the voice law: zero dashes-of-any-kind, no AI-cliche constructions,
   plain declarative sentences only.
