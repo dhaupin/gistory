@@ -71,7 +71,7 @@ jobs:
       # docs/freestruct.config.yml + docs/_site by the engine's own rule) --
       # --strict: broken links fail the build.
       - name: Freestruct (strict)
-        run: npx --yes freestruct@1.0.0 --strict
+        run: npx --yes freestruct@1.1.0 --strict
 
       # Pagefind LAST - index over the FINAL html (freestruct-injected)
       - name: Index search with Pagefind
