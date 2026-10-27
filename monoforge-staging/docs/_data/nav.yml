@@ -18,3 +18,10 @@
       url: /monoforge/playbooks
     - title: CI
       url: /monoforge/ci
+- title: Web
+  items:
+    # External - the layout branches on '://' (target=_blank, no active
+    # match) so this never races the permalink matching of the internal
+    # items, and no 1:1 nav gate knows it.
+    - title: Web site
+      url: https://monoforge.creadev.org/
