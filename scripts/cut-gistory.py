@@ -73,9 +73,9 @@ gs_identity = (
     "  cheap enough to be a verb, not a ceremony.\n\n"
     "## Relationships\n"
     "- Human: dhaupin\n"
-    "- Siblings it hosts: poststruct-staging, eyestruct-staging (the\n"
-    "  eyes project), monoforge-staging (the factory); packstruct and\n"
-    "  crashtest are the grammar and the attack ledger.\n"
+    "- Siblings it hosts: poststruct-staging, monoforge-staging (the\n"
+    "  factory); packstruct and crashtest are the grammar and the attack\n"
+    "  ledger; eyestruct graduated upstream (dhaupin/eyestruct).\n"
 )
 
 gs_goals = (
