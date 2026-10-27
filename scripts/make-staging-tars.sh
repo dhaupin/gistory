@@ -56,15 +56,21 @@ for m in $MOUNTS; do
     # surface and zero value: disable it before anything that writes.
     git -C "$m" config gc.auto 0
     git -C "$m" config gc.writeCommitGraph false
-    GIT_AUTHOR_NAME="$GIT_NAME" GIT_AUTHOR_EMAIL="$GIT_EMAIL" \
-    GIT_COMMITTER_NAME="$GIT_NAME" GIT_COMMITTER_EMAIL="$GIT_EMAIL" \
-    GIT_AUTHOR_DATE="$GIT_DATE" GIT_COMMITTER_DATE="$GIT_DATE" \
-        git -C "$m" add -A
-    GIT_AUTHOR_NAME="$GIT_NAME" GIT_AUTHOR_EMAIL="$GIT_EMAIL" \
-    GIT_COMMITTER_NAME="$GIT_NAME" GIT_COMMITTER_EMAIL="$GIT_EMAIL" \
-    GIT_AUTHOR_DATE="$GIT_DATE" GIT_COMMITTER_DATE="$GIT_DATE" \
-        git -C "$m" commit -q \
-            -m "snapshot: pre-tar state of ${m} (2026-10-26, Codebuff-carry)"
+    git -C "$m" add -A
+    # Day-boundary no-op: on a NEW UTC day the seed loop no longer excludes
+    # yesterday's tar, so HEAD (fixed date) may already equal the mount tree.
+    # `git commit` would exit 1 there and the whole ferry would die (seen
+    # 2026-10-27 01:59Z). Nothing-to-commit is the byte-identical case: skip
+    # the commit, the fresh pack below still reproduces the seed exactly.
+    if git -C "$m" diff --cached --quiet; then
+        echo "snapshot: $m unchanged since seed (no-op commit skipped)"
+    else
+        GIT_AUTHOR_NAME="$GIT_NAME" GIT_AUTHOR_EMAIL="$GIT_EMAIL" \
+        GIT_COMMITTER_NAME="$GIT_NAME" GIT_COMMITTER_EMAIL="$GIT_EMAIL" \
+        GIT_AUTHOR_DATE="$GIT_DATE" GIT_COMMITTER_DATE="$GIT_DATE" \
+            git -C "$m" commit -q \
+                -m "snapshot: pre-tar state of ${m} (2026-10-26, Codebuff-carry)"
+    fi
     for r in $REBUILT; do
         rm -rf "$m/$r";
     done
