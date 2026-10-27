@@ -60,9 +60,11 @@ jobs:
           git mv horcrux/magpie-p_mirror-eyes-2026-2.svg horcrux/stones/
           git mv horcrux/poststruct-p_wordprint-2026.svg horcrux/stones/
           git mv horcrux/poststruct-staging-git-2026-10-26.tar.gz horcrux/tars/
-          git mv horcrux/eyestruct-staging-git-2026-10-26.tar.gz horcrux/tars/
+          # eyestruct tars: the mount retired (2026-10-27) - the tar chain
+          # (and these moves) only replay on a pre-retirement tree checkout.
+          if [ -f horcrux/eyestruct-staging-git-2026-10-26.tar.gz ]; then git mv horcrux/eyestruct-staging-git-2026-10-26.tar.gz horcrux/tars/; fi
           git mv horcrux/monoforge-staging-git-2026-10-26.tar.gz horcrux/tars/
-          git mv horcrux/eyestruct-staging-git-2026-10-25.tar.gz horcrux/tars/archive/
+          if [ -f horcrux/eyestruct-staging-git-2026-10-25.tar.gz ]; then git mv horcrux/eyestruct-staging-git-2026-10-25.tar.gz horcrux/tars/archive/; fi
           git mv horcrux/prd-eyes.md horcrux/prds/
           git mv horcrux/prd-poststruct.md horcrux/prds/
           git mv horcrux/prestruct-og-image.png horcrux/handoff/
@@ -84,9 +86,9 @@ jobs:
           check horcrux/magpie-p_mirror-eyes-2026-2.svg          horcrux/stones/magpie-p_mirror-eyes-2026-2.svg
           check horcrux/poststruct-p_wordprint-2026.svg          horcrux/stones/poststruct-p_wordprint-2026.svg
           check horcrux/poststruct-staging-git-2026-10-26.tar.gz horcrux/tars/poststruct-staging-git-2026-10-26.tar.gz
-          check horcrux/eyestruct-staging-git-2026-10-26.tar.gz  horcrux/tars/eyestruct-staging-git-2026-10-26.tar.gz
+          if [ -f horcrux/tars/eyestruct-staging-git-2026-10-26.tar.gz ]; then check horcrux/eyestruct-staging-git-2026-10-26.tar.gz horcrux/tars/eyestruct-staging-git-2026-10-26.tar.gz; fi
           check horcrux/monoforge-staging-git-2026-10-26.tar.gz  horcrux/tars/monoforge-staging-git-2026-10-26.tar.gz
-          check horcrux/eyestruct-staging-git-2026-10-25.tar.gz  horcrux/tars/archive/eyestruct-staging-git-2026-10-25.tar.gz
+          if [ -f horcrux/tars/archive/eyestruct-staging-git-2026-10-25.tar.gz ]; then check horcrux/eyestruct-staging-git-2026-10-25.tar.gz horcrux/tars/archive/eyestruct-staging-git-2026-10-25.tar.gz; fi
           check horcrux/prd-eyes.md                              horcrux/prds/prd-eyes.md
           check horcrux/prd-poststruct.md                        horcrux/prds/prd-poststruct.md
           check horcrux/prestruct-og-image.png                   horcrux/handoff/prestruct-og-image.png
