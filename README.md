@@ -1,7 +1,7 @@
 # gistory-sync
 
 [![npm](https://img.shields.io/npm/v/gistory-sync)](https://www.npmjs.com/package/gistory-sync)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/LICENSE-MIT-blue.svg)](LICENSE)
 [![docs](https://img.shields.io/badge/docs-docs.creadev.org%2Fgistory-blue)](https://docs.creadev.org/gistory)
 [![app](https://img.shields.io/badge/app-gistory.creadev.org-blue)](https://gistory.creadev.org)
 
@@ -44,10 +44,23 @@ service worker run, shipped as one ESM bundle with TypeScript declarations:
 + D1). They live in [the repo](https://github.com/dhaupin/gistory) and deploy
 from it — the package needs nothing they carry.
 
+### The staging mounts in this repo
+
+`eyestruct`, `poststruct`, and `monoforge` are being ferried into their own
+standalone repos from **staging trees that live here** (`*-staging/`), because
+this repo's CI is the battery each project must pass before move day. Until a
+target repo goes online, its `*-staging` tree is that family's source of truth;
+this file describes the gistory-sync package, not those trees.
+
 ## Install
 
+The release ladder is tag-driven (`0.9.0` first, then OIDC takes over), so the
+plain install line resolves from npm **only once the `0.9.0` tag is published**
+— until then it can 404 on the registry:
+
 ```bash
-npm i gistory-sync
+npm i github:dhaupin/gistory   # git-sourced; works before the npm tag exists
+npm i gistory-sync             # after the 0.9.0 tag is up
 ```
 
 ## Quick start
