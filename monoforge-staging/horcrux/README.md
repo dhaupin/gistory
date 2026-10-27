@@ -33,3 +33,23 @@ flattening it (the same provenance rule the eyestruct tar-move keeps).
   the staging tree that tar-moves over at move day)
 - PRDs: labs/prd-factory.md (the factory) + labs/prd-creadev-mono.md
   (the first component-family customer)
+
+## The handoff slot (2026-10-27)
+
+`og-image-src.svg` - the social
+mark source the emit ferry renders from. The rendered outputs ride no
+payload bytes: the one-shot `.github/workflows/mono-web-emit.yml`
+(in gistory root, retired through the commit lane after receipts)
+derives the 58KB `web/package-lock.json` from eyestruct's committed lock
+by the two name swaps and re-renders the five PNG marks with
+@resvg/resvg-js 2.6.2. Every output is sha-gated before it is written,
+so a wrong byte can land nowhere silently.
+
+## The flowforge rig pass (2026-10-27)
+
+The mount carries its own rig plumbing now, same shape as the eyestruct
+mount: `web/` (prestruct landing, brand as data), the docs engine,
+`MANIFEST.md`, and the mount's own `test.yml` battery. The 0.9.0 static
+`site/index.html` is RETIRED from the mount: move day deletes upstream's
+`site/` and points Pages at `web/dist`. Provenance rows live in
+`MANIFEST.md`.
