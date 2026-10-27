@@ -1,0 +1,53 @@
+# ONE-SHOT: the monoforge mount was missing its own copy of the merged PRD
+# (horcrux/prds/prd-monoforge.md landed in the vault during the PRD
+# collection pass; the mount's labs/ kept only the two upstream originals).
+# The carry is the git-history rebuild shape - ZERO payload bytes
+# transported, the copy derives from HEAD's own tracked bytes and gates on
+# the vault blob before writing. Retires through the cleanup commit lane.
+name: prd-copy-one-shot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gate + copy the vault PRD into the mount (blob-gated, byte-exact)
+        run: |
+          set -euo pipefail
+          src=horcrux/prds/prd-monoforge.md
+          dst=monoforge-staging/labs/prd-monoforge.md
+          # 1. the source must still be the blob the vault released with
+          want=$(git hash-object "$src")
+          if [ "$want" != "c7271d205277c2f98d02cec410bab90b99446279" ]; then
+            echo "PRD GATE FAIL: vault PRD blob $want is not the released c7271d20... refusing to copy";
+            exit 1
+          fi
+          # 2. copy + prove the landed copy rounds the same gate
+          cp "$src" "$dst"
+          got=$(git hash-object "$dst")
+          if [ "$got" != "$want" ]; then
+            echo "PRD GATE FAIL: copy blob $got != source $want"; exit 1
+          fi
+          echo "PRD copied byte-exact: monoforge-staging/labs/prd-monoforge.md (blob ${got:0:16})"
+
+      - name: Commit the mount copy (no-op when already correct)
+        run: |
+          set -euo pipefail
+          git config user.name  "prd-copy-one-shot"
+          git config user.email "actions@users.noreply.github.com"
+          git add monoforge-staging/labs/prd-monoforge.md
+          if ! git diff --cached --quiet; then
+            git commit -m "monoforge: the mount carries its own merged PRD (byte-exact copy of the vault's horcrux/prds/prd-monoforge.md)" \
+                       -m "The merged PRD (factory + creadev-mono unified) now ships INSIDE the monoforge mount's labs/, matching eyestruct and poststruct convention (each mount's labs/ holds its PRD). Blob-gated against the vault copy c7271d20 - zero payload bytes transported, git-history rebuild shape."
+            git push origin main
+          else
+            echo "nothing to commit (PRD copy already present)"
+          fi
