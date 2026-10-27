@@ -28,12 +28,19 @@
        - name: Index search with Pagefind
 --- a/monoforge-staging/.github/workflows/test.yml
 +++ b/monoforge-staging/.github/workflows/test.yml
-@@ -1,21 +1,29 @@
+@@ -1,21 +1,31 @@
 +# monoforge's own battery - the tar-move plan's injected change #1, so
 +# move day's first standalone push is gated by its own CI, not the borrow.
-+# The factory is zero-dep: no install step exists to run. The battery is
-+# the negative test (test/run.mjs) plus the docs gates and the language
-+# gate - the same lanes gistory's staging-hosts leg runs for the mounts.
++# The factory is zero-dep: no install step exists to run.
++#
++# Shape follows the family battery (gistory#14; eyestruct test.yml 91928a7 /
++# cd135a9): npm test + npm run check, where check alone carries the lanes.
++# The packstruct leg bin/forge.mjs lint-packs is deliberately NOT wired into
++# check yet: the factory has no packs/ of its own, and the wrapper answers
++# exit 2 ("missing packstruct / no packs root") until the factory's packs
++# land - that loud refusal IS the readiness probe, not something CI should
++# gate on before the pack day. When packs/ arrives, check gains
++# `node bin/forge.mjs lint-packs --deep` and this comment retires.
  name: test
 +
  on:
@@ -64,14 +71,9 @@
 +        with:
 +          node-version: 22
 +
-+      - name: Factory self-test (stamp + doctor refusals)
-+        run: npm test
-+
-+      - name: Docs gates (rig checkers)
-+        run: npm run lint:docs
-+
-+      - name: Language gate (English-only prose)
-+        run: npm run lint:language
++      # One verb: factory self-test + docs gates + language gate
++      # (package.json check = test + lint:docs + lint:language).
++      - run: npm run check
 --- a/monoforge-staging/.gitignore
 +++ b/monoforge-staging/.gitignore
 @@ -6,4 +6,10 @@
@@ -105,7 +107,7 @@
  - The cut law: an unmapped internal dependency refuses loudly; shortfall
    lazies must be declared in cutlist.json and ship as documented call-site
    degrades (per-package README carries the list: absence is honest).
-@@ -23,8 +26,16 @@
+@@ -23,6 +26,14 @@
    config, stray dir) and the doctor fail (unfilled) / pass (filled) pair.
    Update the test in the same commit as any check change; run
    `npm test` first.
@@ -120,10 +122,6 @@
  - All prose submits to the voice law: zero dashes of any kind, no
    AI-cliche constructions, plain declarative sentences only.
  
- ## Release
--- 0.9.0 = current manual npm. 1.0.0 flips OIDC; publish.yml refuses 0.x.
-+- 0.9.0 = current manual npm. 1.0.0 flips OIDC; publish.yml refuses 0.x.vè(
-\ No newline at end of file
 --- a/monoforge-staging/bin/forge.mjs
 +++ b/monoforge-staging/bin/forge.mjs
 @@ -11,6 +11,7 @@
