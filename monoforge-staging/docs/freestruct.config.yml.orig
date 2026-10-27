@@ -1,0 +1,7 @@
+# Freestruct post-render SEO layer for the baked docs.
+# Canonical math: site.url + basePath + relSlug => docs.creadev.org/monoforge/<page>
+site:
+  name: monoforge docs
+  url: https://docs.creadev.org
+  description: The fleet factory - stamp a repo from proven template blocks, doctor it for truth, lock it verifiably.
+basePath: /monoforge
