@@ -43,7 +43,7 @@ if (cmd === 'new') {
   const lock = (await import('../src/lock.mjs')).default
   const r = await lock(dir)
   if (!r.ok) { console.error(`lock: ${r.error}`); if (r.doctor) { for (const f of r.doctor.findings) console.log(`  ${f.level.toUpperCase()} ${f.id}: ${f.message}`) } process.exit(1) }
-  console.log(`lock: OK (sha256 ${r.shay...) archived ${r.archive}`)
+  console.log(`lock: OK (sha256 ${r.sha}...) archived ${r.archive}`)
   process.exit(0)
 } else if (cmd === 'lint-packs') {
   // The pack lint lane as a discoverable verb (mirrors crashtest's
