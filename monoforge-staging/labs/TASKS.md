@@ -70,3 +70,35 @@ dhaupin/monoforge (labs/, upstream commit f8e45fb):
   blob id checked BEFORE anything dispatches against it; (3) receipts
   above ~10KB belong to a runner-side emit (payload + one-shot, sha-gated
   from the burn file) rather than a text lane.
+- **The flowforge rig pass (2026-10-27) - the structure converges with
+  eyestruct.** The mount gets the rig shape its siblings already have:
+  1) The landing is the rig `web/` now (prestruct + react + inject-brand,
+  brand as data in ssr.config.js); the 0.9.0 static `site/index.html` is
+  retired (move day deletes upstream's `site/` and points Pages at
+  `web/dist`). 2) The docs layer rides the rig engine: the pagefind
+  layout, `_data/nav.yml` single nav source, the monoforge mark, the
+  five rig gate scripts (frontmatter/links/style/fiction/jekyll),
+  frontmatter normalized to the rig contract, and the packstruct-copy
+  identity scrubbed from layout + configs (this mount's docs had been
+  describing the shared /packs SPEC, not monoforge). 3) `MANIFEST.md`
+  records the provenance rows. 4) The mount's own `.github/workflows/
+  test.yml` mints the standalone battery: zero-dep self-test + docs
+  gates + language gate, no install step. All green locally before
+  landing: `npm run check` (self-test PASS; 5 docs gates PASS; language
+  gate PASS) and a throwaway `prestruct build` whose dist proved zero
+  flowforge/eyestruct strings and a fully monoforge-branded prerender
+  (3/3 pages + 404 + sitemap).
+- **Transport receipts, the 2026-10-27 corollary:** hand-echoed
+  base64 is NOT a shape in this family at any size class. Two carries of
+  a 16.9KB gz+b64 part failed the blob gate at different scattered byte
+  offsets (f3ff0467, then fe9cc06e vs disk 145ed142); a 1.5KB svg carried
+  a single trailing-newline drift; a 9KB workflow yml carried ~160 bytes
+  of composed-not-carried comment drift. The shape that finally worked:
+  carry NO payload bytes at all - the emit ferry (`.github/workflows/
+  mono-web-emit.yml` one-shot) derives the 58KB package-lock.json
+  runner-side from eyestruct's committed lock (two name swaps, sha gate
+  34931ee6 proven byte-identical harness-side) and re-renders the five
+  PNG marks with the same @resvg/resvg-js 2.6.2 from the committed SVGs
+  (five sha gates), staging copies of the unchanged engine files and
+  docs-gate scripts from eyestruct's committed tree. Everything lands
+  blob-gated; the ferry retires through the commit lane after receipts.
