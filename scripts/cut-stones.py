@@ -96,15 +96,16 @@ replace_block(st, 'models/private/magpie/lessons.md',
               body_of(st, 'models/private/magpie/lessons.md') + lessons_add)
 
 goals_now = (
-    '## Current (2026-10-26, prepended by the ecosystem pass this stone rides)\n'
-    '- The 4-way ecosystem (gistory x poststruct-staging x eyestruct-staging\n'
-    '  x packstruct) is green end-to-end in gistory CI (runs #88/#91):\n'
+    '## Current (2026-10-27, updated by the graduation pass this stone rides)\n'
+    '- The 4-way ecosystem (gistory x poststruct-staging x eyestruct\n'
+    '  x packstruct) is green end-to-end (gistory CI runs #88/#91):\n'
     '  packstruct#19 holds the SPEC v1->v1.1 proposal, and poststruct\'s pack\n'
     '  loader carries POSTSTRUCT_DIST + EYESTRUCT_BIN host-decision knobs so\n'
     '  it runs on any checkout. gistory now also cuts TWO new horcrux stones\n'
     '  (this one and poststruct-p_wordprint-2026) - brains are receipts, not\n'
-    '  memories. Next rungs, per labs/tar-move-plan.md: eyestruct test.yml,\n'
-    '  then the consumer swap, then the mounts leave.\n'
+    '  memories. Eyestruct has graduated upstream (dhaupin/eyestruct; its\n'
+    '  gistory mount + tar chain retired); the remaining mount move-days\n'
+    '  ride labs/tar-move-plan.md.\n'
 )
 base_goals = body_of(st, 'models/private/magpie/goals.md')
 replace_block(st, 'models/private/magpie/goals.md', goals_now + base_goals)
