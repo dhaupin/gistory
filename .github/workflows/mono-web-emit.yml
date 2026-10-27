@@ -3,7 +3,8 @@
 # twice tonight; hand-echoed base64 drifted twice at the blob gate). Instead
 # the runner derives/copies everything from files already in the repo:
 #   - web engine files + docs-gate scripts <- copied from eyestruct's
-#     committed tree (monoforge keeps them byte-identical)
+#     upstream tree (dhaupin/eyestruct; the gistory staging mount retired
+#     2026-10-27; monoforge keeps them byte-identical)
 #   - web/package-lock.json <- eyestruct's committed lock + the two name
 #     swaps (proven byte-identical harness-side) + sha256 gate
 #   - public/*.png + og-image.png <- rendered with @resvg/resvg-js@2.6.2
@@ -25,6 +26,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Eyestruct itself: upstream repo (the staging mount retired
+      # 2026-10-27). The emit derives everything from its committed tree.
+      - uses: actions/checkout@v4
+        with:
+          repository: dhaupin/eyestruct
+          path: eyestruct-upstream
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -39,7 +47,7 @@ jobs:
             scripts/repair-404.cjs public/_headers public/_redirects public/robots.txt \
             .gitignore; do
             mkdir -p "monoforge-staging/web/$(dirname "$f")"
-            cp "eyestruct-staging/web/$f" "monoforge-staging/web/$f"
+            cp "eyestruct-upstream/web/$f" "monoforge-staging/web/$f"
             echo "copied $f"
           done
 
@@ -47,12 +55,12 @@ jobs:
         run: |
           set -euo pipefail
           for f in check-docs-frontmatter.cjs check-docs-style.cjs check-fiction-signatures.cjs check-jekyll-filters.cjs; do
-            cp "eyestruct-staging/scripts/$f" "monoforge-staging/scripts/$f"
+            cp "eyestruct-upstream/scripts/$f" "monoforge-staging/scripts/$f"
             echo "copied scripts/$f"
           done
           # the link checker is the one script monoforge rebrands: SITE_PREFIX
           sed "s|const SITE_PREFIX = '/eyestruct';.*|const SITE_PREFIX = '/monoforge'; // the docs baseurl - mirror docs/_config.yml|" \
-            eyestruct-staging/scripts/check-docs-links.cjs \
+            eyestruct-upstream/scripts/check-docs-links.cjs \
             > monoforge-staging/scripts/check-docs-links.cjs
           echo "wrote scripts/check-docs-links.cjs with SITE_PREFIX /monoforge"
           cp monoforge-staging/web/public/icon.svg monoforge-staging/docs/icon.svg
@@ -64,7 +72,7 @@ jobs:
           # The monoforge-site lock is byte-identical to eyestruct's committed
           # lock except the two name fields - derived, never carried.
           sed 's/"eyestruct-site"/"monoforge-site"/g' \
-            eyestruct-staging/web/package-lock.json \
+            eyestruct-upstream/web/package-lock.json \
             > monoforge-staging/web/package-lock.json
           got="$(sha256sum monoforge-staging/web/package-lock.json | cut -d' ' -f1)"
           want="34931ee68ee31740816248a297717912f559206bead4b2df980b69d5aa042dbd"

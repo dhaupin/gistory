@@ -57,16 +57,17 @@ jobs:
             echo "mirrored: $src -> $dst ($actual)"
             git add "$dst"
           }
+          # The magpie mirror pair retired with the eyestruct mount
+          # (2026-10-27): upstream dhaupin/eyestruct carries the stone
+          # mirrors in its own horcrux/ now.
           mirror horcrux/stones/poststruct-p_wordprint-2026.svg \
                  poststruct-staging/horcrux/poststruct-p_wordprint-2026.svg
-          mirror horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg \
-                 eyestruct-staging/horcrux/magpie-p_mirror-eyes-2026-2.svg
           if git diff --cached --quiet; then
             echo 'nothing to commit (all mirrored)'
           else
             git config user.name  "mount-stone-mirror"
             git config user.email "actions@users.noreply.github.com"
-            git commit -m "mirror: mount-ground the two 2026-10-26 brain stones (runner-side copies, blob-compared)" \
-                       -m "The mounts' horcrux READMEs reference stones that were cut tonight in gistory's own horcrux; the copies now ride in the mount trees, written by the runner from the tracked sources and blob-compared against them before commit."
+            git commit -m "mirror: mount-ground the poststruct brain stone (runner-side copy, blob-compared)" \
+                       -m "The mount's horcrux README references the stone cut in gistory's own horcrux; the copy now rides in the mount tree, written by the runner from the tracked source and blob-compared against it before commit. (The magpie mirror pair retired with the eyestruct mount — upstream carries its own mirrors.)"
             git push origin main
           fi
