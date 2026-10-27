@@ -15,6 +15,12 @@
 //
 // The legs cascade cheap-to-expensive: text gates first, then pixels.
 //
+// Eyestruct source of truth: the staging mount is retired (the
+// 2026-10-27 graduation) and dhaupin/eyestruct is the tool upstream.
+// Set EYESTRUCT_BIN to a bin/eyestruct.js from a checkout (CI does exactly
+// that); a workspace with no eyestruct anywhere names the skip, it does not
+// fake a pass.
+//
 // Exit contract mirrors the family: 0 all ran legs green, 1 a ran leg
 // failed, 2 usage/setup. Skipped legs carry a named reason and do not
 // color the verdict.
@@ -27,9 +33,17 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-const STAGING = {
-  poststruct: path.join(ROOT, 'poststruct-staging'),
-  eyestruct: path.join(ROOT, 'eyestruct-staging'),
+const POSTSTRUCT_STAGING = path.join(ROOT, 'poststruct-staging')
+
+// EYESTRUCT_BIN wins; the retired mount path is a legacy fallback so a
+// workspace that still carries the old tree keeps working during the
+// retirement window. No eyestruct anywhere = an honest SKIP with the
+// upstream repo named.
+function resolveEyestructBin() {
+  if (process.env.EYESTRUCT_BIN) return { bin: path.resolve(process.env.EYESTRUCT_BIN), label: process.env.EYESTRUCT_BIN }
+  const legacy = path.join(ROOT, 'eyestruct-staging', 'bin', 'eyestruct.js')
+  if (fs.existsSync(legacy)) return { bin: legacy, label: 'legacy eyestruct-staging (retirement window)' }
+  return { bin: null, label: null }
 }
 
 function cli(bin, argv, cwd) {
@@ -40,11 +54,12 @@ function cli(bin, argv, cwd) {
   }
 }
 
+const eyes = resolveEyestructBin()
 const legs = []
 
 // --- TEXT leg ------------------------------------------------------------
-if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(ROOT, 'dist', 'index.html'))) {
-  const r = cli(path.join(STAGING.poststruct, 'bin', 'cli.mjs'), [path.join(ROOT, 'dist')], STAGING.poststruct)
+if (fs.existsSync(POSTSTRUCT_STAGING) && fs.existsSync(path.join(ROOT, 'dist', 'index.html'))) {
+  const r = cli(path.join(POSTSTRUCT_STAGING, 'bin', 'cli.mjs'), [path.join(ROOT, 'dist')], POSTSTRUCT_STAGING)
   legs.push({
     name: 'text leg (poststruct audit dist/)',
     state: r.code === 0 ? 'PASS' : 'FAIL',
@@ -56,7 +71,7 @@ if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(ROOT, 'dist', '
 }
 
 // --- EYES-ART leg (raster gate) -------------------------------------------
-if (fs.existsSync(STAGING.eyestruct)) {
+if (eyes.bin) {
   // Every committed renderable is gated - the 2026-10-26 stone cuts ride
   // in the same row: the r2 magpie stone and poststruct's first cut are
   // stones like any other, "loads" and "renders" are separate gates, and
@@ -70,29 +85,29 @@ if (fs.existsSync(STAGING.eyestruct)) {
     'public/favicon.svg',
   ].filter((f) => fs.existsSync(path.join(ROOT, f)))
   if (stones.length) {
-    const r = cli(path.join(STAGING.eyestruct, 'bin', 'eyestruct.js'), ['raster', ...stones], ROOT)
+    const r = cli(eyes.bin, ['raster', ...stones], ROOT)
     // A missing optional renderer (resvg) is a CAPABILITY gap, not a FAIL:
     // the family rule "a silent pass is poison; a named skip is honest".
-    // Local machines install staging deps once; CI will name the gap until
-    // the raster lane ships its own install step.
+    // Local machines install eyestruct's dev deps once; CI names the gap
+    // until the leg's own install step lands in the workflow.
     const capability = r.code === 2 && /MISSING_RENDER/.test(r.out)
     legs.push({
       name: 'eyes-art leg (eyestruct raster gate)',
       state: capability ? 'SKIP' : r.code === 0 ? 'PASS' : 'FAIL',
       code: r.code,
       detail: r.out.trim().split('\n').slice(0, 4).join('\n'),
-      reason: capability ? 'the optional @resvg/render dependency is not installed for eyestruct-staging - run `npm install` in eyestruct-staging/ once' : undefined,
+      reason: capability ? 'the optional @resvg/render dependency is not installed for the resolved eyestruct - install dev deps in its checkout once' : undefined,
     })
   } else {
     legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no renderable stones in horcrux/stones/ or public/' })
   }
 } else {
-  legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no eyestruct-staging in this workspace' })
+  legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no eyestruct resolved - set EYESTRUCT_BIN to a bin/eyestruct.js (dhaupin/eyestruct is upstream)' })
 }
 
 // --- TEXT-REF leg (poststruct's eyes-reference pack) ----------------------
-if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(STAGING.poststruct, 'scripts', 'run-packs.mjs'))) {
-  const r = cli(path.join(STAGING.poststruct, 'scripts', 'run-packs.mjs'), [], STAGING.poststruct)
+if (fs.existsSync(POSTSTRUCT_STAGING) && fs.existsSync(path.join(POSTSTRUCT_STAGING, 'scripts', 'run-packs.mjs'))) {
+  const r = cli(path.join(POSTSTRUCT_STAGING, 'scripts', 'run-packs.mjs'), [], POSTSTRUCT_STAGING)
   const ok = r.code === 0 || /re-baselined/.test(r.out)
   legs.push({
     name: 'text-ref leg (poststruct eyes-reference pack)',
@@ -113,11 +128,11 @@ if (fs.existsSync(STAGING.poststruct) && fs.existsSync(path.join(STAGING.poststr
 const EYES_HOME = process.env.EYES_HOME || 'labs/.eyes'
 const EYES_MANIFEST = `${EYES_HOME}/manifest.yml`
 const EYES_LEDGER = `${EYES_HOME}/ledger.json`
-if (fs.existsSync(path.join(ROOT, EYES_LEDGER))) {
-  const r = cli(path.join(STAGING.eyestruct, 'bin', 'eyestruct.js'), ['gate', '--manifest', EYES_MANIFEST, '--ledger', EYES_LEDGER], ROOT)
+if (eyes.bin && fs.existsSync(path.join(ROOT, EYES_LEDGER))) {
+  const r = cli(eyes.bin, ['gate', '--manifest', EYES_MANIFEST, '--ledger', EYES_LEDGER], ROOT)
   legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: r.code === 0 ? 'PASS' : r.code === 2 ? 'CAPABILITY' : 'FAIL', code: r.code, detail: r.out.trim() })
 } else {
-  legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: 'SKIP', reason: `no ${EYES_LEDGER} in this workspace - watch it with eyestruct-staging instead` })
+  legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: 'SKIP', reason: eyes.bin ? `no ${EYES_LEDGER} in this workspace - watch it from the eyestruct checkout itself` : 'no eyestruct resolved - set EYESTRUCT_BIN (dhaupin/eyestruct is upstream)' })
 }
 
 let failed = false
