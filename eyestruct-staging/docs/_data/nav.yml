@@ -10,5 +10,7 @@
   items:
     - title: Verbs
       url: /eyestruct/verbs
+    - title: Packs
+      url: /eyestruct/packs
     - title: PRD
       url: /eyestruct/labs/prd-eyes
