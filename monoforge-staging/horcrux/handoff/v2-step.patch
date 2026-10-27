@@ -1,0 +1,106 @@
+--- /tmp/v1-orig.yml	2026-10-27 05:13:29.254849276 +0000
++++ .github/workflows/doctor-fix-emit.yml	2026-10-27 05:14:29.473021751 +0000
+@@ -3,10 +3,9 @@
+ # a bare commit - doctor.mjs is lock-owned, so the ferry's next unpack would
+ # clobber a direct carry (the mount-tree ferry law). Shape:
+ #   1. gate the committed lock archive (sha256) before anything unpacks
+-#   2. surgery on the lock's doctor.mjs via base64-carried anchor pairs
+-#      (zero payload bytes beyond the pairs themselves; the result is
+-#      sha-gated against the locally verified fixed bytes)
+-#   3. the mount's own battery + a behavioral fixture that proves the three
++#   2. surgery on the lock's doctor.mjs via a carried patch hunk (52 lines,
++#      plain text, locally verified to reproduce the fixed bytes)
++#   3. the mount's own battery + a behavioral fixture proving the three
+ #      classes go quiet while intact detection keeps working
+ #   4. APPEND the doctor section to horcrux/rig-overlay.patch (the standing
+ #      ten sections are never rewritten; append-only)
+@@ -48,23 +47,65 @@
+           tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/lockbase
+           echo "lock unpacked: /tmp/lockbase/$(ls /tmp/lockbase)"
+ 
+-      - name: Surgery on doctor.mjs (base64 anchor pairs, uniquely matched)
++      - name: Surgery on doctor.mjs (carried patch hunk, sha-gated)
+         run: |
+           set -euo pipefail
+-          node <<'NODE'
+-          const fs = require('fs')
+-          const P64 = 'W3siZmluZCI6ICJmdW5jdGlvbiB3YWxrRmlsZXMoZGlyLCBza2lwID0gbmV3IFNldChbJy5naXQnLCAnbm9kZV9tb2R1bGVzJywgJ2RvY3MvX3NpdGUnXSkpIHtcbiAgY29uc3Qgb3V0ID0gW11cbiAgY29uc3QgcmVjID0gKGQpID0+IHtcbiAgICBmb3IgKGNvbnN0IGYgb2YgcmVhZGRpclN5bmMoZCwgeyB3aXRoRmlsZVR5cGVzOiB0cnVlIH0pKSB7XG4gICAgICBpZiAoc2tpcC5oYXMoZi5uYW1lKSkgY29udGludWVcbiAgICAgIGNvbnN0IHAgPSBqb2luKGQsIGYubmFtZSlcbiAgICAgIGlmIChmLmlzRGlyZWN0b3J5KCkpIHJlYyhwKVxuICAgICAgZWxzZSBvdXQucHVzaChwKVxuICAgIH1cbiAgfVxuICByZWMoZGlyKVxuICByZXR1cm4gb3V0XG59IiwgInJlcGxhY2UiOiAiLy8gVW50cmFja2VkIHNjcmF0Y2ggdHJlZXMgdXNlZCB0byBsYW5kIGluIHRoZSBiYXR0ZXJ5IHRocm91Z2ggdGhlIHdhbGtcbi8vIChwcmVzdHJ1Y3QncyBiZXRhIGZhbHNlLXBvc2l0aXZlIGNsYXNzKTogYSAuZ2l0aWdub3JlIGF0IHRoZSByb290IGlzIHRoZVxuLy8gY2hlYXAgdHJ1dGggYWJvdXQgd2hhdCBpcyBzY3JhdGNoLCBhbmQgc2NyYXRjaCBpcyBieSBkZWZpbml0aW9uIG5vdFxuLy8gc2hpcHBlZCwgc28gaXQgbmV2ZXIgc2VsZi1mbGFncyB0cnV0aCBzbG90cy4gUHJlZml4L25hbWUgbWF0Y2hpbmcgY292ZXJzXG4vLyB0aGUgY29tbW9uIGNsYXNzZXMgKGlnbm9yZWQgZGlycywgdHJhaWxpbmctc2xhc2ggZGlycywgKi5sb2cgZ2xvYnMsXG4vLyB0b3AtbGV2ZWwgbmFtZXMpOyBmdWxsIGdsb2Igc2VtYW50aWNzIHN0YXkgb3V0IG9mIHNjb3BlIG9uIHB1cnBvc2UuXG5mdW5jdGlvbiBnaXRpZ25vcmVQYXR0ZXJucyhkaXIpIHtcbiAgdHJ5IHtcbiAgICByZXR1cm4gcmVhZEZpbGVTeW5jKGpvaW4oZGlyLCAnLmdpdGlnbm9yZScpLCAndXRmOCcpLnNwbGl0KCdcXG4nKVxuICAgICAgLm1hcCgobCkgPT4gbC50cmltKCkpLmZpbHRlcigobCkgPT4gbCAmJiAhbC5zdGFydHNXaXRoKCcjJykgJiYgIWwuc3RhcnRzV2l0aCgnIScpKVxuICAgICAgLm1hcCgobCkgPT4gbC5yZXBsYWNlKC9cXFxcL2csICcvJykucmVwbGFjZSgvXFwqKyQvLCAnJykucmVwbGFjZSgvXFwvKyQvLCAnJykpXG4gICAgICAuZmlsdGVyKEJvb2xlYW4pXG4gIH1cbiAgY2F0Y2ggeyByZXR1cm4gW10 gfVxufVxuXG5mdW5jdGlvbiB3YWxrRmlsZXMoZGlyLCBza2lwID0gbmV3IFNldChbJy5naXQnLCAnbm9kZV9tb2R1bGVzJywgJ2RvY3MvX3NpdGUnXSkpIHtcbiAgY29uc3QgaWdub3JlZCA9IGdpdGlnbm9yZVBhdHRlcm5zKGRpcilcbiAgY29uc3QgaWdub3JlSGl0ID0gKHJlbHAsIG5hbWUpID0+XG4gICAgaWdub3JlZC5zb21lKChnKSA9PiByZWxwID09PSBnIHx8IHJlbHAuc3RhcnRzV2l0aChnICsgJy8nKSB8fCBuYW1lID09PSBnIHx8IChnLmluY2x1ZGVzKCcvJykgJiYgbmFtZSA9PT0gZy5zcGxpdCgnLycpLnBvcCgpKSlcbiAgY29uc3Qgb3V0ID0gW11cbiAgY29uc3QgcmVjID0gKGQsIHJlbCA9ICcnKSA9PiB7XG4gICAgZm9yIChjb25zdCBmIG9mIHJlYWRkaXJTeW5jKGQsIHsgd2l0aEZpbGVUeXBlczogdHJ1ZSB9KSkge1xuICAgICAgaWYgKHNraXAuaGFzKGYubmFtZSkpIGNvbnRpbnVlXG4gICAgICBjb25zdCByZWxwID0gcmVsID8gcmVsICsgJy8nICsgZi5uYW1lIDogZi5uYW1lXG4gICAgICBpZiAoaWdub3JlSGl0KHJlbHAsIGYubmFtZSkpIGNvbnRpbnVlXG4gICAgICBjb25zdCBwID0gam9pbihkLCBmLm5hbWUpXG4gICAgICBpZiAoZi5pc0RpcmVjdG9yeSgpKSByZWMocCwgcmVscClcbiAgICAgIGVsc2Ugb3V0LnB1c2gocClcbiAgICB9XG4gIH1cbiAgcmVjKGRpcilcbiAgcmV0dXJuIG91dFxufSJ9LCB7ImZpbmQiOiAiICAgICAgZm9yIChjb25zdCBmIG9mIHBrZy5maWxlcyB8fCBbXSkge1xuICAgICAgICBjb25zdCBwMyA9IGpvaW4oZGlyLCBmKVxuICAgICAgICBpZiAoIWV4aXN0c1N5bmMocDMpICYmICFmLmluY2x1ZGVzKCcqJykpIGZhaWwoJ2ZpbGVzLXBhdGgnLCBgZmlsZXMgZW50cnkgJHtmfSBkb2VzIG5vdCBleGlzdCBpbiB0aGUgdHJlZWApXG4gICAgICB9IiwgInJlcGxhY2UiOiAiICAgICAgZm9yIChjb25zdCBmIG9mIHBrZy5maWxlcyB8fCBbXSkge1xuICAgICAgICBpZiAoZi5zdGFydHNXaXRoKCchJykpIGNvbnRpbnVlIC8vIG5lZ2F0aW9uOiBucG0ncyBleGNsdWRlIG1lY2hhbmlzbSBpbnNpZGUgdGhlIHdoaXRlbGlzdCwgbmV2ZXIgYSBtdXN0LWV4aXN0IHBhdGggKHByZXN0cnVjdCBiZXRhIGNsYXNzICMyKVxuICAgICAgICBjb25zdCBwMyA9IGpvaW4oZGlyLCBmKVxuICAgICAgICBpZiAoIWV4aXN0c1N5bmMocDMpICYmICFmLmluY2x1ZGVzKCcqJykpIGZhaWwoJ2ZpbGVzLXBhdGgnLCBgZmlsZXMgZW50cnkgJHtmfSBkb2VzIG5vdCBleGlzdCBpbiB0aGUgdHJlZWApXG4gICAgICB9In0sIHsiZmluZCI6ICIgICAgICAgICAgaWYgKHAyICYmICFleGlzdHNTeW5jKGpvaW4oZGlyLCBwMikpKSBmYWlsKCdleHBvcnRzLXBhdGgnLCBgZXhwb3J0cyBlbnRyeSAke3AyfSBkb2VzIG5vdCBleGlzdGApIiwgInJlcGxhY2UiOiAiICAgICAgICAgIGlmIChwMiAmJiAhcDIuaW5jbHVkZXMoJyonKSAmJiAhZXhpc3RzU3luYyhqb2luKGRpciwgcDIpKSkgZmFpbCgnZXhwb3J0cy1wYXRoJywgYGV4cG9ydHMgZW50cnkgJHtwMn0gZG9lcyBub3QgZXhpc3RgKSAvLyBkZWVwLWltcG9ydCBnbG9iIHBhc3N0aHJvdWdocyBhcmUgdmFsaWQgcGFja2FnZS5qc29uIChwcmVzdHJ1Y3QgYmV0YSBjbGFzcyAjMSkifV0='
+-          const pairs = JSON.parse(Buffer.from(P64, 'base64').toString('utf8'))
+-          const p = 'monoforge-staging/src/doctor.mjs'
+-          let s = fs.readFileSync(p, 'utf8')
+-          for (const pair of pairs) {
+-            if (!s.includes(pair.find)) throw new Error('anchor missing: ' + pair.find.slice(0, 60))
+-            if (s.indexOf(pair.find) !== s.lastIndexOf(pair.find)) throw new Error('anchor not unique: ' + pair.find.slice(0, 60))
+-            s = s.split(pair.find).join(pair.replace)
+-          }
+-          fs.writeFileSync(p, s)
+-          console.log('surgery applied: doctor.mjs fixed')
+-          NODE
++          cat > /tmp/doctor.hunk <<'DOCHUNK'
++          --- a/monoforge-staging/src/doctor.mjs
++          +++ b/monoforge-staging/src/doctor.mjs
++          @@ -9,13 +9,34 @@
++           
++           const TODO_MARK = 'FORGE-TODO'
++           
++          +// Untracked scratch trees used to land in the battery through the walk
++          +// (prestruct's beta false-positive class): a .gitignore at the root is the
++          +// cheap truth about what is scratch, and scratch is by definition not
++          +// shipped, so it never self-flags truth slots. Prefix/name matching covers
++          +// the common classes (ignored dirs, trailing-slash dirs, *.log globs,
++          +// top-level names); full glob semantics stay out of scope on purpose.
++          +function gitignorePatterns(dir) {
++          +  try {
++          +    return readFileSync(join(dir, '.gitignore'), 'utf8').split('\n')
++          +      .map((l) => l.trim()).filter((l) => l && !l.startsWith('#') && !l.startsWith('!'))
++          +      .map((l) => l.replace(/\\/g, '/').replace(/\*+$/, '').replace(/\/+$/, ''))
++          +      .filter(Boolean)
++          +  }
++          +  catch { return [] }
++          +}
++          +
++           function walkFiles(dir, skip = new Set(['.git', 'node_modules', 'docs/_site'])) {
++          +  const ignored = gitignorePatterns(dir)
++          +  const ignoreHit = (relp, name) =>
++          +    ignored.some((g) => relp === g || relp.startsWith(g + '/') || name === g || (g.includes('/') && name === g.split('/').pop()))
++             const out = []
++          -  const rec = (d) => {
++          +  const rec = (d, rel = '') => {
++               for (const f of readdirSync(d, { withFileTypes: true })) {
++                 if (skip.has(f.name)) continue
++          +      const relp = rel ? rel + '/' + f.name : f.name
++          +      if (ignoreHit(relp, f.name)) continue
++                 const p = join(d, f.name)
++          -      if (f.isDirectory()) rec(p)
++          +      if (f.isDirectory()) rec(p, relp)
++                 else out.push(p)
++               }
++             }
++          @@ -82,10 +103,11 @@
++                 if (pkg?.exports) {
++                   for (const v of Object.values(pkg.exports)) {
++                     const p2 = typeof v === 'string' ? v : v?.import
++          -          if (p2 && !existsSync(join(dir, p2))) fail('exports-path', `exports entry ${p2} does not exist`)
++          +          if (p2 && !p2.includes('*') && !existsSync(join(dir, p2))) fail('exports-path', `exports entry ${p2} does not exist`) // deep-import glob passthroughs are valid package.json (prestruct beta class #1)
++                   }
++                 }
++                 for (const f of pkg.files || []) {
++          +        if (f.startsWith('!')) continue // negation: npm's exclude mechanism inside the whitelist, never a must-exist path (prestruct beta class #2)
++                   const p3 = join(dir, f)
++                   if (!existsSync(p3) && !f.includes('*')) fail('files-path', `files entry ${f} does not exist in the tree`)
++                 }
++          DOCHUNK
++          patch -p1 --force --quiet -i /tmp/doctor.hunk \
++            || { echo "SURGERY PATCH FAIL: doctor.mjs did not accept the hunk"; exit 1; }
+           want="f75fe1e0ed34442f442017a2ff953f4bc54746668a5ccdce765259e0faaf3b4a"
+           got="$(sha256sum monoforge-staging/src/doctor.mjs | cut -d' ' -f1)"
+           echo "fixed sha: $got (expect $want)"
+@@ -138,7 +179,7 @@
+         run: |
+           set -euo pipefail
+           rm -rf /tmp/locktest /tmp/patchtest
+-          mkdir -p /tmp/patchtest/monoforge-staging
++          mkdir -p /tmp/locktest /tmp/patchtest/monoforge-staging
+           tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/locktest
+           base2="/tmp/locktest/$(ls /tmp/locktest)"
+           cp -r "$base2"/. /tmp/patchtest/monoforge-staging/
