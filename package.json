@@ -102,6 +102,7 @@
     "db:maintain:remote": "node scripts/db-maintain.mjs --remote",
     "db:maintain:check": "node scripts/db-maintain.mjs --check",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run build:lib",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "icons:adopt": "node scripts/adopt-icons.mjs"
   }
 }

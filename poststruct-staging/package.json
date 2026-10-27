@@ -22,7 +22,8 @@
     "packs:adopt": "node scripts/run-packs.mjs --adopt",
     "lint:packs": "node bin/cli.mjs lint-packs --deep",
     "conform:packs": "packstruct audit-conformance . --loader \"node scripts/run-packs.mjs {packs}\"",
-    "check": "npm run test && npm run lint:packs && npm run conform:packs"
+    "check": "npm run test && npm run lint:packs && npm run conform:packs",
+    "icons:adopt": "node scripts/adopt-icons.mjs"
   },
   "devDependencies": {
     "packstruct": "1.0.0"

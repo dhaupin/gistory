@@ -28,3 +28,6 @@ monoforge-staging/.git
 
 # stone-cutting scratch (disposables never ride)
 .cut-tmp/
+
+# scratch fetch dir from the eyestruct-parity work (never project content)
+.eyestruct-stage/
