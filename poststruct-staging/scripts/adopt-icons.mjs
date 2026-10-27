@@ -38,7 +38,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 // Per-repo family map: probe (accent-distance threshold), ink, tile, public
 // dir, and where the byte-identical docs copy lands (null = no copy).
 const FAMILY = {
-  'gistory-sync': { probe: 60, ink: '#f2f4f8', accent: '#3552cc', tile: '#131722', pub: 'public', docsCopy: 'docs/icon.svg' },
+  'gistory-sync': { probe: 90, work: 2048, ink: '#f2f4f8', accent: '#4d81e7', tile: '#111216', pub: 'public', docsCopy: 'docs/favicon.svg' },
   monoforge: { probe: 60, ink: '#e7eaf1', accent: '#7dd3a8', tile: '#10131a', pub: 'web/public', docsCopy: 'docs/icon.svg' },
   poststruct: { probe: 60, ink: '#e6e8dd', accent: '#a8c000', tile: '#0c0f0a', pub: 'docs', docsCopy: null },
 }
@@ -77,7 +77,7 @@ try {
   Resvg = require('@resvg/resvg-js').Resvg
 } catch { die('helpers missing - run: npm i --no-save sharp potrace @resvg/resvg-js (build-local, lockfile untouched)') }
 
-const WORK = Number(flag('--work') ?? 1024)
+const WORK = Number(flag('--work') ?? base?.work ?? 1024)
 const { data, info } = await sharp(artPath).resize(WORK, WORK).raw().toBuffer({ resolveWithObject: true })
 if (info.channels < 3) die('source art must be RGB/RGBA raster (jpg/png)')
 
@@ -101,7 +101,10 @@ const trace = async (png) => new Promise((resolve, reject) => {
   potrace.trace(png, { threshold: 128, turdSize: 8, optTolerance: 0.4, blackOnWhite: true },
     (err, svg) => (err ? reject(err) : resolve(svg)))
 })
-const toPng = (mask) => sharp(mask, { raw: { width: WORK, height: WORK, channels: 1 } }).png().toBuffer()
+// potrace follows BLACK-on-white bitmaps: the selected mask pixels must be
+// black (0) and the rest white (255), or the trace comes out inverted and
+// the accent becomes a giant block with the real shapes as holes.
+const toPng = (mask) => sharp(mask, { raw: { width: WORK, height: WORK, channels: 1 } }).negate().png().toBuffer()
 const pathsOf = (svg) => [...svg.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]).filter((d) => d.length > 1)
 
 const inkPaths = pathsOf(await trace(await toPng(lum)))
