@@ -51,9 +51,11 @@ fake passes):
 - TEXT: `poststruct-staging/bin/cli.mjs dist/` - audited 4 baked pages on
   first run, surfaced 3 real prose findings (description lengths, missing
   og:image dims) that no DOM-gate had flagged.
-- EYES-ART: `eyestruct-staging raster` over the horcrux stones + favicon.
+- EYES-ART: `eyestruct raster` (dhaupin/eyestruct upstream via
+  EYESTRUCT_BIN; the staging mount retired 2026-10-27) over the horcrux
+  stones + favicon.
 - EYES-MEM: the `.eyes/` ledger gate - honest SKIP until gistory adopts its
-  own `.eyes/` (eyestruct-staging runs it on itself today).
+  own `.eyes/` (the eyestruct repo runs it on itself today).
 
 ## Adopted for real (2026-10-25, same day)
 
@@ -164,9 +166,11 @@ caps. Smoke 411/411 (new §15), barrage C1 fuzzes the route, migration
   deleted `horcrux/poststruct-0.9.0-lock.tar.gz` in that repo's git history
   (`git show 22fc13c~1:...`) - the exact transplant tar the gistory-era
   staging carried; self-test 8/8 PASS on arrival.
-- `eyestruct-staging/` lives here with its own 6-commit history (rig shell
+- `eyestruct-staging/` lived here with its own 6-commit history (rig shell
   -> engine wiring -> baseline dogfood -> packs) plus the tracked
   `horcrux/eyestruct-staging-git-2026-10-25.tar.gz` transplant receipt.
+  [Graduated 2026-10-27: the tree lives upstream at dhaupin/eyestruct and
+  the mount + tar chain retired; this line stays as history.]
 - Nested `.git` dirs of both staging trees are gitignored in the parent
   (gitlink guard); the histories remain canonical upstream and ride the
   tar receipts where there is no remote.

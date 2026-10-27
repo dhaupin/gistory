@@ -29,7 +29,9 @@ path-only: each cutter pins its stone's BIRTH name into the SVG header via
 
 **The magpie pair (the naming disconnect, stated plainly):** magpie is the
 **eyestruct project's brain name** (the project's word was "eyes" during the
-seed passes — see `brn` payloads and `eyestruct-staging/models/private/magpie/`).
+seed passes — see `brn` payloads and the brain tree, now upstream at
+`dhaupin/eyestruct` `models/private/magpie/` since the mount retired
+2026-10-27).
 r1 and r2 here are **generations of one lineage**, not two unrelated stones:
 r1 is the original hand-cut transfer stone, r2 is the standing
 CI-cut-ferry reconstruction with this pass's receipts patched in. Gistory's own
@@ -56,10 +58,12 @@ Deterministic git-dir snapshots of the staging mounts, built by
 
 | tar | snapshot HEAD |
 |-----|---------------|
-| `eyestruct-staging-git-2026-10-26.tar.gz` | `587b6b98` (95 files) |
 | `poststruct-staging-git-2026-10-26.tar.gz` | `3c773e50` (54 files) |
 | `monoforge-staging-git-2026-10-26.tar.gz` | carries monoforge's nested .git |
-| `archive/eyestruct-staging-git-2026-10-25.tar.gz` | superseded seed (kept: it is the parent snapshot inside the 10-26 chain's history) |
+
+(Eyestruct's tar chain retired 2026-10-27 with the mount graduation to
+dhaupin/eyestruct — the 10-25/10-26 snapshots were move-day payloads,
+their reader is upstream's own git history now.)
 
 Move-day (`labs/tar-move-plan.md`): untar → add origin → push; the mounted
 `.git` carries each repo's own history.

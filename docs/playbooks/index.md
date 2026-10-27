@@ -14,8 +14,9 @@ the failure the recipe itself documents rather than silently guessing.
 
 ## 1. Cut a staging tar snapshot
 
-The three mount staging trees (`monoforge-staging/`, `poststruct-staging/`,
-`eyestruct-staging/`) snapshot into deterministic tarballs via the ferry.
+The two mount staging trees (`monoforge-staging/`, `poststruct-staging/`)
+snapshot into deterministic tarballs via the ferry. (Eyestruct's own tree
+graduated to dhaupin/eyestruct; its mount + tar chain retired 2026-10-27.)
 
     bash scripts/make-staging-tars.sh
 
