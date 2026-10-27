@@ -39,14 +39,14 @@ npm test
 ```
 
 The corpus is `test/fixtures/good` (must audit clean) and
-test/fixtures/bad (must hit EXACTLY the expected FAIL ids, warns included).
+`test/fixtures/bad` (must hit EXACTLY the expected FAIL ids, warns included).
 Deleting or degrading a check breaks the test - that is the point.
 
 ## Packs (realized)
 
 The `/packs` mount follows the shared
 [packstruct](https://github.com/dhaupin/packstruct) SPEC v1, check profile:
-`packs/public/<name>/pack.json` + entry exporting `{ checks: [...] }`, ids
+`packs/public/<name>/pack.json` + entry exporting `{ checks: [...] } , ids
 namespaced by pack slug, and the config `packs:` entry as the arm. The
 loader is realized here: `packs/public/eye-reference/` ships the
 reference-shape pack, the pack lane runs as the discoverable wrapper verb
