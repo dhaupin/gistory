@@ -1,1 +1,207 @@
-PLACEHOLDER
+# ONE-SHOT (issue#8): the three monoforge doctor false positives from
+# prestruct's beta report land by RIDING the standing rig-overlay, never by
+# a bare commit - doctor.mjs is lock-owned, so the ferry's next unpack would
+# clobber a direct carry (the mount-tree ferry law). Shape:
+#   1. gate the committed lock archive (sha256) before anything unpacks
+#   2. surgery on the lock's doctor.mjs via a carried patch hunk (52 lines,
+#      plain text, locally verified to reproduce the fixed bytes)
+#   3. the mount's own battery + a behavioral fixture proving the three
+#      classes go quiet while intact detection keeps working
+#   4. APPEND the doctor section to horcrux/rig-overlay.patch (the standing
+#      ten sections are never rewritten; append-only)
+#   5. compose-gate: a second fresh unpack + full patch -p1 + cmp on all
+#      eleven lock paths
+#   6. commit both files
+# Retires through the cleanup commit lane.
+name: doctor-fix-emit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Gate the committed lock archive (sha256, before anything unpacks)
+        run: |
+          set -euo pipefail
+          expect="046908c681a607d355925146234c7d4adf3726581a2e8799544954d7c4cf2952"
+          actual="$(sha256sum monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz | cut -d' ' -f1)"
+          echo "expect: $expect"
+          echo "actual: $actual"
+          test "$actual" = "$expect" \
+            || { echo "LOCK GATE FAIL: refused to unpack anything"; exit 1; }
+          rm -rf /tmp/lockbase && mkdir -p /tmp/lockbase
+          tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/lockbase
+          echo "lock unpacked: /tmp/lockbase/$(ls /tmp/lockbase)"
+
+      - name: Surgery on doctor.mjs (carried patch hunk, sha-gated)
+        run: |
+          set -euo pipefail
+          cat > /tmp/doctor.hunk <<'DOCHUNK'
+          --- a/monoforge-staging/src/doctor.mjs
+          +++ b/monoforge-staging/src/doctor.mjs
+          @@ -9,13 +9,34 @@
+           
+           const TODO_MARK = 'FORGE-TODO'
+           
+          +// Untracked scratch trees used to land in the battery through the walk
+          +// (prestruct's beta false-positive class): a .gitignore at the root is the
+          +// cheap truth about what is scratch, and scratch is by definition not
+          +// shipped, so it never self-flags truth slots. Prefix/name matching covers
+          +// the common classes (ignored dirs, trailing-slash dirs, *.log globs,
+          +// top-level names); full glob semantics stay out of scope on purpose.
+          +function gitignorePatterns(dir) {
+          +  try {
+          +    return readFileSync(join(dir, '.gitignore'), 'utf8').split('\n')
+          +      .map((l) => l.trim()).filter((l) => l && !l.startsWith('#') && !l.startsWith('!'))
+          +      .map((l) => l.replace(/\\/g, '/').replace(/\*+$/, '').replace(/\/+$/, ''))
+          +      .filter(Boolean)
+          +  }
+          +  catch { return [] }
+          +}
+          +
+           function walkFiles(dir, skip = new Set(['.git', 'node_modules', 'docs/_site'])) {
+          +  const ignored = gitignorePatterns(dir)
+          +  const ignoreHit = (relp, name) =>
+          +    ignored.some((g) => relp === g || relp.startsWith(g + '/') || name === g || (g.includes('/') && name === g.split('/').pop()))
+             const out = []
+          -  const rec = (d) => {
+          +  const rec = (d, rel = '') => {
+               for (const f of readdirSync(d, { withFileTypes: true })) {
+                 if (skip.has(f.name)) continue
+          +      const relp = rel ? rel + '/' + f.name : f.name
+          +      if (ignoreHit(relp, f.name)) continue
+                 const p = join(d, f.name)
+          -      if (f.isDirectory()) rec(p)
+          +      if (f.isDirectory()) rec(p, relp)
+                 else out.push(p)
+               }
+             }
+          @@ -82,10 +103,11 @@
+                 if (pkg?.exports) {
+                   for (const v of Object.values(pkg.exports)) {
+                     const p2 = typeof v === 'string' ? v : v?.import
+          -          if (p2 && !existsSync(join(dir, p2))) fail('exports-path', `exports entry ${p2} does not exist`)
+          +          if (p2 && !p2.includes('*') && !existsSync(join(dir, p2))) fail('exports-path', `exports entry ${p2} does not exist`) // deep-import glob passthroughs are valid package.json (prestruct beta class #1)
+                   }
+                 }
+                 for (const f of pkg.files || []) {
+          +        if (f.startsWith('!')) continue // negation: npm's exclude mechanism inside the whitelist, never a must-exist path (prestruct beta class #2)
+                   const p3 = join(dir, f)
+                   if (!existsSync(p3) && !f.includes('*')) fail('files-path', `files entry ${f} does not exist in the tree`)
+                 }
+          DOCHUNK
+          patch -p1 --force --quiet -i /tmp/doctor.hunk \
+            || { echo "SURGERY PATCH FAIL: doctor.mjs did not accept the hunk"; exit 1; }
+          want="f75fe1e0ed34442f442017a2ff953f4bc54746668a5ccdce765259e0faaf3b4a"
+          got="$(sha256sum monoforge-staging/src/doctor.mjs | cut -d' ' -f1)"
+          echo "fixed sha: $got (expect $want)"
+          test "$got" = "$want" \
+            || { echo "SURGERY SHA GATE FAIL: the fixed bytes drifted"; exit 1; }
+
+      - name: Prove the mount battery green with the fixed doctor
+        run: node test/run.mjs
+        working-directory: monoforge-staging
+
+      - name: Behavioral gate (three classes quiet, intact detection kept)
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/mf-fixture
+          mkdir -p /tmp/mf-fixture/scratch /tmp/mf-fixture/real /tmp/mf-fixture/engine /tmp/mf-fixture/bin
+          touch /tmp/mf-fixture/engine/core.mjs /tmp/mf-fixture/bin/cli.mjs
+          # the false-positive shapes prestruct hit, verbatim
+          printf 'scratch/\n*.log\n' > /tmp/mf-fixture/.gitignore
+          printf 'trailing em dash \xe2\x80\x94 like an AI tell\n' > /tmp/mf-fixture/scratch/ignored.md
+          printf 'clean real prose, no dashes\n' > /tmp/mf-fixture/real/clean.md
+          cat > /tmp/mf-fixture/package.json <<'JSON'
+          {
+            "name": "mf-fixture",
+            "version": "1.0.0",
+            "description": "exercises the exports-glob and files-negation doctor classes",
+            "bin": { "mf": "bin/cli.mjs" },
+            "exports": { "./engine/*": "./engine/*.mjs", "./package.json": "./package.json" },
+            "files": ["engine/", "bin/", "!init/node_modules"]
+          }
+          JSON
+          node <<'NODE'
+          import(require('path').resolve('src/doctor.mjs')).then(async (m) => {
+            const doctor = m.default
+            const run = async () => doctor('/tmp/mf-fixture').catch((e) => ({ findings: [{ id: 'doctor-crashed', message: e.message }], counts: { fail: 1, warn: 0 } }))
+            const a = await run()
+            const dashA = a.findings.filter((f) => f.id === 'dash-law')
+            const pkgA = a.findings.filter((f) => ['files-path', 'exports-path', 'bin-path'].includes(f.id))
+            if (dashA.length === 0 && pkgA.length === 0) {
+              console.log('A) with .gitignore: dash rows 0, pkg rows 0 - false positives quiet')
+            } else {
+              console.error('A) FAIL', JSON.stringify(a.findings, null, 2)); process.exit(1)
+            }
+            require('fs').rmSync('/tmp/mf-fixture/.gitignore')
+            const b = await run()
+            const dashB = b.findings.filter((f) => f.id === 'dash-law')
+            if (dashB.length === 1 && dashB[0].message.includes('scratch/ignored.md')) {
+              console.log('B) without .gitignore: exactly 1 dash row at scratch/ignored.md - detection intact')
+            } else {
+              console.error('B) FAIL', JSON.stringify(dashB, null, 2)); process.exit(1)
+            }
+          })
+          NODE
+
+      - name: Append the doctor section to the standing rig-overlay (append-only)
+        run: |
+          set -euo pipefail
+          base="/tmp/lockbase/$(ls /tmp/lockbase)"
+          standing=horcrux/rig-overlay.patch
+          before_lines="$(wc -l < "$standing")"
+          f="src/doctor.mjs"
+          diff -u "$base/$f" "monoforge-staging/$f" \
+            --label "a/monoforge-staging/$f" --label "b/monoforge-staging/$f" \
+            >> "$standing" || [ $? -eq 1 ]
+          after_lines="$(wc -l < "$standing")"
+          echo "append: $before_lines -> $after_lines lines"
+          test "$after_lines" -gt "$before_lines" \
+            || { echo "APPEND FAIL: no delta landed"; exit 1; }
+          echo "patch sha256 now: $(sha256sum "$standing" | cut -d' ' -f1)"
+
+      - name: Compose gate (second fresh unpack + full patch + cmp on all 11)
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/locktest /tmp/patchtest
+          mkdir -p /tmp/locktest /tmp/patchtest/monoforge-staging
+          tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/locktest
+          base2="/tmp/locktest/$(ls /tmp/locktest)"
+          cp -r "$base2"/. /tmp/patchtest/monoforge-staging/
+          ( cd /tmp/patchtest && patch -p1 --force --quiet < "$GITHUB_WORKSPACE/horcrux/rig-overlay.patch" )
+          LIST=".github/workflows/test.yml package.json docs/_config.yml docs/_layouts/default.html docs/freestruct.config.yml docs/index.md docs/search.md scripts/check-docs-frontmatter.cjs scripts/check-docs-links.cjs scripts/check-docs-style.cjs src/doctor.mjs"
+          for f in $LIST; do
+            cmp "/tmp/patchtest/monoforge-staging/$f" "monoforge-staging/$f" \
+              || { echo "PATCH GATE FAIL: $f diverges after patch"; exit 1; }
+          done
+          echo "PATCH GATE PASS: the composed overlay converges all 11 lock paths byte-exact"
+
+      - name: Commit the mount + patch (no-op when already correct)
+        run: |
+          set -euo pipefail
+          git config user.name  "doctor-fix-emit"
+          git config user.email "actions@users.noreply.github.com"
+          git add horcrux/rig-overlay.patch monoforge-staging/src/doctor.mjs
+          if ! git diff --cached --quiet; then
+            git commit -m "monoforge: the doctor rides the rig-overlay (issue#8 - three prestruct-beta false-positive classes)" \
+                       -m "doctor.mjs is lock-owned, so the fix lands by APPENDING an eleventh section to the standing rig-overlay (the ten standing sections untouched) plus the fixed bytes in the mount; the ferry's next converge run restores the same bytes and goes no-op. Fixes: exports-path now exempts deep-import glob passthroughs (prestruct's ./engine/*); files-path skips npm negation patterns (!init/node_modules); walkFiles honors a root .gitignore (prefix/name matching) so untracked scratch trees stop landing in the battery. Verified: mount battery green, composite patch converges all 11 lock paths byte-exact, and the behavioral fixture shows the three classes quiet while an intact walk still catches a real em dash when the .gitignore is removed."
+            git pull --rebase origin main
+            git push origin main
+          else
+            echo "nothing to commit (doctor fix + overlay already current)"
+          fi
