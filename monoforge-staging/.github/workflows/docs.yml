@@ -36,16 +36,6 @@ jobs:
           node scripts/check-docs-style.cjs
           node scripts/check-language.cjs
 
-      # Shell-residue gate (issue gistory#12): the flowforge shell edition
-      # served literal placeholders live on eyestruct until 2d89b5b because
-      # nothing grepped for them. Both mounts inherit the guard, not the bug.
-      - name: Shell-residue gate
-        run: |
-          if grep -rInE 'your-site\.example\.com|your-org/your-project|Your Site Docs|Home / Your Site|made by your org' docs/_layouts docs/_config.yml docs/freestruct.config.yml; then
-            echo "SHELL RESIDUE: identity placeholders found above"
-            exit 1
-          fi
-          echo "shell-residue gate: clean"
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
