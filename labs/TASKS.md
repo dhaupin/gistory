@@ -13,6 +13,18 @@ Conventions
 
 ## Now
 
+- **Family parity pass (2026-10-27).** eyestruct playbook applied to the
+  mounts. Icon lane canonical in all three trees: scripts/adopt-icons.mjs
+  (parameterized, palette keyed by pkg.name, three identical copies) +
+  the icons:adopt npm verb in each package.json. Gistory keeps its
+  authored favicon (docsCopy targets are additive docs/icon.svg only).
+  Poststruct docs header carries the web link + .brand styling;
+  monoforge had both. Gates: gistory check-docs PASS (12 pages),
+  monoforge doctor/style/links PASS, poststruct self-test PASS
+  (8/8 FAIL ids) + lint-packs --deep PASS. The eyestruct --links
+  exit-code defect has no gistory counterpart (no argv parsing), so
+  no port needed.
+
 - **Brain r2 stone ferry closed (2026-10-26).** Gistory's own brain reset now
   rides the standing CI-cut lane, same shape as the mounts' stones. The
   pass: `scripts/cut-gistory.py` (blob `600f93d7`, self-contained so the
