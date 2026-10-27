@@ -6,9 +6,15 @@ site:
   url: https://docs.creadev.org
   description: Audit what shipped — the check catalog, pack system, and usage for the poststruct auditor.
 basePath: /poststruct
-# Spots intentionally left for the fleet house defaults when they earn them:
+# Twitter spots intentionally left for the fleet house defaults:
 # twitter: { username: "@..." }
-# og: { image: /og-default.png }
+
+# Open Graph - rendered by web/scripts/build-og.mjs (Liberation Sans via
+# resvg), committed as docs/og-image.png alongside the product site card.
+og:
+  image: /og-image.png
+  type: website
+  locale: en_US
 
 # Author identity: ships as a schema.org Person under "founder" on the
 # injected Organization JSON-LD block - the same ownership shape the
