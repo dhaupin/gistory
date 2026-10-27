@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// bin/cli.mjs - poststruct audit [dir] [--json] [--module x]
+// bin/cli.mjs - poststruct audit [dir] [--json] [--module x] | lint-packs [--deep] [--json] [--against <lib>] [dir]
 import { runAudit } from '../src/index.mjs'
+import { runLintPacks } from '../src/lint-packs.mjs'
 
 const args = process.argv.slice(2)
 // The leading verb (flowforge/explore family convention: poststruct audit [dir])
@@ -9,7 +10,13 @@ const args = process.argv.slice(2)
 // with "No HTML files in audit/"). The verbless form `poststruct dist` keeps
 // working: only a known verb is ever stripped, so a typo'd first word cannot
 // silently become a verb OR a fantasy directory.
-const VERBS = new Set(['audit'])
+const VERBS = new Set(['audit', 'lint-packs'])
+if (args[0] === 'lint-packs') {
+  // The pack lint lane as a discoverable verb (mirrors crashtest's
+  // lint-packs, issue #32): the repo's own packstruct install, never
+  // downloaded, pass-through exit codes, loud refusal when absent.
+  process.exit(runLintPacks({ argv: args.slice(1), cwd: process.cwd(), json: args.includes('--json') }))
+}
 const rest = VERBS.has(args[0]) ? args.slice(1) : args
 const json = rest.includes('--json')
 // --module parses position-independent next-arg (issue#7 B2: the

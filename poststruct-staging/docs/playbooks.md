@@ -44,8 +44,13 @@ run through the packstruct lane:
 
 ```bash
 npx packstruct run packs                    # verdicts per pack
-npx packstruct lint packs --deep            # manifest + entry + field census
+poststruct lint-packs --deep                # manifest + entry + field census
+npx packstruct lint packs --deep            # the same lane, called directly
 ```
+
+The wrapper verb follows crashtest's `lint-packs` shape: the repo's own
+install, never downloaded; a missing packstruct is a loud exit 2 naming
+the exact fix, never a silent skip.
 
 Receipts: a pack table carries its committed verdicts (REFUSED,
 BOUNDED/PASSED, EXPLOITED); the landing rule is a new EXPLOITED or an

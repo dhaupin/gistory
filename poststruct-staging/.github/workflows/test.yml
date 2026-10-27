@@ -9,5 +9,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npm install --no-fund --no-audit
+      # Hermetic: the shipped lockfile resolves packstruct's exact pin
+      # (1.0.0) - same commit, same findings, the discipline the eyestruct
+      # battery carries (gistory#14; eyestruct test.yml 91928a7 / cd135a9).
+      - run: npm ci --no-fund --no-audit
+      # The negative test spine: the good fixture must be clean, the bad
+      # fixture must produce EXACTLY the expected FAIL ids.
       - run: npm test
+      # The battery composition: test spine + the pack lints (deep lint via
+      # the lint-packs wrapper verb over the repo's own install + packstruct
+      # audit-conformance through the campaign runner loader).
+      - run: npm run check
