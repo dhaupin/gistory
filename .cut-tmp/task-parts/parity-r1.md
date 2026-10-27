@@ -25,4 +25,4 @@ Conventions
   exit-code defect has no gistory counterpart (no argv parsing), so
   no port needed.
 
-- **Brain r2 stone ferry closed (2026-10-26).**
+- **
