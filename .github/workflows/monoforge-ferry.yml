@@ -13,18 +13,22 @@
 # The unpack merges over monoforge-staging/ (the receipts this mount
 # adds on top - labs/, horcrux/README - are not in the lock, so they
 # survive; known limitation: a re-lock that DELETES a tool file leaves
-# the stale one behind, so re-locks should sweep first), then the mount's
-# rig generation is overlaid on top of the lock's older docs-lane
-# generation (horcrux/rig-overlay.patch) and the retired static site/
-# is swept - the converge step. The overlay refuses on any lock but the
-# sha-gated 0.9.0 one, so an upstream re-lock retires the patch in the
-# same commit the ferry re-pins.
+# the stale one behind, so re-locks should sweep first). THE CONVERGE
+# LAW (2026-10-27): main's tracked bytes ARE the rig generation, and a
+# committed patch has no authority over them. The converge is derived
+# at run time - any tracked file the sha-gated unpack clobbered with the
+# lock's older byte generation is restored to HEAD - and the standing
+# horcrux/rig-overlay.patch is RE-DERIVED from that exact delta, so its
+# bytes always apply zero-conflict against the sha-gated lock and stale
+# hunks retire in the ferry's own commit (the retired one-shot emit
+# lanes' append style remains readable history, never load-bearing).
+# The retired static site/ is swept (a lock member the mount dropped).
 #
 # Self-cleaning + self-healing: the job re-runs on every push and no-ops
 # when main already carries the unpacked tree for the current lock sha
 # (commit step: unpack produces no diff -> nothing to commit). When the
-# upstream lock turns over someday, the sha-tagged cache key recomputes
-# and the mount follows it.
+# upstream lock turns over someday, the sha gate refuses and the mount
+# waits for the retarget alongside the re-pinned archive.
 
 name: Monoforge ferry
 
@@ -69,42 +73,28 @@ jobs:
           echo "unpacked $(find monoforge-staging -type f | wc -l) files"
 
       # 2026-10-27 lane-war receipts: the lock's docs-lane generation is OLDER
-      # than the flowforge rig pass the mount already carries, so a bare unpack
-      # kept reverting the rig bytes on every interleaved lane run (0b3c118/
-      # 71efbc4/cc7d50e/1d372c9 tonight). The overlay carries exactly that
-      # delta (battery, check wiring, docs gates, docs identity) and applies
-      # ONLY over the sha-gated lock: a re-lock at the rig generation fails
-      # the patch and retires it in the same commit. Mount-only paths (web/,
-      # MANIFEST.md, verb/packs docs, PRDs) survive the tar unpack; the
-      # retired static site/ is swept here.
-      - name: Overlay the mount's rig generation over the lock (converge step)
+      # than the flowforge rig pass the mount already carries (0b3c118/
+      # 71efbc4/cc7d50e/1d372c9; then run 40468994469 showed a committed
+      # patch going stale the moment a direct carry outran its hunks). The
+      # converge therefore derives from THIS unpack, never from stored
+      # hunks: capture the restored delta, reset each clobbered tracked
+      # file to HEAD, then re-derive the standing patch from the same
+      # lists. Mount-only paths (web/, MANIFEST.md, verb/packs docs, PRDs)
+      # survive the tar unpack untouched; site/ is swept here.
+      - name: Converge the unpacked mount to tracked bytes (derived overlay)
         run: |
           set -euo pipefail
-          # Pre-emit tolerance: the one-shot mono-rig-emit.yml derives and lands
-          # this patch from committed history; until it runs, skip - a bare
-          # unpack lands the lock's doc-lane generation until the emit restores
-          # the rig bytes.
-          if [ ! -f horcrux/rig-overlay.patch ]; then
-            echo "no rig-overlay yet (mono-rig-emit has not run); unpack stands bare"
-          elif ! patch -p1 --force --quiet -i horcrux/rig-overlay.patch; then
-            # Tolerant converge (2026-10-27 receipt, run 40468994469): a hunk
-            # whose target is DIRECTLY CARRIED on main (the docs identity
-            # receipts: _layouts/default.html, freestruct.config.yml) fails
-            # by construction - those bytes already won. That path converges
-            # from HEAD's own committed bytes (the receipts law: direct-carried
-            # files do not ride the ferry), the .rej debris is swept, and only
-            # a conflict WITHOUT committed bytes (a genuinely new path with no
-            # main-side truth) fails the ferry.
-            find monoforge-staging -name '*.rej' | while read -r rej; do
-              f="${rej%.rej}"
-              if git show "HEAD:$f" > "$f" 2>/dev/null; then
-                echo "converged from HEAD: $f"
-              else
-                echo "FERRY CONVERGE FAIL: no HEAD bytes for conflicted $f"
-                exit 1
-              fi
-              rm -f "$rej"
+          delta="$(git diff --name-only -- monoforge-staging/ || true)"
+          # $() strips the trailing newline; without one, `while read` would
+          # silently drop the LAST delta path. printf '%s\n' restores it.
+          printf '%s\n' "$delta" > /tmp/mf-delta.list
+          if [ -n "$delta" ]; then
+            echo "$delta" | while IFS= read -r f; do
+              git checkout -- "$f"
+              echo "converged from HEAD: $f"
             done
+          else
+            echo "no tracked drift (mount already correct for this lock)"
           fi
           rm -rf monoforge-staging/site
           echo "overlay applied: mount converges to the rig generation over the sha-gated lock"
@@ -113,15 +103,57 @@ jobs:
         run: node test/run.mjs
         working-directory: monoforge-staging
 
-      - name: Commit the assembled mount (no-op when already correct)
+      # Derive, don't carry: the standing rig-overlay.patch is regenerated
+      # from the SAME delta the converge just restored (fresh unpack ->
+      # restored bytes, the mono-rig-emit lane's own method), so it always
+      # applies zero-conflict against the sha-gated lock and the two stale
+      # docs hunks of the 2026-10-27 patch retire here. diff exit 1 means
+      # the files DIFFER - that is the whole point of the loop - so the
+      # guard swallows exactly that exit and still fails loudly on 2.
+      - name: Re-derive horcrux/rig-overlay.patch from this same delta
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/lockbase && mkdir -p /tmp/lockbase
+          tar -xzf /tmp/mf-lock.tar.gz -C /tmp/lockbase
+          base="/tmp/lockbase/$(ls /tmp/lockbase)"
+          : > /tmp/rig-overlay.patch
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            rel="${f#monoforge-staging/}"
+            [ -f "$base/$rel" ] || continue
+            diff -u "$base/$rel" "$f" \
+              --label "a/monoforge-staging/$rel" --label "b/monoforge-staging/$rel" \
+              >> /tmp/rig-overlay.patch || [ $? -eq 1 ]
+          done < /tmp/mf-delta.list
+          cp /tmp/rig-overlay.patch horcrux/rig-overlay.patch
+          echo "patch sha256: $(sha256sum horcrux/rig-overlay.patch | cut -d' ' -f1)"
+          echo "patch paths: $(grep -c '^--- a/' horcrux/rig-overlay.patch)"
+
+      - name: Gate the derived patch (dry-run over a second fresh unpack, cmp byte-exact)
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/locktest && mkdir -p /tmp/locktest
+          tar -xzf /tmp/mf-lock.tar.gz -C /tmp/locktest
+          base2="/tmp/locktest/$(ls /tmp/locktest)"
+          rm -rf /tmp/patchtest && mkdir -p /tmp/patchtest/monoforge-staging
+          cp -r "$base2"/. /tmp/patchtest/monoforge-staging/
+          ( cd /tmp/patchtest && patch -p1 --force --quiet < "$GITHUB_WORKSPACE/horcrux/rig-overlay.patch" )
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            cmp "/tmp/patchtest/$f" "$f" \
+              || { echo "PATCH GATE FAIL: $f diverges after patch"; exit 1; }
+          done < /tmp/mf-delta.list
+          echo "PATCH GATE PASS: the derived patch converges the lock to the rig generation"
+
+      - name: Commit the assembled mount + the re-derived patch (no-op when already correct)
         run: |
           set -euo pipefail
           git config user.name  "monoforge-ferry"
           git config user.email "actions@users.noreply.github.com"
-          git add -A monoforge-staging/
+          git add -A monoforge-staging/ horcrux/rig-overlay.patch
           if ! git diff --cached --quiet; then
             git commit -m "monoforge: assemble monoforge-staging mount from its upstream lock archive (fetched + sha-gated)" \
-                       -m "The mount's tool tree is 0.9.0 UNCHANGED, unpacked from horcrux/monoforge-0.9.0-lock.tar.gz fetched from dhaupin/monoforge (sha256 046908c6... gated before unpack), so the mount and its lock archive cannot drift in transit - the archive IS the transit. The unpacked tool re-ran its own self-test (stamp + doctor + lock refusals) on the runner before anything was committed."
+                       -m "The mount's tool tree is 0.9.0 UNCHANGED, unpacked from horcrux/monoforge-0.9.0-lock.tar.gz fetched from dhaupin/monoforge (sha256 046908c6... gated before unpack). The converge is derived from this unpack (tracked bytes are authoritative) and horcrux/rig-overlay.patch is re-derived from the same delta, so it always applies zero-conflict against the sha-gated lock - stale hunks retire in this commit. The unpacked tool re-ran its own self-test (stamp + doctor + lock refusals) on the runner before anything was committed."
             git push origin main
           else
             echo "nothing new to commit (mount already correct for this lock)"
@@ -133,6 +165,6 @@ jobs:
           if [ -d .cut-tmp/mfparts ]; then
             git rm -r -q .cut-tmp/mfparts || true
             git commit -m "monoforge ferry: sweep the retired transport parts" \
-                       -m "The base64 part lane corrupted on arrival (a fabricated tail landed as mfpart-aa); the fetch-from-upstream + sha gate replaces it. Nothing else changes."
+                       -m "The base64 part land corrupted on arrival (a fabricated tail landed as mfpart-aa); the fetch-from-upstream + sha gate replaces it. Nothing else changes."
             git push origin main
           fi
