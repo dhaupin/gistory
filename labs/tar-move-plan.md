@@ -28,8 +28,13 @@ What move day must respect:
   contains monoforge's own nested `.git` (upstream f8e45fb lineage), so
   move day pushes that history onto dhaupin/monoforge and then overlays
   the repo's labs/ + horcrux/ on top — no flattening, no history loss.
-- **The mount adds the receipts only:** `labs/TASKS.md` and
-  `horcrux/README.md`. The provisioner stone stays upstream-owned
+- **The mount adds the receipts + the rig plumbing:** `labs/TASKS.md`,
+  `horcrux/README.md`, and — after the 2026-10-27 flowforge-rig pass —
+  `web/` (the prestruct landing, replacing upstream's static `site/`:
+  move day must DELETE upstream's `site/` and point Pages at
+  `web/dist`), the rig docs engine (`docs/_layouts`, `_data/nav.yml`,
+  the five gate scripts), `MANIFEST.md`, and the mount's own
+  `test.yml` battery. The provisioner stone stays upstream-owned
   (3.3MB — a size class the payload lane already burned once).
 - **Battery:** the zero-dep self-test (`node test/run.mjs`) runs in
   gistory CI's staging-hosts leg with no install step; the same one
