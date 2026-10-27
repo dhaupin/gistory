@@ -62,6 +62,17 @@ jobs:
       - name: Birth gate (workflow syntax + mount independence + gc-safe serde)
         run: node scripts/birth-gate.mjs
 
+      # Phased transport-lands gate (scripts/verify-transport-lands.mjs):
+      # every byte-carry shape this repo tracks (chunk.*.part families,
+      # *.gz.b64 payloads, plain .b64 wrappers) still decodes its declared
+      # shape (phase 1) and matches git HEAD with no uncommitted overwrite
+      # (phase 2). This is the structural fix for the 2026-10-27 chunk-drift
+      # class — a mid-payload transcription error is refused before it can
+      # land, not discovered by hand-diffing afterwards. Phase 3 (origin
+      # read-back parity) is the pre-push leg and stays local by design.
+      - name: Transport lands gate (shape + parity)
+        run: node scripts/verify-transport-lands.mjs
+
       - name: Typecheck
         run: bun run typecheck
 
