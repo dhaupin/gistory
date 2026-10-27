@@ -12,6 +12,10 @@
       url: /monoforge/packs
     - title: Search
       url: /monoforge/search
+- title: Reference
+  items:
+    - title: Release posts
+      url: /monoforge/discussions
 - title: Operations
   items:
     - title: Playbooks
@@ -20,8 +24,9 @@
       url: /monoforge/ci
 - title: Web
   items:
-    # External - the layout branches on '://' (target=_blank, no active
-    # match) so this never races the permalink matching of the internal
-    # items, and no 1:1 nav gate knows it.
+    # External - the layout branches on '://' (target=_blank, no active match)
+    # so this never races the permalink matching for the internal items.
     - title: Web site
       url: https://monoforge.creadev.org/
+    - title: npm
+      url: https://www.npmjs.com/package/monoforge
