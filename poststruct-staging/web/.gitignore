@@ -1,0 +1,8 @@
+# Node
+node_modules/
+
+# Build output
+dist/
+
+# OS noise
+.DS_Store
