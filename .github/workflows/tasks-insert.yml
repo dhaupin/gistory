@@ -63,7 +63,7 @@ jobs:
         if: hashFiles('.cut-tmp/task-parts/*.md') != ''
         run: |
           set -euo pipefail
-          expect="3fdccad7607439c5d321a1ed827bfc445ce4734a"
+          expect="147fc6d99d2952c418fdff3f02876ec0b1d7fbcf"
           actual="$(git hash-object labs/TASKS.md)"
           echo "expect TASKS: $expect"
           echo "actual TASKS: $actual"
@@ -80,5 +80,5 @@ jobs:
           git add labs/TASKS.md
           git rm -r -q .cut-tmp/task-parts
           git commit -m "tasks: splice the family-parity receipt into the Now head (CI-assembled, sha-gated)" \
-                     -m "The 120KB rolling log is never hand-carried: the entry rides as committed parts, the runner splices them at the byte anchor and gates the assembly against the offline blob id (3fdccad7) before committing."
+                     -m "The 120KB rolling log is never hand-carried: the entry rides as committed parts, the runner splices them at the byte anchor and gates the assembly against the offline blob id (147fc6d9) before committing."
           git push origin main
