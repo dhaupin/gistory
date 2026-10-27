@@ -79,9 +79,12 @@ jobs:
           LIST=".github/workflows/test.yml package.json docs/_config.yml docs/_layouts/default.html docs/freestruct.config.yml docs/index.md docs/search.md scripts/check-docs-frontmatter.cjs scripts/check-docs-links.cjs scripts/check-docs-style.cjs"
           : > /tmp/rig-overlay.patch
           for f in $LIST; do
+            # diff exits 1 when the files DIFFER - that is the whole point of
+            # this loop - so this guard swallows exactly that exit, and still
+            # fails loudly on a real error (2 = trouble, e.g. missing file).
             diff -u "$base/$f" "monoforge-staging/$f" \
               --label "a/monoforge-staging/$f" --label "b/monoforge-staging/$f" \
-              >> /tmp/rig-overlay.patch
+              >> /tmp/rig-overlay.patch || [ $? -eq 1 ]
           done
           cp /tmp/rig-overlay.patch horcrux/rig-overlay.patch
           echo "patch sha256: $(sha256sum horcrux/rig-overlay.patch | cut -d' ' -f1)"
@@ -92,10 +95,10 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/locktest && mkdir -p /tmp/locktest
           tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/locktest
-          base="/tmp/locktest/$(ls /tmp/locktest)"
+          base2="/tmp/locktest/$(ls /tmp/locktest)"
           # temporary repo look-alike so the monoforge-staging/ target paths resolve
           rm -rf /tmp/patchtest && mkdir -p /tmp/patchtest/monoforge-staging
-          cp -r "$base"/. /tmp/patchtest/monoforge-staging/
+          cp -r "$base2"/. /tmp/patchtest/monoforge-staging/
           ( cd /tmp/patchtest && patch -p1 --force --quiet < "$GITHUB_WORKSPACE/horcrux/rig-overlay.patch" )
           LIST=".github/workflows/test.yml package.json docs/_config.yml docs/_layouts/default.html docs/freestruct.config.yml docs/index.md docs/search.md scripts/check-docs-frontmatter.cjs scripts/check-docs-links.cjs scripts/check-docs-style.cjs"
           for f in $LIST; do
