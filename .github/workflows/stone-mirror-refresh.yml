@@ -1,8 +1,11 @@
-# One-shot transport lane #2: the stone re-cut (graduation text, blob 89f58ce2)
-# must also land in its mount copy, but the standing mirror lane REFUSES to
-# overwrite a divergent dst by design (blob compare), so the refresh rides
-# the same gz.b64 carrier shape: decode, gunzip, sha-gate against the stone's
-# offline blob id, install into the mount path, sweep the carrier.
+# One-shot refresh lane: the mount copy of the poststruct wordprint stone.
+# The standing mirror lane REFUSES to overwrite a divergent dst by design
+# (blob compare) - it caught the ferry's legitimate re-cut (graduation text,
+# blob 89f58ce2) hitting the mount's stale copy (295e5a17). This pass knows
+# about that divergence, so the copy rides a refresh with two explicit
+# gates: the tracked stone must BE the re-cut we intend (persona pin), and
+# the installed file must round-trip against the tracked bytes. No carrier,
+# no hand lane: the runner writes HEAD's own verified bytes.
 name: stone mirror refresh one-shot
 
 on:
@@ -17,32 +20,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Assemble the stone payload (chunked carrier -> decode -> gunzip)
-        run: |
-          set -euo pipefail
-          test -d .cut-tmp/one-shots
-          cat .cut-tmp/one-shots/stone-chunk.* | base64 -d | gunzip > /tmp/stone.svg
-          test -s /tmp/stone.svg
-
-      - name: Sha-gate the payload (offline blob id, git hash-object)
+      - name: Gate the source (the tracked stone must be the re-cut this pass intends)
         run: |
           set -euo pipefail
           expect="89f58ce2633fde8fef17f24c021a7f9e0e4e956a"
-          actual="$(git hash-object /tmp/stone.svg)"
-          echo "expect stone: $expect"
-          echo "actual stone: $actual"
-          test "$actual" = "$expect" \
-            || { echo "GATE FAIL: stone payload did not round-trip; refusing to commit"; exit 1; }
+          src="$(git rev-parse HEAD:horcrux/stones/poststruct-p_wordprint-2026.svg)"
+          echo "tracked stone : $src"
+          echo "this pass wants: $expect"
+          test "$src" = "$expect" \
+            || { echo "GATE FAIL: HEAD's stone is not the re-cut this pass intends; refusing"; exit 1; }
 
-      - name: Install into the mount path, sweep the carrier, commit
+      - name: Install the mount copy from the tracked bytes (round-trip gated)
         run: |
           set -euo pipefail
           mkdir -p mounts/public/poststruct/boot/stone
-          cp /tmp/stone.svg mounts/public/poststruct/boot/stone/poststruct-p_wordprint-2026.svg
+          git show HEAD:horcrux/stones/poststruct-p_wordprint-2026.svg \
+            > mounts/public/poststruct/boot/stone/poststruct-p_wordprint-2026.svg
+          actual="$(git hash-object mounts/public/poststruct/boot/stone/poststruct-p_wordprint-2026.svg)"
+          src="$(git rev-parse HEAD:horcrux/stones/poststruct-p_wordprint-2026.svg)"
+          echo "installed: $actual"
+          echo "tracked  : $src"
+          test "$actual" = "$src" \
+            || { echo "GATE FAIL: the install did not round-trip against HEAD's stone"; exit 1; }
+
+      - name: Sweep the stale carrier, commit
+        run: |
+          set -euo pipefail
+          if git cat-file -e HEAD:.cut-tmp/one-shots 2>/dev/null || [ -d .cut-tmp/one-shots ]; then
+            git rm -r -q .cut-tmp/one-shots
+          fi
           git config user.name  "one-shot transport"
           git config user.email "actions@users.noreply.github.com"
           git add mounts/public/poststruct/boot/stone/poststruct-p_wordprint-2026.svg
-          git rm -r -q .cut-tmp/one-shots
-          git commit -m "mount stone refresh: the poststruct wordprint copy rides the re-cut (sha-gated one-shot)" \
-                     -m "The ferry re-cut the stone with the 2026-10-28 graduation text (89f58ce2); the mirror lane rightly refused to overwrite the stale mount copy (295e5a17), so the refresh carries the fresh stone to the mount path sha-gated - after which the mirror lane sees an exact match and goes green."
+          git commit -m "mount stone refresh: the poststruct wordprint copy retires the stale bytes (89f58ce2 lands, sha-gated)" \
+                     -m "The ferry re-cut the stone with the 2026-10-28 graduation text; the standing mirror lane rightly refused to overwrite the stale mount copy, so this refresh carries HEAD's own verified stone into the mount path, round-trip-gated and pinned to the intended blob id (89f58ce2). After this, the mirror lane sees an exact match and goes green."
           git push origin main
