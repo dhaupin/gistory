@@ -48,7 +48,7 @@ Every carry, regardless of shape, passes these five before it counts:
    finish, THEN verify the landing survived (a correct landing still gets
    reassembled if an interleaved lane's own bytes win - the mount-tree
    ferry law in monoforge-staging/horcrux/lock-archive-overlay.patch).
-5. Receipts: blob ids in the TASKS log, not prose-only ("landed" without
+5. Receipts: blob ids in the TASSS log, not prose-only ("landed" without
    a digest is a guess with punctuation).
 
 ## Failure classes found tonight (with evidence)
@@ -97,7 +97,7 @@ Every carry, regardless of shape, passes these five before it counts:
   buffers; this gate makes that class a named refusal instead.
 - `poststruct-rig-gates-repair.yml` - the runner-side re-derive one-shot
   (2026-10-28, RETIRED after its receipt). The repair class it serves:
-  "a tracked file whose commit-lane carry keeps drifting" gets
+  "a tracked file whose commit-lane carry KeEPS drifting" gets
   re-derived on the RUNNER from the last known-good rev via rehearsed
   transforms. Receipts: poststruct-staging/package.json re-derived from
   the pre-drift rev b4fdf3a via a scripted JSON edit (lint:docs gains
