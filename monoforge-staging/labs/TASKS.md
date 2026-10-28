@@ -102,3 +102,33 @@ dhaupin/monoforge (labs/, upstream commit f8e45fb):
   (five sha gates), staging copies of the unchanged engine files and
   docs-gate scripts from eyestruct's committed tree. Everything lands
   blob-gated; the ferry retires through the commit lane after receipts.
+
+## 2026-10-28 - the third-instance blocks land in templates (monoforge#12 rider + #14)
+
+- The doctor grows the canon checks: `dangling-canon` (a
+  labs/.eyes/ledger.json row pointing at an artifact that never landed
+  fails, UNSAFE_PATH refuses escape-shaped paths, LEDGER_CORRUPT refuses
+  a ledger the gate itself would refuse) and `canon-pin` (UNSET canon
+  pins refuse: a canon token pointing at nothing is the unfilled truth
+  slot in the canon's uniform). Canon-free trees stay silent - the canon
+  is opt-in, and auditing nothing is never dressed up as a pass.
+- The canon skeleton extracts into templates/: `labs/.eyes/manifest.yml`
+  (the family pin + route-matrix shape, pins seeded UNSET-edit-me per
+  eyestruct init's convention) + `labs/.eyes/ledger.json` (an honest
+  empty rows array). A fresh stamp carries the canon from birth: the
+  owner fills the pins, the first look cuts the first row.
+- Battery: `test/run.mjs` gains the three canon legs (dangling refused,
+  UNSET pins refused, canon-free silent) and the refill fills the canon
+  pins so the factory's own law stays self-consistent. `npm run check`
+  green end to end.
+- monoforge#14: `scripts/ship-from-download.cjs` copied byte-identical
+  from eyestruct@9744c76 (zero repo imports, the Termux phone publish
+  lane), behavior test at `test/ship-from-download.test.cjs` (21
+  cases green) wired into `npm test`.
+- Deliberately NOT carried yet (rule-of-three pruning, the ask's own
+  doctrine): the ratify dispatch workflow port and the reusable
+  eye-ci-gate pack template - the monoforge template test.yml is a
+  different stamped shape (stamped repos lint their own packs). Those
+  two extract when the monoforge template tree carries the canon CI
+  lane shape (tracked here; the doctor rides the canon NOW, so a
+  stamped repo already self-audits it in `npm test`).
