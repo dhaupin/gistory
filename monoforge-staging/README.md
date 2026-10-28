@@ -1,13 +1,8 @@
 # monoforge 0.9.0
 
-The struct-family factory: stamp a fleet repo from proven template blocks,
-doctor it for truth, lock it verifiably.
+The struct-family factory: stamp a fleet repo from proven template blocks, doctor it for truth, lock it verifiably.
 
-One law: **generated green is never shipped.** The stamp layer carries only
-what two proven instances already validated (poststruct + packstruct); the
-doctor runs the same truth battery the fleet reads (tests, docs gates,
-release ladder, dash law); unfilled `FORGE-TODO` slots are failures, not
-warnings, because a shipped placeholder is a shipped lie.
+One law: **generated green is never shipped.** The stamp layer carries only what two proven instances already validated (poststruct + packstruct); the doctor runs the same truth battery the fleet reads (tests, docs gates, release ladder, dash law); unfilled `FORGE-TODO` slots are failures, not warnings, because a shipped placeholder is a shipped lie.
 
 ## Usage
 
@@ -34,8 +29,7 @@ factory.json:
 
 `docsPath` defaults to `docs.creadev.org/<name>`.
 
-Component families take a `scope` field (npm scope for the cut packages)
-plus a `cutlist.json` beside `factory.json`:
+Component families take a `scope` field (npm scope for the cut packages) plus a `cutlist.json` beside `factory.json`:
 
 ```json
 {
@@ -48,10 +42,7 @@ plus a `cutlist.json` beside `factory.json`:
 }
 ```
 
-Every unmapped internal dependency refuses; shortfall lazies must be
-declared and ship as documented call-site degrades (each package README
-carries the list). The realized receipt: the creedev-lib generation-1
-cut, 7 packages from the vant lib, in the mono PRD.
+Every unmapped internal dependency refuses; shortfall lazies must be declared and ship as documented call-site degrades (each package README carries the list). The realized receipt: the creedev-lib generation-1 cut, 7 packages from the vant lib, in the mono PRD.
 
 ## What stamps, what does not
 
@@ -63,14 +54,11 @@ cut, 7 packages from the vant lib, in the mono PRD.
 | `FORGE-TODO` slots (README pitch, AGENTS core law, coverage list) | **author** | the tool itself |
 | the core code, the check catalog, the spec | **author** | the tool itself |
 
-The template blocks were extracted 2026-10-24 from the proven trees; they
-follow the poststruct and packstruct shape, with names tokenized.
+The template blocks were extracted 2026-10-24 from the proven trees; they follow the poststruct and packstruct shape, with names tokenized.
 
 ## Status
 
-0.9.0: stamp + doctor + lock all negative-tested (bad configs refused, stray
-dirs refused, unfilled slots flagged, filled trees pass). Manual npm ladder;
-1.0.0 flips OIDC.
+0.9.0: stamp + doctor + lock all negative-tested (bad configs refused, stray dirs refused, unfilled slots flagged, filled trees pass). Manual npm ladder; 1.0.0 flips OIDC.
 
 ## Related
 
