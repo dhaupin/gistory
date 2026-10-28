@@ -1,6 +1,18 @@
 --- a/monoforge-staging/.github/workflows/docs.yml
 +++ b/monoforge-staging/.github/workflows/docs.yml
-@@ -36,6 +36,16 @@
+@@ -21,9 +21,9 @@
+   build:
+     runs-on: ubuntu-latest
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+ 
+-      - uses: actions/setup-node@v4
++      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+         with: { node-version: 20 }
+ 
+       # Docs truth gates (ported house checkers): frontmatter 5-field law,
+@@ -36,8 +36,18 @@
            node scripts/check-docs-style.cjs
            node scripts/check-language.cjs
  
@@ -15,8 +27,20 @@
 +          fi
 +          echo "shell-residue gate: clean"
        - name: Setup Ruby
-         uses: ruby/setup-ruby@v1
+-        uses: ruby/setup-ruby@v1
++        uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
          with:
+           ruby-version: '3.3'
+           bundler-cache: true
+@@ -45,7 +55,7 @@
+ 
+       - name: Setup Pages
+         id: pages
+-        uses: actions/configure-pages@v4
++        uses: actions/configure-pages@1f0c5cde4bc74cd7e1254d0cb4de8d49e9068c7d # v4
+ 
+       - name: Install deps
+         working-directory: docs
 @@ -71,7 +81,7 @@
        # docs/freestruct.config.yml + docs/_site by the engine's own rule) --
        # --strict: broken links fail the build.
@@ -26,6 +50,34 @@
  
        # Pagefind LAST - index over the FINAL html (freestruct-injected)
        - name: Index search with Pagefind
+@@ -80,7 +90,7 @@
+ 
+       - name: Upload artifact
+         id: upload-artifact
+-        uses: actions/upload-pages-artifact@v3
++        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+         with:
+           path: 'docs/_site'
+ 
+@@ -92,4 +102,4 @@
+       url: ${{ steps.deployment.outputs.page_url }}
+     steps:
+       - id: deployment
+-        uses: actions/deploy-pages@v4
++        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+--- a/monoforge-staging/.github/workflows/publish.yml
++++ b/monoforge-staging/.github/workflows/publish.yml
+@@ -13,8 +13,8 @@
+     runs-on: ubuntu-latest
+     if: ${{ !startsWith(github.ref_name, 'v0.') }}
+     steps:
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-node@v4
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
++      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+         with:
+           node-version: 20
+           registry-url: https://registry.npmjs.org
 --- a/monoforge-staging/.github/workflows/test.yml
 +++ b/monoforge-staging/.github/workflows/test.yml
 @@ -1,21 +1,31 @@
@@ -54,9 +106,8 @@
 +  battery:
      runs-on: ubuntu-latest
      steps:
-       - uses: actions/checkout@v4
-+
-       - uses: actions/setup-node@v4
+-      - uses: actions/checkout@v4
+-      - uses: actions/setup-node@v4
 -        with: { node-version: 20 }
 -      - run: npm install --no-fund --no-audit
 -      - run: npm test
@@ -68,6 +119,9 @@
 -          fi
 -          # dogfood: the repo's own packs tree (the crashtest scenario pack) is itself SPEC-v1 shaped
 -          node bin/cli.mjs lint packs
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
++
++      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
 +        with:
 +          node-version: 22
 +
@@ -89,55 +143,151 @@
  .DS_Store
 --- a/monoforge-staging/AGENTS.md
 +++ b/monoforge-staging/AGENTS.md
-@@ -8,10 +8,13 @@
-   dirty or failing tree.
+@@ -3,28 +3,17 @@
+ ## Identity
+ - **Name:** monoforge (the fleet factory)
+ - **Repo:** dhaupin/monoforge
+-- **Core law:** generated green is never shipped; the doctor refuses
+-  placeholder text, missing entries, and broken gates; the lock refuses a
+-  dirty or failing tree.
++- **Core law:** generated green is never shipped; the doctor refuses placeholder text, missing entries, and broken gates; the lock refuses a dirty or failing tree.
  
  ## Mechanical conventions (this repo)
 -- Four verbs, one package: `new` (stamp from templates/), `doctor`
 -  (the truth battery), `cut` (release cuts: component-family workspace
 -  from a cutlist against a living lib), `lock` (doctor then archive).
 -  All zero-dep Node >=20 ESM in `src/`, CLI in `bin/forge.mjs`.
-+- Four factory verbs, one package, plus one opt-in lane: `new`
-+  (stamp from templates/), `doctor` (the truth battery), `cut`
-+  (release cuts: component-family workspace from a cutlist against a
-+  living lib), `lock` (doctor then archive), and `lint-packs` (the
-+  packstruct passthrough over the repo's own install, ready now as a
-+  loud refusal until the factory's own packs land). All zero-dep Node
-+  >=20 ESM in `src/`, CLI in `bin/forge.mjs`.
- - The cut law: an unmapped internal dependency refuses loudly; shortfall
-   lazies must be declared in cutlist.json and ship as documented call-site
-   degrades (per-package README carries the list: absence is honest).
-@@ -20,9 +23,26 @@
-   template block with a single instance is a bet, and the doctor cannot
-   verify bets.
- - The negative test in `test/run.mjs` asserts the refusal paths (bad
+-- The cut law: an unmapped internal dependency refuses loudly; shortfall
+-  lazies must be declared in cutlist.json and ship as documented call-site
+-  degrades (per-package README carries the list: absence is honest).
+-- Templates are extracted from PROVEN trees (poststruct + packstruct as
+-  of 2026-10-24). Add a block only when two instances prove it; a
+-  template block with a single instance is a bet, and the doctor cannot
+-  verify bets.
+-- The negative test in `test/run.mjs` asserts the refusal paths (bad
 -  config, stray dir) and the doctor fail (unfilled) / pass (filled) pair.
-+  config, stray dir), the doctor fail (unfilled) / pass (filled) pair,
-+  and the canon checks (monoforge#12 rider): a dangling
-+  `labs/.eyes/ledger.json` artifact pointer fails `dangling-canon`, an
-+  UNSET canon pin fails `canon-pin`, and a canon-free tree stays silent
-+  (the canon is opt-in; auditing nothing is never dressed up as a pass).
-   Update the test in the same commit as any check change; run
-   `npm test` first.
-+- The battery is one verb for CI and humans: `npm run check` (test +
-+  docs gates + language gate). The packstruct leg is deliberately not
-+  wired into check until the factory's own packs land; until then
-+  `monoforge lint-packs` answers exit 2 as the readiness probe. The
-+  phone publish lane rides the battery: `scripts/ship-from-download.cjs`
-+  is copied byte-as-is from eyestruct@9744c76 (zero repo imports) and
-+  `node --test test/ship-from-download.test.cjs` runs inside `npm test`
-+  (monoforge#14; the .cjs extension is the one mechanical rename the ESM
-+  root forces).
-+- The icon lane is the family's parameterized one: `npm run icons:adopt`
-+  (scripts/adopt-icons.mjs + scripts/brand-mark.json authored seal),
-+  same contract as gistory#17/eyestruct. Derived icon bytes are
-+  generated, not hand-drawn: the seal + the source art are the record.
- - All prose submits to the voice law: zero dashes of any kind, no
-   AI-cliche constructions, plain declarative sentences only.
+-  Update the test in the same commit as any check change; run
+-  `npm test` first.
+-- All prose submits to the voice law: zero dashes of any kind, no
+-  AI-cliche constructions, plain declarative sentences only.
++- Four factory verbs, one package, plus one opt-in lane: `new` (stamp from templates/), `doctor` (the truth battery), `cut` (release cuts: component-family workspace from a cutlist against a living lib), `lock` (doctor then archive), and `lint-packs` (the packstruct passthrough over the repo's own install, ready now as a loud refusal until the factory's own packs land). All zero-dep Node >=20 ESM in `src/`, CLI in `bin/forge.mjs`.
++- The cut law: an unmapped internal dependency refuses loudly; shortfall lazies must be declared in cutlist.json and ship as documented call-site degrades (per-package README carries the list: absence is honest).
++- Templates are extracted from PROVEN trees (poststruct + packstruct as of 2026-10-24). Add a block only when two instances prove it; a template block with a single instance is a bet, and the doctor cannot verify bets.
++- The negative test in `test/run.mjs` asserts the refusal paths (bad config, stray dir), the doctor fail (unfilled) / pass (filled) pair, and the canon checks (monoforge#12 rider): a dangling `labs/.eyes/ledger.json` artifact pointer fails `dangling-canon`, an UNSET canon pin fails `canon-pin`, and a canon-free tree stays silent (the canon is opt-in; auditing nothing is never dressed up as a pass). Update the test in the same commit as any check change; run `npm test` first.
++- The battery is one verb for CI and humans: `npm run check` (test + docs gates + language gate). The packstruct leg is deliberately not wired into check until the factory's own packs land; until then `monoforge lint-packs` answers exit 2 as the readiness probe. The phone publish lane rides the battery: `scripts/ship-from-download.cjs` is copied byte-as-is from eyestruct@9744c76 (zero repo imports) and `node --test test/ship-from-download.test.cjs` runs inside `npm test` (monoforge#14; the .cjs extension is the one mechanical rename the ESM root forces).
++- The walk-exit rule (the promotion rule, family law 2026-10-28, eyestruct@70dfbea): a manual walk is not done until nothing it found is uncommissioned. A probe that only ever lived in prose is a one-mortem; the walk's exit criterion is that every finding became permanent in the same session (a battery leg, a pack verdict row, or a named docket row) so future walks only see fresh ground. Walks DISCOVER classes; the battery REMEMBERS them.
++- The icon lane is the family's parameterized one: `npm run icons:adopt` (scripts/adopt-icons.mjs + scripts/brand-mark.json authored seal), same contract as gistory#17/eyestruct. Derived icon bytes are generated, not hand-drawn: the seal + the source art are the record.
++- All prose submits to the voice law: zero dashes of any kind, no AI-cliche constructions, plain declarative sentences only.
  
+ ## Release
+ - 0.9.0 = current manual npm. 1.0.0 flips OIDC; publish.yml refuses 0.x.
+--- a/monoforge-staging/CHANGELOG.md
++++ b/monoforge-staging/CHANGELOG.md
+@@ -2,40 +2,24 @@
+ 
+ All notable changes to monoforge will be documented in this file.
+ 
+-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
++The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+ 
+ ## [Unreleased]
+ 
+ ### Added
+-- The `cut` verb: stamps a component-family workspace from a living lib
+-  per cutlist.json (components/<name>/ with intra-graph requires
+-  rewritten to scoped deps, per-package smokes + provenance CHANGELOGs +
+-  shortfall READMEs, root workspaces + test-all lane + stamp manifest
+-  for the doctor). Shortfall policy: lazies outside the cut must be
+-  DECLARED (documented degrade) or the cut refuses.
++- The `cut` verb: stamps a component-family workspace from a living lib per cutlist.json (components/<name>/ with intra-graph requires rewritten to scoped deps, per-package smokes + provenance CHANGELOGs + shortfall READMEs, root workspaces + test-all lane + stamp manifest for the doctor). Shortfall policy: lazies outside the cut must be DECLARED (documented degrade) or the cut refuses.
+ - Realized the first cut (creadev-lib, 7 packages from the vant lib).
+ 
+ ### Fixed (found by dogfooding the cut)
+-- Declared workspace deps now key on scoped names (the bare-name form
+-  made npm install notarget).
+-- Root scripts dir is created before test-all lands; test-all imports
+-  node:path (join).
++- Declared workspace deps now key on scoped names (the bare-name form made npm install notarget).
++- Root scripts dir is created before test-all lands; test-all imports node:path (join).
+ - The CLI used the verb token as the target dir for new/cut (argv 3 vs 2).
+ 
+ ## [0.9.0] - 2026-10-24
+ 
+ ### Added
+-- `monoforge new <dir>`: stamps a fleet repo from the template blocks
+-  (docs system with the four ported gates, workflows incl. the 0.x refusal
+-  publish ladder, functions canary, wrangler contract), filling
+-  factory.json tokens and refusing non-empty directories and bad configs.
+-- `monoforge doctor [dir]`: the truth battery: git state, FORGE-TODO
+-  slot scan, package.json sanity (bin/exports/files paths), publish.yml
+-  0.x refusal, npm test, docs gates, em dash law.
+-- `monoforge lock [dir]`: doctor-then-archive with sha256; refuses to
+-  lock a failing tree.
+-- `templates/`: blocks extracted from the two proven instances
+-  (poststruct + packstruct, 2026-10-24).
+-- Self-test: refusal paths + the doctor fail (unfilled) / pass (filled)
+-  pair.
++- `monoforge new <dir>`: stamps a fleet repo from the template blocks (docs system with the four ported gates, workflows incl. the 0.x refusal publish ladder, functions canary, wrangler contract), filling factory.json tokens and refusing non-empty directories and bad configs.
++- `monoforge doctor [dir]`: the truth battery: git state, FORGE-TODO slot scan, package.json sanity (bin/exports/files paths), publish.yml 0.x refusal, npm test, docs gates, em dash law.
++- `monoforge lock [dir]`: doctor-then-archive with sha256; refuses to lock a failing tree.
++- `templates/`: blocks extracted from the two proven instances (poststruct + packstruct, 2026-10-24).
++- Self-test: refusal paths + the doctor fail (unfilled) / pass (filled) pair.
 --- a/monoforge-staging/README.md
 +++ b/monoforge-staging/README.md
-@@ -75,3 +75,4 @@
+@@ -1,13 +1,8 @@
+ # monoforge 0.9.0
+ 
+-The struct-family factory: stamp a fleet repo from proven template blocks,
+-doctor it for truth, lock it verifiably.
++The struct-family factory: stamp a fleet repo from proven template blocks, doctor it for truth, lock it verifiably.
+ 
+-One law: **generated green is never shipped.** The stamp layer carries only
+-what two proven instances already validated (poststruct + packstruct); the
+-doctor runs the same truth battery the fleet reads (tests, docs gates,
+-release ladder, dash law); unfilled `FORGE-TODO` slots are failures, not
+-warnings, because a shipped placeholder is a shipped lie.
++One law: **generated green is never shipped.** The stamp layer carries only what two proven instances already validated (poststruct + packstruct); the doctor runs the same truth battery the fleet reads (tests, docs gates, release ladder, dash law); unfilled `FORGE-TODO` slots are failures, not warnings, because a shipped placeholder is a shipped lie.
+ 
+ ## Usage
+ 
+@@ -34,8 +29,7 @@
+ 
+ `docsPath` defaults to `docs.creadev.org/<name>`.
+ 
+-Component families take a `scope` field (npm scope for the cut packages)
+-plus a `cutlist.json` beside `factory.json`:
++Component families take a `scope` field (npm scope for the cut packages) plus a `cutlist.json` beside `factory.json`:
+ 
+ ```json
+ {
+@@ -48,10 +42,7 @@
+ }
+ ```
+ 
+-Every unmapped internal dependency refuses; shortfall lazies must be
+-declared and ship as documented call-site degrades (each package README
+-carries the list). The realized receipt: the creedev-lib generation-1
+-cut, 7 packages from the vant lib, in the mono PRD.
++Every unmapped internal dependency refuses; shortfall lazies must be declared and ship as documented call-site degrades (each package README carries the list). The realized receipt: the creedev-lib generation-1 cut, 7 packages from the vant lib, in the mono PRD.
+ 
+ ## What stamps, what does not
+ 
+@@ -63,15 +54,13 @@
+ | `FORGE-TODO` slots (README pitch, AGENTS core law, coverage list) | **author** | the tool itself |
+ | the core code, the check catalog, the spec | **author** | the tool itself |
+ 
+-The template blocks were extracted 2026-10-24 from the proven trees; they
+-follow the poststruct and packstruct shape, with names tokenized.
++The template blocks were extracted 2026-10-24 from the proven trees; they follow the poststruct and packstruct shape, with names tokenized.
+ 
+ ## Status
+ 
+-0.9.0: stamp + doctor + lock all negative-tested (bad configs refused, stray
+-dirs refused, unfilled slots flagged, filled trees pass). Manual npm ladder;
+-1.0.0 flips OIDC.
++0.9.0: stamp + doctor + lock all negative-tested (bad configs refused, stray dirs refused, unfilled slots flagged, filled trees pass). Manual npm ladder; 1.0.0 flips OIDC.
+ 
  ## Related
  
  - [poststruct](https://github.com/dhaupin/poststruct) + [packstruct](https://github.com/dhaupin/packstruct): the proven instances the templates were extracted from
