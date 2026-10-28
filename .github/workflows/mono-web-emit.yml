@@ -1,7 +1,8 @@
-# ONE-SHOT: emit the monoforge web payload files - carrying ZERO payload
-# bytes (labs/transport.md: text-lane carries of this size class corrupted
-# twice tonight; hand-echoed base64 drifted twice at the blob gate). Instead
-# the runner derives/copies everything from files already in the repo:
+# STANDING LANE (dispatch to re-bake): emit the monoforge web payload files -
+# carrying ZERO payload bytes (labs/transport.md: text-lane carries of this
+# size class corrupted twice tonight; hand-echoed base64 drifted twice at
+# the blob gate). Instead the runner derives/copies everything from files
+# already in the repo:
 #   - web engine files + docs-gate scripts <- copied from eyestruct's
 #     upstream tree (dhaupin/eyestruct; the gistory staging mount retired
 #     2026-10-27; monoforge keeps them byte-identical)
@@ -105,10 +106,10 @@ jobs:
             echo "RENDER OK $1 sha ${got:0:16}"
           }
           check monoforge-staging/web/public/og-image.png          7fe3cb34ede4b20c19f7fb1d027bc88de1beb1bf2495fd57f3d02ff3d3879a9e
-          check monoforge-staging/web/public/icon-512.png          38f9d350585c3701db3250b974e605d1ddd2e9681e8acd6c907a55c768774930
-          check monoforge-staging/web/public/icon-192.png          f79dcb2917151aefab7d119dceadbc2bb201133fd5ca20ccf91f76fed2011010
-          check monoforge-staging/web/public/favicon-32.png        733a254fd01c612c1d6685ce17188c87269488664b693089ce15571f75694674
-          check monoforge-staging/web/public/apple-touch-icon.png  54bd65b4afc610267e29d1453ed633a2e3859c1879bfd068b5bf2e80bc674ec1
+          check monoforge-staging/web/public/icon-512.png          621a72e749afa61ce23089f3156a06da0007c1522e4e1363337bfc9a6f5381f9
+          check monoforge-staging/web/public/icon-192.png          b16acd4002d245f0fe6008d10abbb56197b828e18c5d32c756a6af459317283c
+          check monoforge-staging/web/public/favicon-32.png        9dc2d6eb2d1bcf76037932c9c93594da9a4faaf9d2ce5da72c0cfb2e5cdaa298
+          check monoforge-staging/web/public/apple-touch-icon.png  a5a2821a66118764cedf67d4072fc9fba81d42e41c21606d613ee85ed689b3a7
 
       - name: Commit emitted files
         run: |
