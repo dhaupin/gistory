@@ -11,7 +11,7 @@
   # - connect-src: add your own domain and any third-party fetch targets
   # - style-src / font-src: includes Google Fonts (remove if not using)
   # - Tighten or expand each directive to match your actual asset sources.
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://cloudflareinsights.com; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://cloudflareinsights.com https://raw.githubusercontent.com; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
 
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentialless
@@ -29,3 +29,12 @@
 
 /site.webmanifest
   Cache-Control: public, max-age=86400
+
+# the family status dialect (family-status@1, docs/status.md): the served
+# file is meant to be read CROSS-ORIGIN by every member's status page and
+# by any agent. ACAO on the miss path too - a not-yet member must read as
+# an honest HTTP 404 at the reader, never an opaque network failure.
+/status.json
+  Access-Control-Allow-Origin: *
+  Content-Type: application/json
+  Cache-Control: no-cache

@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
  * Docs link checker (ported from vant's scripts/check-docs-links.js,
- * adapted to crashtest's baseurl).
+ * adapted to this repo's baseurl - docs.creadev.org/eyestruct).
  *
  * Validates every markdown link in docs/:
- * - /crashtest/<permalink> links must match a real frontmatter permalink
- *   (this is the gate that would have caught the /crashtest/crashtest
- *   doubled-prefix class and packs.md's dead module-plan link)
+ * - /eyestruct/<permalink> links must match a real frontmatter permalink
+ *   (the gate that catches the doubled-prefix class and dead permalinks)
  * - other absolute links must match a permalink or resolve under docs/
  * - relative links must resolve on disk
  * Skips code fences, inline code, external URLs, and pure anchors.
@@ -51,17 +50,19 @@ for (const f of files) {
         u = anchor ? u.slice(0, u.length - anchor.length) : u;
         if (!u) continue; // pure anchor
         const rel = f.replace(DOCS + '/', '');
+        // The doubled-prefix class first (/eyestruct/eyestruct/...): name
+        // it, never read it as a missing permalink.
+        if (u.startsWith(SITE_PREFIX + '/') && /^\/eyestruct(\/|$)/.test(u.slice(SITE_PREFIX.length))) {
+          console.log('BROKEN (doubled site prefix) in', rel, '->', m[1]);
+          broken++;
+          continue;
+        }
         if (u.startsWith(SITE_PREFIX) || u === SITE_PREFIX) {
           const key = norm(u.slice(SITE_PREFIX.length));
           if (!perm.has(key)) {
-            console.log('BROKEN (bad /crashtest/ permalink) in', rel, '->', m[1]);
+            console.log('BROKEN (bad /eyestruct/ permalink) in', rel, '->', m[1]);
             broken++;
           }
-          continue;
-        }
-        if (u.startsWith('/crashtest/crashtest')) {
-          console.log('BROKEN (doubled site prefix) in', rel, '->', m[1]);
-          broken++;
           continue;
         }
         if (u.startsWith('/')) {

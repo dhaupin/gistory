@@ -1,43 +1,46 @@
-/* monoforge shell theme - neutral graphite + mint accent, dark-first, with a
-   full light theme as the second half of one token set. Every color rides
-   a semantic token (paper/surface/raised/ink/ink-soft/accent/moss/err/
-   line/code-bg/nav-bg/accent-contrast): re-tune your brand by editing
-   THESE values only - the layout classes never branch on the theme and no
-   class ever hardcodes a hex. The token structure is shared across the
-   struct family (both mounted trees land here); keep the names. */
+/* eyestruct shell theme - the "jade on graphite" pair: warm graphite
+   surfaces in dark, parchment paper in light, with a jade-green iris as
+   the one identity accent across both (distinct from the sage success
+   green and the coral error, which keep their own hues). Every color
+   rides a semantic token (paper/surface/raised/ink/ink-soft/accent/
+   moss/err/line/code-bg/nav-bg/accent-contrast): re-tune your brand by
+   editing THESE values only - the layout classes never branch on the
+   theme and no class ever hardcodes a hex. The token structure is shared
+   across the struct family (several deployed daus land here); keep the
+   names. */
 
 :root {
-  --paper: #10131a;
-  --surface: #161b24;
-  --raised: #1d2430;
-  --ink: #e7eaf1;
-  --ink-soft: #98a2b3;
-  --accent: #7dd3a8;     /* mint: the family map + docs + icon lane all carry it */
-  --accent-deep: #3f9e6e;
-  --moss: #3fae72;        /* success / positive green */
-  --err: #e06557;         /* violation / negative red */
-  --line: #2a3140;
-  --code-bg: #0d1017;
-  --nav-bg: rgba(16, 19, 26, 0.88);
-  --accent-contrast: #0d2b1c;
+  --paper: #121011;       /* warm graphite ink-black */
+  --surface: #181515;
+  --raised: #211b19;
+  --ink: #ece6df;         /* warm off-white */
+  --ink-soft: #a89c92;    /* warm stone-gray */
+  --accent: #45cf83;      /* jade-green iris */
+  --accent-deep: #2fae68;
+  --moss: #8fbe6f;        /* success, warm sage */
+  --err: #e2665b;         /* violation / negative coral */
+  --line: #2b2521;
+  --code-bg: #0d0b0a;
+  --nav-bg: rgba(18, 16, 17, 0.88);
+  --accent-contrast: #101711;
 }
 
-/* Light theme: the same identity, ink on pale paper.
-   Tokens only - the whole layout reads them, so one block re-themes the
-   site and no layout class ever branches on the theme. */
+/* Light theme: the same identity, ink on warm parchment - golden hour
+   reversed. Tokens only - the whole layout reads them, so one block
+   re-themes the site and no layout class ever branches on the theme. */
 html[data-theme="light"] {
-  --paper: #f5f6fa;
+  --paper: #f6f1e7;       /* parchment paper */
   --surface: #ffffff;
-  --raised: #e6e9f2;
-  --ink: #171b26;
-  --ink-soft: #5b6575;
-  --accent: #2e7d4f;     /* mint deep for contrast on pale paper */
-  --accent-deep: #1f5f39;
-  --moss: #2e7d4f;
-  --err: #b04b3f;
-  --line: #d9dee9;
-  --code-bg: #e9ecf3;
-  --nav-bg: rgba(245, 246, 250, 0.88);
+  --raised: #eae2d2;
+  --ink: #1c1712;         /* ink under the lamp */
+  --ink-soft: #6b6055;
+  --accent: #197a4c;      /* jade weighted for pale paper (AA) */
+  --accent-deep: #115c39;
+  --moss: #567a26;
+  --err: #b04a34;
+  --line: #e0d6c3;
+  --code-bg: #efe8d8;
+  --nav-bg: rgba(246, 241, 231, 0.88);
   --accent-contrast: #ffffff;
 }
 
@@ -202,8 +205,22 @@ html[data-theme="light"] .theme-switch .icon-moon { display: block; }
 .pipe-step span { color: var(--ink-soft); font-size: 13.5px; }
 
 /* --- attack table --- */
+/* Mobile guard for any table not riding .table-wrap: it scrolls inside its
+   own box instead of pinning the page to its min-content width (the same
+   fix the docs layout carries). Inline code keeps its token intact. */
+table:not(.attacks) { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table:not(.attacks) td code { white-space: nowrap; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
 table.attacks { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+/* Family status dialect table (/status): rides .table-wrap for the mobile
+   scroll guard; cells keep their tokens unbroken so the row scrolls as a
+   whole instead of wrapping every repo into a tall narrow triangle. Same
+   border rhythm the attack table carries. */
+table.family-status { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+table.family-status th { text-align: left; background: var(--raised); color: var(--ink); padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.family-status td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.family-status tr:last-child td { border-bottom: 0; }
+table.family-status td code, table.family-status td:last-child { white-space: nowrap; }
 table.attacks th { text-align: left; background: var(--raised); color: var(--ink); padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.attacks td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.attacks tr:last-child td { border-bottom: 0; }
@@ -211,12 +228,30 @@ table.attacks td.mod { font-family: ui-monospace, monospace; color: var(--accent
 table.attacks td .what { color: var(--ink); }
 table.attacks td .why { color: var(--ink-soft); font-size: 12.5px; }
 .shipped { color: var(--moss); font-weight: 600; }
+/* island fallback (mounts client-side; the span shows while pending) */
+.island-loading { color: var(--ink-soft); font-size: 13px; display: block; padding: 8px 0; }
+.island-loading + * { margin-top: 0; }
+/* landing split teasers - compact two-card row for /packs + /status */
+.section-split { display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 900px; margin: 0 auto 44px; padding: 0 20px; }
+.split-card { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 18px 24px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.split-card h3 { margin: 0; font-size: 16px; color: var(--ink); }
+.split-card p { margin: 0; color: var(--ink-soft); font-size: 13.5px; }
+@media (min-width: 800px) { .section-split { grid-template-columns: 1fr 1fr; } }
+
+/* verdict cells (landing attacks table): semantic color only where a verdict
+   earns it - moss for a refused attack (a win), accent for a docketed bound. */
+.verdict-ok { color: var(--moss); font-weight: 600; white-space: nowrap; }
+.verdict-mid { color: var(--accent); font-weight: 600; white-space: nowrap; }
+.verdict-bad { color: var(--err); font-weight: 600; white-space: nowrap; }
 .field-report { color: var(--ink-soft); font-size: 13px; margin: 18px 0 0; }
 .field-report a { color: var(--accent); }
 .field-report .bad { color: var(--err); }
 .field-report .ok { color: var(--moss); }
 
 /* --- legal pages --- */
+.legal .eyebrow { text-transform: none; letter-spacing: 0.02em; font-size: 13.5px; color: var(--ink-soft); margin: 0 0 10px; }
+.legal .web-version { font-size: 12.5px; color: var(--ink-soft); border-bottom: 1px solid var(--line); padding-bottom: 14px; margin: 0 0 22px; }
+.legal .web-version a { color: var(--accent); }
 .legal h3 { margin: 26px 0 8px; font-size: 16px; }
 .legal ul { color: var(--ink-soft); padding-left: 22px; }
 .legal ul li { margin: 6px 0; }

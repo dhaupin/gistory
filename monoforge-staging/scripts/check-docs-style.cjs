@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Docs style linter (ported from vant's scripts/check-docs-style.js,
- * adapted to crashtest's voice).
+ * adapted to this repo's hyphen-only voice).
  *
  * Checks every docs/*.md file:
  * - every opening code fence carries a language tag (closing fences exempt)
