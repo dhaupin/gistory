@@ -1,7 +1,6 @@
 {
   "name": "poststruct-site",
   "private": true,
-  "version": "0.9.0",
   "type": "module",
   "description": "poststruct site - the landing for the bake auditor (prestruct prerender + static hosting)",
   "scripts": {
