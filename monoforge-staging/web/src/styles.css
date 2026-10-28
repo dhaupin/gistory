@@ -1,10 +1,10 @@
-/* flowforge shell theme - neutral graphite + UI indigo, dark-first, with a
+/* monoforge shell theme - neutral graphite + mint accent, dark-first, with a
    full light theme as the second half of one token set. Every color rides
    a semantic token (paper/surface/raised/ink/ink-soft/accent/moss/err/
    line/code-bg/nav-bg/accent-contrast): re-tune your brand by editing
    THESE values only - the layout classes never branch on the theme and no
    class ever hardcodes a hex. The token structure is shared across the
-   struct family (several deployed daus land here); keep the names. */
+   struct family (both mounted trees land here); keep the names. */
 
 :root {
   --paper: #10131a;
@@ -12,14 +12,14 @@
   --raised: #1d2430;
   --ink: #e7eaf1;
   --ink-soft: #98a2b3;
-  --accent: #6d8cff;      /* your accent */
-  --accent-deep: #5166c7;
+  --accent: #7dd3a8;     /* mint: the family map + docs + icon lane all carry it */
+  --accent-deep: #3f9e6e;
   --moss: #3fae72;        /* success / positive green */
   --err: #e06557;         /* violation / negative red */
   --line: #2a3140;
   --code-bg: #0d1017;
   --nav-bg: rgba(16, 19, 26, 0.88);
-  --accent-contrast: #0b1020;
+  --accent-contrast: #0d2b1c;
 }
 
 /* Light theme: the same identity, ink on pale paper.
@@ -31,8 +31,8 @@ html[data-theme="light"] {
   --raised: #e6e9f2;
   --ink: #171b26;
   --ink-soft: #5b6575;
-  --accent: #4055c5;      /* darker accent for contrast on pale paper */
-  --accent-deep: #33449e;
+  --accent: #2e7d4f;     /* mint deep for contrast on pale paper */
+  --accent-deep: #1f5f39;
   --moss: #2e7d4f;
   --err: #b04b3f;
   --line: #d9dee9;
