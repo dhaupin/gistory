@@ -58,7 +58,7 @@ jobs:
       # zero-check-run startup-death class), every staging mount is
       # declared independent of the host linter, and every git-dir serde
       # script disables background gc before writing. Cheap, fail-fast,
-      # real-parser-backed - see scripts/birth-gate.mjs.
+      # real-parser-backed - see scripts/birth-gate.mjs。
       - name: Birth gate (workflow syntax + mount independence + gc-safe serde)
         run: node scripts/birth-gate.mjs
 
@@ -143,8 +143,9 @@ jobs:
       # committed labs/.eyes/ ledger: 0 unexplained drift, all rows
       # explained). Family exit contract; skips are NAMED, never fake
       # passes.
-      # Eyestruct: the npm pin. The devDependencies carry eyestruct@0.9.0
-      # EXACT (the packstruct discipline), so `npm ci` lands the tool in
+      # Eyestruct: the npm pin. The devDependencies carry eyestruct@1.0.0
+      # EXACT (the packstruct discipline; 1.0.0 is the freeze release), so
+      # `npm ci` lands the tool in
       # node_modules for every leg - no checkout, no env knobs. The
       # resolvers walk OUT from their own ROOT and find the install:
       # poststruct-staging's own pin (its lockfile) and the root pin (the
