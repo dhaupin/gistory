@@ -58,7 +58,7 @@ The template blocks were extracted 2026-10-24 from the proven trees; they follow
 
 ## Status
 
-0.9.0: stamp + doctor + lock all negative-tested (bad configs refused, stray dirs refused, unfilled slots flagged, filled trees pass). Manual npm ladder; 1.0.0 flips OIDC.
+This cut: stamp + doctor + lock all negative-tested (bad configs refused, stray dirs refused, unfilled slots flagged, filled trees pass). Manual npm ladder; 1.0.0 flips OIDC.
 
 ## Related
 
