@@ -1,6 +1,6 @@
 # new registry files (whole-file carries, blob-gated)
 NEWFILES = [
-  {'path': "mounts/README.md", 'pin': "b385585757be686ba63e84ff99e514a3dc17e0b3", 'content': """# /mounts — the family mount registry (2026-10-28)
+  {'path': "mounts/README.md", 'pin': "17732446559e57c8209602cc73aa8aa874563f76", 'content': """# /mounts — the family mount registry (2026-10-28)
 
 Every forked mount in the struct ecosystem lives here, mirroring vant's
 `/models` rigging: per-mount, per-tier directories with a `boot/` carry
