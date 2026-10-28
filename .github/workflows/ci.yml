@@ -58,7 +58,7 @@ jobs:
       # zero-check-run startup-death class), every staging mount is
       # declared independent of the host linter, and every git-dir serde
       # script disables background gc before writing. Cheap, fail-fast,
-      # real-parser-backed - see scripts/birth-gate.mjs。
+      # real-parser-backed - see scripts/birth-gate.mjs.
       - name: Birth gate (workflow syntax + mount independence + gc-safe serde)
         run: node scripts/birth-gate.mjs
 
