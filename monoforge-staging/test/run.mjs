@@ -55,6 +55,7 @@ const refill = (d) => {
         wf(p, rf(p, 'utf8')
           .replaceAll('FORGE-TODO', 'DONE')
           .replaceAll('DONE:truth', 'filled by the factory test')
+          .replaceAll('UNSET-edit-me', 'test-pinned@1.0.0')
           .replaceAll(/__[A-Z][A-Z0-9_]*__/g, 'test-token-filled'))
       } catch {}
     }
@@ -67,9 +68,38 @@ const d5 = await doctor(d3)
 // its warn, but the tree must be fail-free.
 assert(d5.counts.fail === 0, `doctor should pass a refilled tree (got: ${JSON.stringify(d5.findings.filter(f => f.level === 'fail').slice(0, 3))})`)
 
+// 6. the canon checks (monoforge#12 rider, the eyestruct DANGLING_ROW
+// refusal scored as a doctor check).
+// 6a. a dangling canon pointer fails: a ledger row whose artifact never
+//     landed is the same lie as a files entry pointing at nothing.
+const d6a = mkdtempSync(join(tmpdir(), 'forge-canon-'))
+mkdirSync(join(d6a, 'labs/.eyes'), { recursive: true })
+writeFileSync(join(d6a, 'labs/.eyes/manifest.yml'), 'pin:\n  browser-image: local-chrome@154.0.0.0\n  renderer: resvg@2.6.2\nroutes:\n  - path: /  view: desktop-1280  theme: dark  viewport: 1280x800\n')
+writeFileSync(join(d6a, 'labs/.eyes/ledger.json'), JSON.stringify([
+  { id: 'row-0001', ts: 1, agent: 't', commit: 'c', artifact: 'home/desktop-1280/current.png', type: 'adopt', note: 'ghost pointer' },
+]))
+const r6a = await doctor(d6a)
+assert(r6a.findings.some((f) => f.id === 'dangling-canon' && f.level === 'fail'), 'dangling canon pointer: the doctor refuses (DANGLING_ROW as a doctor finding)')
+// 6b. an UNSET pin fails: a canon token pointing at nothing is an unfilled
+//     truth slot in the canon's uniform.
+const d6b = mkdtempSync(join(tmpdir(), 'forge-canon-'))
+mkdirSync(join(d6b, 'labs/.eyes'), { recursive: true })
+writeFileSync(join(d6b, 'labs/.eyes/manifest.yml'), 'pin:\n  browser-image: UNSET-edit-me\n  renderer: UNSET-edit-me\nroutes:\n  - path: /  view: desktop-1280  theme: dark  viewport: 1280x800\n')
+writeFileSync(join(d6b, 'labs/.eyes/ledger.json'), '[]')
+const r6b = await doctor(d6b)
+assert(r6b.findings.some((f) => f.id === 'canon-pin' && f.level === 'fail'), 'UNSET canon pins: the doctor refuses until something fills them')
+// 6c. canon-free tree stays silent: no canon, no findings, no fake pass.
+const d6c = mkdtempSync(join(tmpdir(), 'forge-canon-'))
+writeFileSync(join(d6c, 'placeholder.txt'), 'no canon here')
+const r6c = await doctor(d6c)
+assert(!r6c.findings.some((f) => f.id === 'dangling-canon' || f.id === 'canon-pin'), 'canon-free tree: the canon checks stay silent, never a dressed-up pass')
+rmSync(d6a, { recursive: true, force: true })
+rmSync(d6b, { recursive: true, force: true })
+rmSync(d6c, { recursive: true, force: true })
+
 rmSync(base, { recursive: true, force: true })
 if (fails.length) { console.error('SELF-TEST FAIL:\n  ' + fails.join('\n  ')); process.exit(1) }
-console.log('monoforge self-test: bad-config refused, stray dir refused, stamp ok, unfilled doctor FAIL, refilled doctor PASS - PASS')
+console.log('monoforge self-test: bad-config refused, stray dir refused, stamp ok, unfilled doctor FAIL, refilled doctor PASS, canon dangling/UNSET refused, canon-free silent - PASS')
 process.exit(0)
 
 function require3(p) { return rf(p, 'utf8') }
