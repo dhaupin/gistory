@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`id-token: write` provenance).
 - Docs run on Jekyll + Pagefind + Freestruct at
   `docs.creadev.org/poststruct` via `.github/workflows/docs.yml`.
-  Landing host is `poststruct.creadev.org` (Cloudflare Pages); the
-  landing build itself arrives with the prestruct `/example`-based
-  rebrand, and its output becomes the first dogfood target.
+  Landing host is `poststruct.creadev.org` (Cloudflare Pages): the
+  landing is shipped and live (web/ prerendered, `npm run site:build`
+  bakes it), and its output is the first dogfood target (`npx
+  poststruct audit dist/` gates clean on it).
