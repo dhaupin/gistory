@@ -5,6 +5,41 @@
       "pack": "eyes-reference",
       "id": "og-image:https://gistory.creadev.org/og-image.png",
       "verdict": "PASSED"
+    },
+    {
+      "pack": "eyestruct-shapes",
+      "id": "eyes/manifest-pin-drift",
+      "verdict": "PASSED"
+    },
+    {
+      "pack": "eyestruct-shapes",
+      "id": "eyes/ledger-corrupt",
+      "verdict": "PASSED"
+    },
+    {
+      "pack": "eyestruct-shapes",
+      "id": "eyes/dangling-canon",
+      "verdict": "PASSED"
+    },
+    {
+      "pack": "eyestruct-shapes",
+      "id": "eyes/receipt-provenance",
+      "verdict": "PASSED"
+    },
+    {
+      "pack": "eyestruct-shapes",
+      "id": "eyes/verdict-count-drift",
+      "verdict": "PASSED"
+    },
+    {
+      "pack": "eyestruct-shapes",
+      "id": "eyes/reason-table-drift",
+      "verdict": "PASSED"
+    },
+    {
+      "pack": "eyestruct-shapes",
+      "id": "eyes/note-unsafety",
+      "verdict": "PASSED"
     }
   ]
 }

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "eyestruct-shapes",
+  "description": "File checks over an eyestruct-shaped lab's .eyes canon tree: the canon ledger parses and stays append-only honest (schema, no duplicate ids), every ledger pointer resolves to a committed artifact (the DANGLING_ROW row-lie class refused), the manifest pin + route matrix parse as the family schema, the reason-code docs table matches the lib's named codes, the committed pack-verdict ledger covers the exported packs, receipt-hall rows point at real files, and note fields carry no control characters. Zero network, zero HTML parsing - JSON/YAML-subset/text receipts only, the vant-shapes deal again.",
+  "version": "0.1.0",
+  "entry": "index.mjs",
+  "env": {
+    "fs": {
+      "targets": [
+        "labs/.eyes/manifest.yml",
+        "labs/.eyes/ledger.json",
+        "labs/.eyes/<route-slug>/<view>/current.png",
+        "labs/.eyes-receipt/ledger.json",
+        "packs/eye-ledger.json",
+        "lib/reasons.js",
+        "docs/reasons.md"
+      ]
+    }
+  }
+}
