@@ -42,40 +42,40 @@ jobs:
           set -euo pipefail
           git show b4fdf3a58b2d9cf73791e031d8510bbbd60a3ff9:poststruct-staging/.github/workflows/docs.yml > poststruct-staging/.github/workflows/docs.yml
           python3 /dev/stdin poststruct-staging/.github/workflows/docs.yml <<'PY'
-            import sys
-            path = sys.argv[1]
-            old = open(path).read()
-            marker = '          node scripts/check-language.cjs\n'
-            assert old.count(marker) == 1, 'gate chain not in the expected shape'
-            old_block = '\n'.join([
-              '      # Docs truth gates (ported house checkers): frontmatter 5-field law,',
-              '      # resolvable links, style law (no dashes in prose, language-tagged',
-              '      # fences, no trailing ws), English-only prose.',
-              '      - name: Docs gates',
-              '        run: |',
-              '          node scripts/check-docs-frontmatter.cjs',
-              '          node scripts/check-docs-links.cjs',
-              '          node scripts/check-docs-style.cjs',
-              '          node scripts/check-language.cjs',
-              '',
-            ])
-            new_block = '\n'.join([
-              '      # Docs truth gates (ported house checkers): frontmatter 5-field law,',
-              '      # resolvable links, style law (no dashes in prose, language-tagged',
-              '      # fences, no trailing ws), fiction-signature + Jekyll-filter trap',
-              '      # scanners (the rig-pass generation, gistory#23), English-only prose.',
-              '      - name: Docs gates',
-              '        run: |',
-              '          node scripts/check-docs-frontmatter.cjs',
-              '          node scripts/check-docs-links.cjs',
-              '          node scripts/check-docs-style.cjs',
-              '          node scripts/check-fiction-signatures.cjs',
-              '          node scripts/check-jekyll-filters.cjs',
-              '          node scripts/check-language.cjs',
-              '',
-            ])
-            assert old.count(old_block) == 1, 'gate block not unique'
-            open(path, 'w').write(old.replace(old_block, new_block))
+          import sys
+          path = sys.argv[1]
+          old = open(path).read()
+          marker = '          node scripts/check-language.cjs\n'
+          assert old.count(marker) == 1, 'gate chain not in the expected shape'
+          old_block = '\n'.join([
+            '      # Docs truth gates (ported house checkers): frontmatter 5-field law,',
+            '      # resolvable links, style law (no dashes in prose, language-tagged',
+            '      # fences, no trailing ws), English-only prose.',
+            '      - name: Docs gates',
+            '        run: |',
+            '          node scripts/check-docs-frontmatter.cjs',
+            '          node scripts/check-docs-links.cjs',
+            '          node scripts/check-docs-style.cjs',
+            '          node scripts/check-language.cjs',
+            '',
+          ])
+          new_block = '\n'.join([
+            '      # Docs truth gates (ported house checkers): frontmatter 5-field law,',
+            '      # resolvable links, style law (no dashes in prose, language-tagged',
+            '      # fences, no trailing ws), fiction-signature + Jekyll-filter trap',
+            '      # scanners (the rig-pass generation, gistory#23), English-only prose.',
+            '      - name: Docs gates',
+            '        run: |',
+            '          node scripts/check-docs-frontmatter.cjs',
+            '          node scripts/check-docs-links.cjs',
+            '          node scripts/check-docs-style.cjs',
+            '          node scripts/check-fiction-signatures.cjs',
+            '          node scripts/check-jekyll-filters.cjs',
+            '          node scripts/check-language.cjs',
+            '',
+          ])
+          assert old.count(old_block) == 1, 'gate block not unique'
+          open(path, 'w').write(old.replace(old_block, new_block))
           PY
           got="$(git hash-object poststruct-staging/.github/workflows/docs.yml)"
           if [ "$got" != "00a18f1296b3a7878d6e36b9390e69085e3239ae" ]; then echo "DOCS GATE FAIL $got"; exit 1; fi
