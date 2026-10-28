@@ -38,14 +38,24 @@
   slug, instant nameable refusals, and `packstruct lint packs/` before
   any merge that touches packs.
 - **Packs ARE realized here** (the gistory#14 battery landed with the
-  lint-packs wrapper verb): `packs/public/eye-reference/` ships the
-  reference-shape pack with a committed `packs/eye-ledger.json` baseline,
-  packstruct rides an exact devDependency pin (1.0.0), the battery is
+  lint-packs wrapper verb): `packs/public/eyes-reference/` ships the
+  reference-shape pack and `packs/public/eyestruct-shapes/` ships the
+  canon-audit pack over an eyestruct-shaped lab tree (poststruct#19:
+  seven pure file checks, zero network; the hosted target resolves as
+  `EYESTRUCT_TREE`, else the sibling upstream checkout, else one BOUNDED
+  docket, never a fake pass). Both against the committed
+  `packs/eye-ledger.json` baseline, packstruct rides an exact devDependency
+  pin (1.0.0), the battery is
   `npm run check` = test + `lint:packs` (the wrapper, repo's own
   install) + `conform:packs` (audit-conformance through the campaign
-  runner), and `packstruct lint --deep` runs inside the wrapper. Adding
-  a pack or touching pack ids must keep the ledger green in the same
-  commit.
+  runner), and `packstruct lint --deep` runs inside the wrapper. The test
+  verb carries the three-part spine: the audit fixtures (8 exact FAIL ids),
+  `test/shapes-run.mjs` (the shapes pack's good canon + ten bad fixtures),
+  and `node --test test/ship-from-download.test.cjs` (the copied phone
+  publish lane, 21 behavior tests, the script itself is
+  `scripts/ship-from-download.cjs` byte-as-is from eyestruct@9744c76).
+  Adding a pack or touching pack ids must keep the ledger green in the
+  same commit.
 - All prose in shipped templates, fixtures, README and AGENTS submits to
   the voice law: zero dashes-of-any-kind, no AI-cliche constructions,
   plain declarative sentences only.
