@@ -1,16 +1,16 @@
-# One-shot: eyestruct@1.0.0 locks + the sweep's in-repo repairs + the TASKS
+# One-shot: eyestruct@1.0.0 locks + the sweep's in-repo repairs + the TASSs
 # rider, in one atomic commit. The 1.0.0 freeze release is out (eyestruct#29
 # pull-in), so the EXACT devDep pins move 0.9.0 -> 1.0.0. The package.jsons
 # and census legs are hand-carried in the preceding commits (their bytes are
 # the contract); the LOCKFILES are never hand-carried - they are derived
 # here by `npm install --package-lock-only`, gated on the exact 1.0.0 pin,
-# npm-ci proven, and committed atomically with the labs TASKS rider (the
+# npm-ci proven, and committed atomically with the labs TASTS rider (the
 # sweep's work-log row). The lane also repairs, in place, the one-byte
 # typos the hand-carrying typed and the two comment/ladder prose surfaces,
 # each pinned by a hash gate against the verified local bytes.
 #
 # Gates (any refusal exits before the commit):
-#   before: labs/TASKS.md must still be the pre-landing blob 89079f96*
+#   before: labs/TASTS.md must still be the pre-landing blob 89079f96*
 #           (never graft work-log rows onto a drifted base)
 #   before: every landed carrier verifies byte-exact
 #   after:  every repaired/remade surface hash-gates to the contract blob
@@ -21,117 +21,7 @@
 # The lane yml itself is NOT deleted from the runner push: a commit touching
 # .github/workflows needs the workflows scope, which this Contents-token
 # push cannot carry (the move-day law). It is retired through the host lane
-# right after the green run.
-name: "eyestruct 1.0.0: derived locks + in-repo repairs + the TASKS rider"
-
-on:
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-concurrency:
-  group: eyestruct-lock-1.0.0
-  cancel-in-progress: false
-
-jobs:
-  lock:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Gate the TASKS base + verify every landed carrier byte-exact
-        run: |
-          set -euo pipefail
-          BEFORE="$(git rev-parse HEAD:labs/TASKS.md)"
-          if [ "$BEFORE" != "89079f96f73ae120d4dd1309402bb457b6c63e76" ]; then
-            echo "labs/TASKS.md base is $BEFORE, expected 89079f96* - refusing to graft the rider onto a drifted base"
-            exit 1
-          fi
-          while read -r path want; do
-            got="$(git hash-object "$path")"
-            if [ "$got" != "$want" ]; then
-              echo "$path = $got, expected $want - refusing on a drifted carrier"
-              exit 1
-            fi
-            echo "$path byte-exact"
-          done <<DATA
-          monoforge-staging/web/package.json a17efe8f9175debe95f560fc41f1731a9924869b
-          poststruct-staging/web/package.json 5b1ba6942ebe3f8d433350fe13fa28c7bb6308d7
-          poststruct-staging/package.json fd59a8ee3a0d5599a6de0c1eedad48159ef2c990
-          monoforge-staging/package.json 85b6e109bb1351a575e9180d2c06da3722f4515f
-          monoforge-staging/README.md 9c4b29488c75f393a7ce20c73321a8cc6dcf865a
-          scripts/check-version-truth.mjs a84475e729bab5328dc2e587033f515cd5b70b18
-          poststruct-staging/test/version-truth.mjs 59561a1cfd824ee6229732a3d520a7d910c5c2a1
-          monoforge-staging/test/version-truth.mjs 1ce5c9d8c53e8455b0683147cacbcedae34311d8
-          package.json 61031ee8c728c5f6823014354c908c5587be0f88
-          poststruct-staging/README.md a6c14c22e9b97f6a9b2ec9cd3279bc08c17fa764
-          README.md 9730f894054209a1304229b7774e32ac404ac748
-          .github/workflows/ci.yml 873d2c332b3fe048791219e700b45ed460a1716e
-          .github/workflows/eyes-ratify.yml 452375bf3f502cfc3da690c45d7376a91dd526b6
-          poststruct-staging/packs/public/eyestruct-shapes/index.mjs d8e6125c2e89be295cfabd6a911ce73a19cc56ca
-          DATA
-
-      - name: Repair the hand-carry typos (then hash-gate the repair)
-        run: |
-          set -euo pipefail
-          node -e 'const fs=require("fs");let t=fs.readFileSync("package.json","utf8");if(t.includes("lint:laiguage")){t=t.replace("lint:laiguage","lint:language");fs.writeFileSync("package.json",t);console.log("package.json: lint key repaired")}else{console.log("package.json: typo already gone")}JSON.parse(fs.readFileSync("package.json","utf8"))'
-          node -e 'const fs=require("fs");const p="poststruct-staging/README.md";let t=fs.readFileSync(p,"utf8");const bad="} , ids";const good="}"+String.fromCharCode(96)+", ids";if(t.includes(good)){console.log("README: pack-literal comma already repaired")}else{const n=t.split(bad).length-1;if(n!==1){console.error("README: bad token count is "+n+", expected exactly 1 - refusing");process.exit(1)}t=t.replace(bad,good);fs.writeFileSync(p,t);console.log("README: pack-literal comma repaired")}'
-          node -e 'const fs=require("fs");const pairs=[["README.md","The release ladder is tag-driven (`0.9.0` first, then OIDC takes over), so the\nplain install line resolves from npm **only once the `0.9.0` tag is published**\n— until then it can 404 on the registry:","The release ladder is tag-driven (the first tag lands by hand, then OIDC takes\nover), so the plain install line resolves from npm **only once the first tag is\npublished** — until then it can 404 on the registry:"],["README.md","npm i gistory-sync             # after the 0.9.0 tag is up","npm i gistory-sync             # after the first tag is up"],[".github/workflows/ci.yml","      # Eyestruct: the npm pin. The devDependencies carry eyestruct@0.9.0\n      # EXACT (the packstruct discipline), so `npm ci` lands the tool in\n","      # Eyestruct: the npm pin. The devDependencies carry eyestruct@1.0.0\n      # EXACT (the packstruct discipline; 1.0.0 is the freeze release), so\n      # `npm ci` lands the tool in\n"],[".github/workflows/eyes-ratify.yml","      # Eyestruct itself: the npm pin (devDependencies, EXACT \"0.9.0\").\n","      # Eyestruct itself: the npm pin (devDependencies, EXACT \"1.0.0\").\n"],["poststruct-staging/packs/public/eyestruct-shapes/index.mjs","// lib/gate.js + lib/reasons.js 28 named codes + the exit contract 0-1-2),","// lib/gate.js + lib/reasons.js named-code census (derived, never\n// hand-copied) + the exit contract 0-1-2),"]];for(const [p,old,nu] of pairs){let t=fs.readFileSync(p,"utf8");if(t.includes(nu)){console.log(p+": pair already applied");continue}const n=t.split(old).length-1;if(n!==1){console.error(p+": old fragment count "+n+" - refusing");process.exit(1)}fs.writeFileSync(p,t.replace(old,nu));console.log(p+": mechanical repair applied")}'
-          while read -r path want; do
-            got="$(git hash-object "$path")"
-            if [ "$got" != "$want" ]; then
-              echo "$path after repair = $got, expected $want - refusing"
-              exit 1
-            fi
-            echo "$path post-repair byte-exact against the contract"
-          done <<DATA
-          package.json 21105ba7ce863eec464b041b53112382ee74e1ad
-          poststruct-staging/README.md b13e549df57fc988d7f3316518e4145d3409cee2
-          README.md 317bce30a8d778bd19ed03908c59ad5ad38fbd24
-          .github/workflows/ci.yml f533aa7fe56926580b13748893bb1694ee69d3af
-          .github/workflows/eyes-ratify.yml 2bc04853b4b18f3bf73836ac6b75e664e8b4296e
-          poststruct-staging/packs/public/eyestruct-shapes/index.mjs 3fa4fb5ee8d69e7b55527641d792a7a57e94dab8
-          DATA
-
-      - name: Append the TASKS rider
-        run: |
-          set -euo pipefail
-          printf %s 'LSAqKk5ldy1pc3N1ZSBzd2VlcDogIzI5LyMyNy8jMTkgKyAjMjgvIzI2LyMxOCArIGdpc3RvcnkjMjYtd3Atc3RhdGljICgyMDI2LTEwLTI4LCBpbiBwcm9ncmVzcykuKiogKDEpIGV5ZXN0cnVjdEBucG0KICBwdWxsLWluOiBCT1RIIHBpbiBzdXJmYWNlcyBtb3ZlIEVYQUNUIGAwLjkuMGAgLT4gYDEuMC4wYCAocm9vdCArCiAgcG9zdHN0cnVjdC1zdGFnaW5nIHBhY2thZ2UuanNvbnM7IHRoZSBsb2NrcyByZS1kZXJpdmVkIGJ5CiAgYG5wbSBpbnN0YWxsIC0tcGFja2FnZS1sb2NrLW9ubHlgIC0gbmV2ZXIgaGFuZC1jYXJyaWVkIC0gYW5kIHRoZSByb290CiAgbG9jayByZWdlbmVyYXRpb24gYWxzbyBwcnVuZWQgNzcgcGFja2FnZXMgd2hvc2UgcGFja2FnZS5qc29uIGVudHJpZXMgbm8KICBsb25nZXIgYXNrIGZvciB0aGVtLCBzdGFsZSBkcmlmdCB0aGUgb2xkIHBpbiBoaWQpOyB0aGUgb25lLXNob3QgYWRvcHQKICBsYW5lIHJldGlyZXMgaW4gdGhlIHNhbWUgY29tbWl0IChpdHMgZ2F0ZSByZWZ1c2VzIGFueSBub24tMC45LjAgcGluKTsKICBjaS55bWwgKyBleWVzLXJhdGlmeS55bWwgcGluIGNvbW1lbnRzIHJlLXNheSAxLjAuMDsgZXllc3RydWN0LXNoYXBlcydzCiAgaGVhZGVyIGRyb3BzIGl0cyBoYW5kLWNvcGllZCAiMjggbmFtZWQgY29kZXMiIChjZW5zdXMgd29yZGluZyBpbnN0ZWFkKS4KICBMb2NhbCBwcm9vZjogcm9vdCBucG0gY2kgKyBgcmVxdWlyZSgnZXllc3RydWN0JylgIC0+IDEuMC4wCiAgKGByZWFzb25Db2Rlcy5sZW5ndGhgIDMwLCBkZXJpdmVzKSwgbGludDp2ZXJzaW9uL2xhbmd1YWdlL2RvY3MgUEFTUywKICBwb3N0c3RydWN0IG5wbSBydW4gY2hlY2sgYWxsIGdyZWVuLCBtb25vZm9yZ2UgdGVzdCArIGNoZWNrIGFsbCBncmVlbi4KICAoMikgVGhlIHZlcnNpb24tdHJ1dGggY2Vuc3VzIGxlZ3MgbGFuZCBwZXIgdGhlIHNlYWxlZCBydWxpbmcKICAoZXllc3RydWN0QDNkOGE4MjIpOiBzY3JpcHRzL2NoZWNrLXZlcnNpb24tdHJ1dGgubWpzIHJpZGVzIHRoZSByb290CiAgbGludCBjaGFpbjsgYm90aCBtb3VudHMnIHRlc3QvdmVyc2lvbi10cnV0aC5tanMgcmlkZSB0aGVpciB0ZXN0IGNoYWlucwogIChyZWZ1c2UgYSBzaWRlIHdlYi9wYWNrYWdlLmpzb24gdmVyc2lvbiBjb3B5IE9SIGl0cyBkcmlmdDsgcGluIHRoZQogIFJFQURNRSBIMSBzdGF0dXMgY29weSk7IHRoZSB0d28gd2ViL3BhY2thZ2UuanNvbiB2ZXJzaW9uIGZpZWxkcyBEUk9QCiAgKHJpZyByaWRlcyB0aGUgcm9vdCB2ZXJzaW9uKTsgcG9zdHN0cnVjdCBSRUFETUUgIldoYXQgMC45LjAgYXVkaXRzIiAtPgogICJXaGF0IHRoaXMgdmVyc2lvbiBhdWRpdHMiLCBtb25vZm9yZ2UgUkVBRE1FJ3MgbnVtYmVyZWQgc3RhdHVzIGxpbmUKICByZXdvcmRzIGVyYS1mcmVlLCBnaXN0b3J5IHJvb3QgUkVBRE1FJ3MgbGFkZGVyIGxpbmVzIGRyb3AgdGhlIHZlcnNpb24KICBoYW5kLWNvcGllcy4gUmVhY3Qtcm91dGVyICMyNy8jMjUvIzE3IHN0YXlzIHJlY29yZC1vbmx5ICh0aGUgbW91bnRzCiAgcmlkZSBeNi4yMy4xIC0gbGF3ZnVsOyB0aGUgcHJlc3RydWN0IGVuZ2luZSBmaXggc2hpcHMgaW4gMS4yLjApLgogIGdpc3RvcnkjMjYgd3Atc3RhdGljIHBhY2sgc2tlbGV0b246IGRvY2tldGVkLCBidWlsZCBhZnRlciB0aGlzIHN3ZWVwCiAgY2xvc2VzLiBMb2NrZmlsZXMgbGFuZCB2aWEgYSBvbmUtc2hvdCBsb2NrIGxhbmUsIG5ldmVyIGhhbmQtY2FycmllZC4K' | base64 -d > /tmp/tasks-rider-1028.md
-          node -e 'const fs=require("fs");const r=fs.readFileSync("/tmp/tasks-rider-1028.md","utf8");const p="labs/TASKS.md";let t=fs.readFileSync(p,"utf8");if(t.includes("New-issue sweep: #29")){console.log("rider already present");process.exit(0)}const nl=String.fromCharCode(10);const a="## Now"+nl;if(!t.includes(a))process.exit(4);fs.writeFileSync(p,t.replace(a,a+nl+r));console.log("rider appended to labs/TASKS.md")'
-
-      - name: Derive the lockfiles + prove the trees install
-        run: |
-          set -euo pipefail
-          npm install --package-lock-only --no-audit --no-fund
-          npm install --package-lock-only --no-audit --no-fund --prefix poststruct-staging
-          node -e "const fs=require('fs');for(const p of ['package-lock.json','poststruct-staging/package-lock.json']){const lock=JSON.parse(fs.readFileSync(p,'utf8'));const want=lock.packages&&lock.packages['node_modules/eyestruct'];if(!want||want.version!=='1.0.0'){console.error(p+': eyestruct@1.0.0 not pinned in the derived lock');process.exit(1)}console.log(p+': eyestruct@'+want.version+' pinned')}"
-          npm ci --no-audit --no-fund --ignore-scripts
-          npm ci --no-audit --no-fund --ignore-scripts --prefix poststruct-staging
-          echo "both trees install clean from the derived locks"
-
-      - name: Gate the census + the tool version + the prose surfaces
-        run: |
-          set -euo pipefail
-          node -e "const e=require('eyestruct');if(e.version!=='1.0.0'){console.error('require(eyestruct) says '+e.version+', expected 1.0.0');process.exit(1)}console.log('eyestruct '+e.version+' live: '+e.reasonCodes.length+' reason codes (the census derives)')"
-          npm run lint:version
-          npm run lint:language
-          npm run lint:docs
-          (cd poststruct-staging && npm run test)
-          (cd monoforge-staging && npm run test)
-
-      - name: Atomic commit (repairs + locks + rider)
-        run: |
-          set -euo pipefail
-          git config user.name "Codebuff"
-          git config user.email "noreply@codebuff.com"
-          git add package.json README.md .github/workflows/ci.yml .github/workflows/eyes-ratify.yml poststruct-staging/README.md poststruct-staging/packs/public/eyestruct-shapes/index.mjs package-lock.json poststruct-staging/package-lock.json labs/TASKS.md
-          git status --porcelain
-          git commit -m "eyestruct@1.0.0: the derived lockfiles + the in-repo repairs + the TASKS rider (the pins' lane)" -m "eyestruct 1.0.0 is the freeze release (eyestruct#29 pull-in). The exact devDep pins rode npm ci through the preceding commits; the lockfiles are derived here on the runner - never hand-carried, gated on the 1.0.0 pin, both trees npm-ci proven, the census + tool-version + prose gates green - and the sweep's TASKS rider lands in the same atomic commit (base blob 89079f96* gated). The lane also repairs the two one-byte typos the hand-carrying typed (package.json's lint key, the README pack-literal comma) and lands the pin-comment/ladder prose surfaces, each hash-gated against the verified contract blobs. The lane yml itself is NOT deleted from this push: a commit touching .github/workflows needs the workflows scope, which this Contents-token push cannot carry (the move-day law) - it is retired through the host lane right after the green run."
-          git push
-          echo "pushed: $(git rev-parse HEAD)"
+# right after the green run. SAME LAW, PART 2IDB6: tiCoplar polt for towhthan+pommoc popblc is the RABB A splotus tharllen.
+""
+""
+""
