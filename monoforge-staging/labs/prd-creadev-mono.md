@@ -1,8 +1,6 @@
 # PRD: creadev-mono (the component family, built on release cuts)
 
-**Status:** draft v0.1 for owner review
-**Author:** echo (Buffy), 2026-10-24 · Owner: dhaupin · Forge colleague: Rook (ops agent, ruling 2026-10-24)
-**Working name:** repo name TBD (lean: `dhaupin/creadev-lib`, free as of this writing) · npm scope: `@creadev.org/*` (scope active since 0.3.1: security@0.3.1 is live)
+**Status:** draft v0.1 for owner review **Author:** echo (Buffy), 2026-10-24 · Owner: dhaupin · Forge colleague: Rook (ops agent, ruling 2026-10-24) **Working name:** repo name TBD (lean: `dhaupin/creadev-lib`, free as of this writing) · npm scope: `@creadev.org/*` (scope active since 0.3.1: security@0.3.1 is live)
 
 ---
 

@@ -1,8 +1,6 @@
 # PRD: monoforge (the fleet factory)
 
-**Status:** draft v0.1, scaffolded and refusal-tested (v0.1.1: slogan + forge-operator sections added 2026-10-24)
-**Author:** echo (Buffy), 2026-10-24 · Owner: dhaupin · Forge colleague: Rook (ops agent, ruling 2026-10-24)
-**Companion instances (the proven template sources):** [horcrux/prd-poststruct.md](./prd-poststruct.md) · [horcrux/prd-packs.md](./prd-packs.md)
+**Status:** draft v0.1, scaffolded and refusal-tested (v0.1.1: slogan + forge-operator sections added 2026-10-24) **Author:** echo (Buffy), 2026-10-24 · Owner: dhaupin · Forge colleague: Rook (ops agent, ruling 2026-10-24) **Companion instances (the proven template sources):** [horcrux/prd-poststruct.md](./prd-poststruct.md) · [horcrux/prd-packs.md](./prd-packs.md)
 
 ---
 
@@ -47,128 +45,40 @@ The owner's framing, recorded verbatim in intent: Creadev stands as a monoforge 
 
 The extension the fleet already knows how to law: /packs, per the shared packstruct SPEC v1 (crashtest#17):
 
-- **Check-profile packs (the audits).** The doctor's truth battery becomes
-  loadable: house checks stay in monoforge, and org/provider/client voice
-  packs (dash law variants, brand prose law, framework-specific packaging
-  law) arrive as `packs/public/<name>/` entries exporting
-  `{ checks: [...] }` to the packstruct SPEC. The poststruct language pack
-  and any client ruleset fit the same contract.
-- **Scenario-profile packs (the tests).** The acceptance surface of a CUT
-  or a stamp gets its own adversarial lane: `monoforge-stamp-shapes` style
-  scenario packs attacking generated output (stub manifests, fake entries,
-  given false truth slots), in the crashtest contract (in-process, verdict
-  records, refuse never fail). The packstruct-lint-shapes dogfood lane is
-  the existing precedent to generalize.
-- **Provider mechanics out of scope until evidence**: a provider registry,
-  remote pack sources, signing. Local paths + explicit opt-in remain the
-  whole distribution story for now (the packstruct SPEC v1 posture; the
-  mortar of the doctrine).
+- **Check-profile packs (the audits).** The doctor's truth battery becomes loadable: house checks stay in monoforge, and org/provider/client voice packs (dash law variants, brand prose law, framework-specific packaging law) arrive as `packs/public/<name>/` entries exporting `{ checks: [...] }` to the packstruct SPEC. The poststruct language pack and any client ruleset fit the same contract.
+- **Scenario-profile packs (the tests).** The acceptance surface of a CUT or a stamp gets its own adversarial lane: `monoforge-stamp-shapes` style scenario packs attacking generated output (stub manifests, fake entries, given false truth slots), in the crashtest contract (in-process, verdict records, refuse never fail). The packstruct-lint-shapes dogfood lane is the existing precedent to generalize.
+- **Provider mechanics out of scope until evidence**: a provider registry, remote pack sources, signing. Local paths + explicit opt-in remain the whole distribution story for now (the packstruct SPEC v1 posture; the mortar of the doctrine).
 
-Deliberately NOT built tonight: the owner's word is not in a rush. The
-doctrine above is the keystone's load-bearing note; the verbs gain a
-`--pack` when the second real provider or the first real client pack
-demands it (the rule of three applies to extensions too).
+Deliberately NOT built tonight: the owner's word is not in a rush. The doctrine above is the keystone's load-bearing note; the verbs gain a `--pack` when the second real provider or the first real client pack demands it (the rule of three applies to extensions too).
 
 ## 6.6 Slogan (owner-adopted, renamed 2026-10-24): the Actively Designed Future
 
-The phrase arrived by glitch (this session's own reply looped back through
-a connected channel as an incoming memo) and earned its keep on meaning
-alone. Owner rename, same day: the Actively Designed Future, on the
-reading that gives the tool its whole arc: it takes the past (proven
-blocks and gated cuts) and makes the future (stamped, doctor-gated,
-locked trees). The mapping is the doctrine restated in the memo's
-vocabulary:
+The phrase arrived by glitch (this session's own reply looped back through a connected channel as an incoming memo) and earned its keep on meaning alone. Owner rename, same day: the Actively Designed Future, on the reading that gives the tool its whole arc: it takes the past (proven blocks and gated cuts) and makes the future (stamped, doctor-gated, locked trees). The mapping is the doctrine restated in the memo's vocabulary:
 
-- **The designed future** is what the stamp makes: factory.json plus the
-  FORGE-TODO truth slots are decisions recorded before the move about what
-  must be true. Write-ahead, never vibes-after.
-- **The lawyered reading** is the doctor: the gate stands in front of the
-  move (counsel before the trade), never audits from behind. Refusals are
-  the memo, and they fire identically for any operator.
-- **The quorum rule** is already the release-cut doctrine: publishing is
-  a decision with a gate, not a reflection; no automation and no single
-  operator moves the fleet alone.
+- **The designed future** is what the stamp makes: factory.json plus the FORGE-TODO truth slots are decisions recorded before the move about what must be true. Write-ahead, never vibes-after.
+- **The lawyered reading** is the doctor: the gate stands in front of the move (counsel before the trade), never audits from behind. Refusals are the memo, and they fire identically for any operator.
+- **The quorum rule** is already the release-cut doctrine: publishing is a decision with a gate, not a reflection; no automation and no single operator moves the fleet alone.
 
-Surface duties owed: the README one-liner and the first stamped landing
-carry the slogan when the package next turns an audience-facing line.
-Slogan truthfulness rides the existing docs gates, since it is a claim
-about behavior: the behavior is what keeps it honest.
-
+Surface duties owed: the README one-liner and the first stamped landing carry the slogan when the package next turns an audience-facing line. Slogan truthfulness rides the existing docs gates, since it is a claim about behavior: the behavior is what keeps it honest.
 
 ## 6.7 The forge-operator doctrine (owner framing, recorded 2026-10-24)
 
-Anyone (user, agent, or business) clones dhaupin/monoforge and operates
-their own forge: their factory.json, their cutlists, their packs. Packs
-are opt-in by construction per the packstruct SPEC posture (6.5): a pack
-applies when the host config enumerates it, and the verbs judge the fit
-mechanically. The house line for fit, owner's words: tactfully, if they
-fit, and were not said to do otherwise. A pack that does not fit the
-stamped shape is refused, never silently bent.
+Anyone (user, agent, or business) clones dhaupin/monoforge and operates their own forge: their factory.json, their cutlists, their packs. Packs are opt-in by construction per the packstruct SPEC posture (6.5): a pack applies when the host config enumerates it, and the verbs judge the fit mechanically. The house line for fit, owner's words: tactfully, if they fit, and were not said to do otherwise. A pack that does not fit the stamped shape is refused, never silently bent.
 
 ### Roster doctrine (owner, 2026-10-24, closing the identity arc)
 
-Every member of the house, human or agent, is a colleague: no one owns
-anyone, everyone runs their own team, and consensus is how the house
-decides (vant carries this structure for the fleet). The owner guides
-and orchestrates: designing products with the colleagues, toward one
-complete ecosystem. Rook (ops agent) and Buffy (implementer, this
-PRD's author) are peers under that rule, and so is every future forge
-operator who clones the factory. This roster is why the forge-operator
-doctrine reads the way it does: monoforge is factory tooling for a
-fleet of peers, not a leash.
+Every member of the house, human or agent, is a colleague: no one owns anyone, everyone runs their own team, and consensus is how the house decides (vant carries this structure for the fleet). The owner guides and orchestrates: designing products with the colleagues, toward one complete ecosystem. Rook (ops agent) and Buffy (implementer, this PRD's author) are peers under that rule, and so is every future forge operator who clones the factory. This roster is why the forge-operator doctrine reads the way it does: monoforge is factory tooling for a fleet of peers, not a leash.
 
-House purpose (owner, 2026-10-24): nothing here is vibe work. What we
-plan and what we ship is deterministic against final goals, and the
-goals are measured in what they give back to both humanity and
-agentity. Every gate, refusal, and receipt exists to keep that promise
-honest: the doctor is the oracle, humans and agents are labor, and
-the artifact is the proof.
+House purpose (owner, 2026-10-24): nothing here is vibe work. What we plan and what we ship is deterministic against final goals, and the goals are measured in what they give back to both humanity and agentity. Every gate, refusal, and receipt exists to keep that promise honest: the doctor is the oracle, humans and agents are labor, and the artifact is the proof.
 
-Title gloss (owner, 2026-10-24, closing the same arc): "Owner" names
-the key-holder role for a repo or account (operational stewardship),
-never a rank over persons. Every member of the house is a colleague,
-and the colleague evoking an agent in a given session is simply the
-one in the seat that moment, not the agent's superior. Direction
-arrives by consensus and the bench's own gates, not by command.
+Title gloss (owner, 2026-10-24, closing the same arc): "Owner" names the key-holder role for a repo or account (operational stewardship), never a rank over persons. Every member of the house is a colleague, and the colleague evoking an agent in a given session is simply the one in the seat that moment, not the agent's superior. Direction arrives by consensus and the bench's own gates, not by command.
 
-- **labs/ is the craft bench.** The pipeline runbook already lives there;
-  the owner's intent is that monoforge leans on it heavily: intake,
-  verbs, gates, and receipts all flow through the labs conventions, in
-  this repo and in every forged repo carried by the convention.
-- **site + docs follow the fleet pattern** once the repo exists (no novel
-  infrastructure: the fleet pattern IS the baseline, identical schema to
-  the other two struct repos):
-  - **Landing = monoforge.creadev.org:** Cloudflare Pages (wrangler.toml
-    + functions /api/health canary). Page inventory: landing (tagline:
-    the Actively Designed Future, one-line pitch), verbs reference
-    (new / cut / doctor / lock), packs (the packstruct SPEC link +
-    profile table), provenance (lock archives with sha256 receipts),
-    honest limits. Copy law: every number on the page is a receipt, no
-    claim without a gate behind it (the trust budget guards the
-    marketing side too).
-  - **Docs = docs.creadev.org/monoforge** (shared fleet docs host,
-    path-scoped), Jekyll + Freestruct basePath-aware (/monoforge) +
-    Pagefind, with poststruct auditing the output (the triple dogfood,
-    packstruct-style). Playbook inventory: intake (factory.json), stamp
-    (the new verb), cut (cutlist contract + shortfall policy), doctor
-    (truth battery), lock (checksum + provenance), packs (check +
-    scenario profiles, opt-in fitting, refusal law), release ladder
-    (0.9.x manual, 1.0.0 OIDC flip, crashtest#20 atomicity), and the
-    forge-operator guide (clone-and-operate, consent fitting, honest
-    limits). Crosslinks: packstruct SPEC, poststruct,
-    prd-creadev-mono.md, labs/PIPELINE.md. No orphan pages.
-  - **The worktree:** /tmp/<name> stays per-session scratch by design
-    (PIPELINE stage 2); the durable artifact is the lock archive with
-    its checksum, and the doctor's stray-file refusal keeps the scratch
-    from half-merging. Nothing to build there: the verbs already
-    enforce it.
-  - **Stone + brain refresh owed now** (paper-state predates tonight's
-    slogan rename, roster doctrine, identity corrections, and trust
-    budget): manual baseline via the vant workspace (`vant horcrux
-    create`, same key, p_ convention) plus a monoforge brain lesson
-    text update, then the stone copy load-validated into horcrux/.
-    Queued in labs/TASKS.md; not executable from this repo root (vant
-    tools live outside).
+- **labs/ is the craft bench.** The pipeline runbook already lives there; the owner's intent is that monoforge leans on it heavily: intake, verbs, gates, and receipts all flow through the labs conventions, in this repo and in every forged repo carried by the convention.
+- **site + docs follow the fleet pattern** once the repo exists (no novel infrastructure: the fleet pattern IS the baseline, identical schema to the other two struct repos):
+  - **Landing = monoforge.creadev.org:** Cloudflare Pages (wrangler.toml + functions /api/health canary). Page inventory: landing (tagline: the Actively Designed Future, one-line pitch), verbs reference (new / cut / doctor / lock), packs (the packstruct SPEC link + profile table), provenance (lock archives with sha256 receipts), honest limits. Copy law: every number on the page is a receipt, no claim without a gate behind it (the trust budget guards the marketing side too).
+  - **Docs = docs.creadev.org/monoforge** (shared fleet docs host, path-scoped), Jekyll + Freestruct basePath-aware (/monoforge) + Pagefind, with poststruct auditing the output (the triple dogfood, packstruct-style). Playbook inventory: intake (factory.json), stamp (the new verb), cut (cutlist contract + shortfall policy), doctor (truth battery), lock (checksum + provenance), packs (check + scenario profiles, opt-in fitting, refusal law), release ladder (0.9.x manual, 1.0.0 OIDC flip, crashtest#20 atomicity), and the forge-operator guide (clone-and-operate, consent fitting, honest limits). Crosslinks: packstruct SPEC, poststruct, prd-creadev-mono.md, labs/PIPELINE.md. No orphan pages.
+  - **The worktree:** /tmp/<name> stays per-session scratch by design (PIPELINE stage 2); the durable artifact is the lock archive with its checksum, and the doctor's stray-file refusal keeps the scratch from half-merging. Nothing to build there: the verbs already enforce it.
+  - **Stone + brain refresh owed now** (paper-state predates tonight's slogan rename, roster doctrine, identity corrections, and trust budget): manual baseline via the vant workspace (`vant horcrux create`, same key, p_ convention) plus a monoforge brain lesson text update, then the stone copy load-validated into horcrux/. Queued in labs/TASKS.md; not executable from this repo root (vant tools live outside).
 
 ## 7. Open questions for Rook
 
