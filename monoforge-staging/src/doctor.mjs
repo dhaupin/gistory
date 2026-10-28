@@ -151,6 +151,70 @@ export default async function doctor(dir, opts = {}) {
     }
   }
 
+  // 7. the .eyes canon, when the tree docks it (monoforge#12 rider, the
+  // eyestruct DANGLING_ROW refusal scored as a doctor check; the canon is
+  // a second truth surface, so its rows must resolve exactly like bin /
+  // exports / files paths do above). A canon-free tree stays silent -
+  // the canon is opt-in; auditing nothing is never dressed up as a pass.
+  const canonCheck = (eyesHome) => {
+    const ledgerFile = join(dir, eyesHome, 'ledger.json')
+    const manifestFile = join(dir, eyesHome, 'manifest.yml')
+    if (existsSync(manifestFile)) {
+      let s
+      try { s = readFileSync(manifestFile, 'utf8') } catch {
+        fail('canon-pin', `${eyesHome}/manifest.yml is not readable`)
+        return
+      }
+      // The pin block parses in the family subset, and every seeded pin
+      // must have been replaced by a real reference: 'UNSET' markers are
+      // the unfilled truth-slot class wearing the canon's uniform.
+      const pin = {}
+      const m = s.match(/^pin:\s*\n((?:\s{2}.+\n?)+)?/m)
+      if (m && m[1]) {
+        for (const line of m[1].split('\n')) {
+          if (!line.trim()) continue
+          const kv = line.trim().match(/^([\w-]+):\s*(.+)$/)
+          if (!kv) { fail('canon-pin', `${eyesHome}/manifest.yml pin row is not key: value -> "${line.trim()}"`); continue }
+          pin[kv[1]] = kv[2].trim()
+        }
+      } else {
+        fail('canon-pin', `${eyesHome}/manifest.yml carries no pin block (the canon token the captures resolve)`)
+      }
+      for (const key of ['browser-image', 'renderer']) {
+        const v = pin[key] || ''
+        if (!v) fail('canon-pin', `${eyesHome}/manifest.yml pin.${key} is missing (the canon cannot resolve without it)`)
+        else if (/\bUNSET\b|edit-me/i.test(v)) fail('canon-pin', `${eyesHome}/manifest.yml pin.${key} is still "${v}" - a shipped UNSET pin is a canon token pointing at nothing`)
+      }
+    }
+    if (!existsSync(ledgerFile)) return
+    let rows
+    try {
+      rows = JSON.parse(readFileSync(ledgerFile, 'utf8'))
+    } catch (e) {
+      fail('dangling-canon', `${eyesHome}/ledger.json does not parse (LEDGER_CORRUPT): the gate would refuse it loudly - the doctor refuses first`)
+      return
+    }
+    if (!Array.isArray(rows)) {
+      fail('dangling-canon', `${eyesHome}/ledger.json is not an array of rows (LEDGER_CORRUPT)`)
+      return
+    }
+    const refs = []
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') { fail('dangling-canon', `${eyesHome}/ledger.json carries a row that is not an object`); continue }
+      if (typeof row.artifact === 'string') refs.push({ id: row.id, p: row.artifact })
+      if (Array.isArray(row.artifacts)) for (const a of row.artifacts) if (typeof a === 'string') refs.push({ id: row.id, p: a })
+    }
+    for (const { id, p } of refs) {
+      if (typeof p !== 'string' || p.startsWith('/') || p.split(/[\\/]/).includes('..')) {
+        fail('dangling-canon', `${eyesHome}/ledger.json row ${id || '?'} path "${p}" escapes the eyes home (UNSAFE_PATH)`)
+      } else if (!existsSync(join(dir, eyesHome, p))) {
+        fail('dangling-canon', `${eyesHome}/ledger.json row ${id || '?'} points at "${p}" and no such committed artifact exists (DANGLING_ROW: the row references a file that no longer exists)`)
+      }
+    }
+  }
+  canonCheck('labs/.eyes')
+  canonCheck('labs/.eyes-receipt')
+
   const counts = { fail: findings.filter((f) => f.level === 'fail').length, warn: findings.filter((f) => f.level === 'warn').length }
   return { dir, counts, findings, ok: counts.fail === 0 }
 }
