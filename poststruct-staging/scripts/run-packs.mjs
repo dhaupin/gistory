@@ -11,6 +11,9 @@
 // Crashledger semantics on packs/eye-ledger.json: a NEW EXPLOITED fails,
 // a verdict change vs a recorded row fails, re-baseline is explicit
 // --adopt. Targets the audited site via --dist (default ../gistory dist).
+// A second leg ships with eyestruct-shapes: file checks over a canon-
+// carrying lab tree (default sibling ../eyestruct, override EYESTRUCT_TREE)
+// - absent tree, one BOUNDED docket, never a fake pass.
 
 'use strict'
 
@@ -62,6 +65,39 @@ const eyestructBin = process.env.EYESTRUCT_BIN
      path.resolve(ROOT, '..', 'eyestruct', 'bin', 'eyestruct.js')].find((p) => fs.existsSync(p))
      || path.resolve(ROOT, '..', 'eyestruct-staging', 'bin', 'eyestruct.js')
 
+// EYESTRUCT_TREE: the canon-tree leg's host-decision knob, same discipline
+// as EYESTRUCT_BIN - env outranks the sibling guess. This is where the
+// eyestruct-shapes pack audits: resolve a repo root or hand the pack null
+// and let it docket BOUNDED (never fabricate a verdict with no target).
+const eyestructTreeRoot = process.env.EYESTRUCT_TREE
+  ? (fs.existsSync(path.resolve(process.env.EYESTRUCT_TREE)) ? path.resolve(process.env.EYESTRUCT_TREE) : null)
+  : [path.resolve(ROOT, '..', 'eyestruct'), path.resolve(ROOT, '..', 'eyestruct-staging')]
+      .find((p) => fs.existsSync(p) && fs.existsSync(path.join(p, 'labs'))) || null
+
+function armTreeFs() {
+  const safe = (rel) => {
+    if (eyestructTreeRoot == null) return null
+    if (typeof rel !== 'string' || rel.startsWith('/') || rel.split(/[\\/]/).includes('..')) return null
+    return rel
+  }
+  return {
+    root: eyestructTreeRoot,
+    exists: (rel) => { const r = safe(rel); return r != null && fs.existsSync(path.join(eyestructTreeRoot, r)) },
+    read: (rel) => {
+      const r = safe(rel)
+      try { return r == null ? null : fs.readFileSync(path.join(eyestructTreeRoot, r), 'utf8') } catch { return null }
+    },
+    readBuf: (rel) => {
+      const r = safe(rel)
+      try { return r == null ? null : fs.readFileSync(path.join(eyestructTreeRoot, r)) } catch { return null }
+    },
+    readdir: (rel) => {
+      const r = safe(rel)
+      try { return r == null ? [] : fs.readdirSync(path.join(eyestructTreeRoot, r)) } catch { return [] }
+    },
+  }
+}
+
 function twinBuf(rel) {
   for (const twin of localTwinRels.get(rel) || []) {
     try {
@@ -106,6 +142,8 @@ function armModuleCtx() {
       }
       return null
     },
+    // The canon-tree leg: eyestruct-shapes audits a checked-out lab tree.
+    eyestructTree: armTreeFs(),
   }
 }
 
@@ -218,7 +256,15 @@ for (const pack of packs) {
   // Fixture-mode entries may be inert (no run) - zero rows from a loaded
   // module is a clean audit, never a crash.
   if (typeof pack.module.run !== 'function') continue
-  const result = pack.module.run(ctx)
+  let result
+  try {
+    result = pack.module.run(ctx)
+  } catch (err) {
+    // A REFUSED-shape throw (missing contract key) is a config error, not
+    // a crash: name the pack and exit the setup contract (2). A bare stack
+    // would mute which pack mis-armed.
+    fail(`pack ${pack.name}: run refused - ${err.message}`)
+  }
   allRows.push(...(result.rows || []))
   if (!result.ok) allOk = false
 }
