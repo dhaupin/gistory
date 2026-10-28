@@ -100,7 +100,8 @@ goals_now = (
     '- The 4-way ecosystem (gistory x poststruct-staging x eyestruct\n'
     '  x packstruct) is green end-to-end (gistory CI runs #88/#91):\n'
     '  packstruct#19 holds the SPEC v1->v1.1 proposal, and poststruct\'s pack\n'
-    '  loader carries POSTSTRUCT_DIST + EYESTRUCT_BIN host-decision knobs so\n'
+    '  loader carries POSTSTRUCT_DIST + EYESTRUCT_BIN/EYESTRUCT_TREE\n'
+    '  host-decision knobs (eyestruct itself is the npm devDep pin now) so\n'
     '  it runs on any checkout. gistory now also cuts TWO new horcrux stones\n'
     '  (this one and poststruct-p_wordprint-2026) - brains are receipts, not\n'
     '  memories. Eyestruct has graduated upstream (dhaupin/eyestruct; its\n'
@@ -163,7 +164,8 @@ ps_goals = "# goals.md - poststruct (seed)\n\n\
   lint:packs clean, language-gate PASS, audit-conformance 8/8, packs\n\
   campaign PASS against a fresh gistory dist). CI run #91.\n\
 - The pack loader now carries HOST-DECISION env knobs (POSTSTRUCT_DIST,\n\
-  EYESTRUCT_BIN) so it survives on any checkout - tar-move plan\n\
+  EYESTRUCT_BIN) so it survives on any checkout (eyestruct itself is the\n\
+  npm devDep pin now) - tar-move plan\n\
   injection #1 done, receipted in labs/TASKS.md.\n\
 - packstruct#19 (dhaupin/packstruct) holds the SPEC v1 -> v1.1 proposal;\n\
   poststruct's two harness clauses (the --loader template, ESM-default\n\
@@ -172,7 +174,7 @@ ps_goals = "# goals.md - poststruct (seed)\n\n\
 - Next rungs, from labs/tar-move-plan.md: its own test.yml battery, the\n\
   consumer swap in gistory (npx with version pins, never bare), then the\n\
   staging mounts leave and poststruct ships alone.\n\n\
-## Future\n\
+## Future\n\n\
 - More packs: sitemap honesty, robots fidelity, json-ld shape - the\n\
   same crashledger semantics (append-only, adopt-by-rerun).\n\
 - teach the packs grammar to more repos (the freestruct lesson: exact\n\

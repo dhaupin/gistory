@@ -42,10 +42,11 @@
   reference-shape pack and `packs/public/eyestruct-shapes/` ships the
   canon-audit pack over an eyestruct-shaped lab tree (poststruct#19:
   seven pure file checks, zero network; the hosted target resolves as
-  `EYESTRUCT_TREE`, else the sibling upstream checkout, else one BOUNDED
-  docket, never a fake pass). Both against the committed
+  `EYESTRUCT_TREE`, else the nearest canon-carrying tree found walking OUT
+  from ROOT (gistory's tree carries the family record at labs/.eyes), else
+  one BOUNDED docket, never a fake pass). Both against the committed
   `packs/eye-ledger.json` baseline, packstruct rides an exact devDependency
-  pin (1.0.0), the battery is
+  pin (1.0.0, next to eyestruct 0.9.0), the battery is
   `npm run check` = test + `lint:packs` (the wrapper, repo's own
   install) + `conform:packs` (audit-conformance through the campaign
   runner), and `packstruct lint --deep` runs inside the wrapper. The test
