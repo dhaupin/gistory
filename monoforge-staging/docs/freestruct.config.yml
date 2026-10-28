@@ -5,6 +5,15 @@ site:
   url: https://docs.creadev.org
   description: The fleet factory - stamp a repo from proven template blocks, doctor it for truth, lock it verifiably.
 basePath: /monoforge
+# Twitter spots intentionally left for the fleet house defaults:
+# twitter: { username: "@..." }
+
+# Open Graph - rendered by web/scripts/build-og.mjs (Liberation Sans via
+# resvg), committed as docs/og-image.png alongside the product site card.
+og:
+  image: /og-image.png
+  type: website
+  locale: en_US
 
 # Author identity: ships as a schema.org Person under "founder" on the
 # injected Organization JSON-LD block - the same ownership shape the
