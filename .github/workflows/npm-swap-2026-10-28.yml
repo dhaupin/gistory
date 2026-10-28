@@ -23,6 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # full history: the assemble step git-shows the pre-swap base from a
+        # pinned commit (a69c876d); a shallow clone does not have the object.
+        with:
+          fetch-depth: 0
 
       - name: Assemble the three targets
         run: |
