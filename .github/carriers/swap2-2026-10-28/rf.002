@@ -1,0 +1,18 @@
+s-candidates/$CAND" || (echo "walk did not produce $CAND" && exit 2)
+            mkdir -p "$EYES_HOME/$SLOT"
+            cp ".eyes-candidates/$CAND" "$EYES_HOME/$SLOT/current.png"
+            node node_modules/eyestruct/bin/eyestruct.js adopt "$SLOT" --note "bootstrap: pinned-env capture (linux chrome ${PINNED_CHROME:-pinned}) at $EYES_HOME; canon cuts on the next ratify dispatch" --manifest "$EYES_HOME/manifest.yml" --ledger "$EYES_HOME/ledger.json"
+          done <<< "$MAP"
+          echo "proposal committed; re-dispatch eyes-ratify to cut canon"
+
+      - name: Commit the proof rows
+        run: |
+          if git diff --quiet - "$EYES_HOME/"; then
+            echo "No .eyes/ change - canon was already reproducible."
+            exit 0
+          fi
+          git config user.name "eyestruct ratify"
+          git config user.email "actions@users.noreply.github.com"
+          git add "$EYES_HOME/"
+          git commit -m "ratify: append-only proof rows in the pinned environment ($EYES_HOME)"
+          git push
