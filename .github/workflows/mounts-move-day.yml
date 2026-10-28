@@ -73,7 +73,15 @@ jobs:
               assert len(pin) == 40, f"missing on HEAD: {old}"
               got = blob(old)
               assert got == pin, f"PRE-MOVE PIN FAIL {old}: {got[:12]} != {pin[:12]}"
-              assert not os.path.exists(new), f"DESTINATION OCCUPIED {new}"
+              # Idempotence for pre-landed destinations: the standing mirror
+              # lane already ferry-copied identical bytes into a boot path
+              # (e.g. the wordprint stone). Equal bytes = the move already
+              # happened; only a byte-DRIFTED destination is a failure.
+              if os.path.exists(new):
+                  have = blob(new)
+                  assert have == pin, f"DESTINATION OCCUPIED WITH OTHER BYTES {new}: {have[:12]} != {pin[:12]}"
+                  print("already landed (equal bytes):", new)
+                  continue
               os.makedirs(os.path.dirname(new), exist_ok=True)
               shutil.move(old, new)
               moved = blob(new)
