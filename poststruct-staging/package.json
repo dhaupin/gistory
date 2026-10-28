@@ -17,7 +17,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node test/run.mjs",
+    "test": "node test/run.mjs && node test/shapes-run.mjs && node --test test/ship-from-download.test.cjs",
     "packs": "node scripts/run-packs.mjs",
     "packs:adopt": "node scripts/run-packs.mjs --adopt",
     "lint:packs": "node bin/cli.mjs lint-packs --deep",
