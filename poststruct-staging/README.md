@@ -48,8 +48,13 @@ The `/packs` mount follows the shared
 [packstruct](https://github.com/dhaupin/packstruct) SPEC v1, check profile:
 `packs/public/<name>/pack.json` + entry exporting `{ checks: [...] }`, ids
 namespaced by pack slug, and the config `packs:` entry as the arm. The
-loader is realized here: `packs/public/eye-reference/` ships the
-reference-shape pack, the pack lane runs as the discoverable wrapper verb
+loader is realized here: `packs/public/eyes-reference/` ships the
+reference-shape pack and `packs/public/eyestruct-shapes/` ships the
+canon-audit pack over an eyestruct-shaped lab tree (seven pure file
+checks, the `EYESTRUCT_TREE` target knob, one BOUNDED docket when no
+tree is present, never a fake pass), both against the committed
+`packs/eye-ledger.json` verdict baseline (8 rows). The pack lane runs as
+the discoverable wrapper verb
 `poststruct lint-packs [--deep]` over the repo's own packstruct install
 (exact 1.0.0 devDependency pin), and the CI battery (`npm run check`)
 carries the deep lint plus `npm run conform:packs`, which proves the
@@ -74,7 +79,8 @@ gate. 1.0.0 flips OIDC trusted publishing (`id-token: write`). See
   `web/scripts/build-og.mjs` - generated assets, never hand-drawn, the
   family's generated asset lane.
 - Docs: `docs.creadev.org/poststruct` - Jekyll + Pagefind + Freestruct
-  via GitHub Actions (`.github/workflows/docs.yml`).
+  via GitHub Actions (`.github/workflows/docs.yml`), with the getting
+  started and CLI reference pages in the nav.
 
 ## Related
 
