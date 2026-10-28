@@ -13,8 +13,10 @@
 # a repo that IS eyes keeps the tool's .eyes/ default. One constant below;
 # every step derives its paths from $EYES_HOME, so a host move is this line
 # plus the gate's EYES_HOME default - never a hunt through step bodies.
-# The --manifest/--ledger flags are wired in eyestruct's bin/eyestruct.js
-# (checked out from dhaupin/eyestruct, upstream since the mount retired);
+# The tool comes from npm: eyestruct is the EXACT-pin devDependency, so
+# `npm ci` lands bin/ + lib/ under node_modules/eyestruct and every step
+# below resolves it there - no checkout, no sibling guess. The
+# --manifest/--ledger flags are wired in eyestruct's bin/eyestruct.js;
 # without them the tool silently falls back to .eyes/.
 #
 # Version truth lives in the manifest: the Provision step reads
@@ -51,19 +53,12 @@ jobs:
         with:
           node-version: 22
 
-      # Eyestruct itself: upstream repo (the gistory staging mount retired
-      # 2026-10-27). Pinned to the branch default; the manifest's own pin
-      # still drives the browser version below.
-      - name: Checkout eyestruct upstream
-        uses: actions/checkout@v4
-        with:
-          repository: dhaupin/eyestruct
-          path: eyestruct-upstream
+      # Eyestruct itself: the npm pin (devDependencies, EXACT "0.9.0").
+      # The manifest's own pin still drives the browser version below.
 
-      - name: Install (root + eyestruct upstream)
+      - name: Install (npm ci; the devDep pin carries eyestruct)
         run: |
           npm ci
-          npm ci --prefix eyestruct-upstream
 
       # On-demand chromium, the ui:browsers pattern: skipped in install,
       # fetched per machine. Installs the MANIFEST'S PINNED version into
@@ -76,7 +71,7 @@ jobs:
       # source of truth for what this lane shoots.
       - name: Provision the pinned browser (version from the manifest)
         run: |
-          PIN=$(node -e "const m=require('./eyestruct-upstream/lib/manifest.js');process.stdout.write(m.read('.',{manifest:process.env.EYES_HOME+'/manifest.yml'}).pin['browser-image'])")
+          PIN=$(node -e "const m=require('./node_modules/eyestruct/lib/manifest.js');process.stdout.write(m.read('.',{manifest:process.env.EYES_HOME+'/manifest.yml'}).pin['browser-image'])")
           VERSION=${PIN##*@}
           test -n "$VERSION" || (echo "could not parse a version out of pin.browser-image=$PIN" && exit 2)
           npx --yes @puppeteer/browsers install "chrome@$VERSION" --path "$HOME/.cache/puppeteer"
@@ -113,13 +108,13 @@ jobs:
       # dispatch proving a baseline proposed in an EARLIER one.
       - name: Ratify the manifest routes (adopt-on-drift bootstrap)
         run: |
-          node eyestruct-upstream/bin/eyestruct.js ratify http://localhost:4173/ --manifest "$EYES_HOME/manifest.yml" --ledger "$EYES_HOME/ledger.json" && exit 0
+          node node_modules/eyestruct/bin/eyestruct.js ratify http://localhost:4173/ --manifest "$EYES_HOME/manifest.yml" --ledger "$EYES_HOME/ledger.json" && exit 0
           echo "drift: promoting pinned-env captures as proposals (walk -> slots -> adopt rows)"
-          node eyestruct-upstream/bin/eyestruct.js --manifest "$EYES_HOME/manifest.yml" --ledger "$EYES_HOME/ledger.json" walk http://localhost:4173/
+          node node_modules/eyestruct/bin/eyestruct.js --manifest "$EYES_HOME/manifest.yml" --ledger "$EYES_HOME/ledger.json" walk http://localhost:4173/
           MAP=$(node -e '
-            const manifest = require("./eyestruct-upstream/lib/manifest.js")
-            const { slotDir } = require("./eyestruct-upstream/lib/ratify.js")
-            const { candidateName } = require("./eyestruct-upstream/lib/walk.js")
+            const manifest = require("./node_modules/eyestruct/lib/manifest.js")
+            const { slotDir } = require("./node_modules/eyestruct/lib/ratify.js")
+            const { candidateName } = require("./node_modules/eyestruct/lib/walk.js")
             const m = manifest.read(".", { manifest: process.env.EYES_HOME + "/manifest.yml" })
             for (const route of m.routes) process.stdout.write(slotDir(route) + " " + candidateName(route) + "\n")
           ')
@@ -129,7 +124,7 @@ jobs:
             test -f ".eyes-candidates/$CAND" || (echo "walk did not produce $CAND" && exit 2)
             mkdir -p "$EYES_HOME/$SLOT"
             cp ".eyes-candidates/$CAND" "$EYES_HOME/$SLOT/current.png"
-            node eyestruct-upstream/bin/eyestruct.js adopt "$SLOT" --note "bootstrap: pinned-env capture (linux chrome ${PINNED_CHROME:-pinned}) at $EYES_HOME; canon cuts on the next ratify dispatch" --manifest "$EYES_HOME/manifest.yml" --ledger "$EYES_HOME/ledger.json"
+            node node_modules/eyestruct/bin/eyestruct.js adopt "$SLOT" --note "bootstrap: pinned-env capture (linux chrome ${PINNED_CHROME:-pinned}) at $EYES_HOME; canon cuts on the next ratify dispatch" --manifest "$EYES_HOME/manifest.yml" --ledger "$EYES_HOME/ledger.json"
           done <<< "$MAP"
           echo "proposal committed; re-dispatch eyes-ratify to cut canon"
 
