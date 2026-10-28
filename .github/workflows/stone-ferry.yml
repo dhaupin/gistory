@@ -42,8 +42,11 @@ jobs:
       - name: Sha-gate the assembled stones (offline blob ids, git hash-object)
         run: |
           set -euo pipefail
-          expect_magpie="4b75eae18a4f11e48e516e0107df04958d13f8f0"
-          expect_poststruct="295e5a170c6761e14e71cff0e9b34f70f08327ee"
+          # Pins re-cut with the 2026-10-28 npm-adopt graduation text (the
+          # sources moved the brain text to the EYESTRUCT_TREE + npm-pin
+          # wording; the ferry correctly refused the stale stones).
+          expect_magpie="191e92b7894c49b2536b757a32a2b24f8cbad446"
+          expect_poststruct="89f58ce2633fde8fef17f24c021a7f9e0e4e956a"
           expect_gistory="2779552f9a7996c2be3dc936ef521de2253a46dc"
           actual_magpie="$(git hash-object horcrux/stones/magpie-p_mirror-eyes-2026-r2.svg)"
           actual_poststruct="$(git hash-object horcrux/stones/poststruct-p_wordprint-2026.svg)"
@@ -75,7 +78,7 @@ jobs:
           fi
           if ! git diff --cached --quiet; then
             git commit -m "horcrux: cut magpie r2 + poststruct seed + gistory r2 stones (sha-gated ferry)" \
-                       -m "Every stone regenerates from committed sources and is sha-gated against its offline blob id (4b75eae1 / 295e5a17 / 2779552f) before anything is committed - the CI-cut lane, not hand-carry. Brain parity copies ride .cut-tmp."
+                       -m "Every stone regenerates from committed sources and is sha-gated against its offline blob id (191e92b7 / 89f58ce2 / 2779552f) before anything is committed - the CI-cut lane, not hand-carry. Brain parity copies ride .cut-tmp."
             git push origin main
           else
             echo "nothing new to commit (stones already current)"
