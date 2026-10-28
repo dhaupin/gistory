@@ -1,1 +1,68 @@
-IyBWZXJpZnk6IGV2ZXJ5dGhpbmcgdGhhdCBtdXN0IGJlIHRydWUgYmVmb3JlIGEgbWlncmF0aW9uIGlzIGFsbG93ZWQgdG8gdG91Y2gKIyB0aGUgbGl2ZSBkYXRhYmFzZS4KIwojIFRoaXMgam9iIGlzIGFsc28gdGhlIGdhdGUgZm9yIC5naXRodWIvd29ya2Zsb3dzL21pZ3JhdGUueW1sIOKAlCBhIG1pZ3JhdGlvbiB0bwojIHByb2R1Y3Rpb24gb25seSBydW5zIGlmIHRoaXMgam9iIHBhc3NlZCBvbiB0aGUgc2FtZSBjb21taXQuIFRoYXQgb3JkZXJpbmcgaXMKIyB0aGUgd2hvbGUgcG9pbnQ6IGEgYmFkIGNvbW1pdCBzaG91bGQgbmV2ZXIgYmUgYWJsZSB0byByZWFjaCBEMSBhbmQgdGhlbiBmYWlsCiMgaXRzIG93biB0eXBlY2hlY2suCiMKIyBUaGUgYnJvd3NlciBzdWl0ZXMgKHRlc3RzL3VpLCBzY3JpcHRzL3VpLWF1ZGl0KSBhcmUgaW50ZW50aW9uYWxseSBOT1QgaGVyZS4KIyBUaGV5IG5lZWQgYSBDaHJvbWl1bSBkb3dubG9hZCBhbmQgYSBydW5uaW5nIGRldiBzZXJ2ZXIsIHdoaWNoIG1ha2VzIENJIHNsb3cKIyBhbmQgZmxha3kgZm9yIGEgcmVwbyB0aGlzIHNpemUuIFJ1biB0aGVtIGxvY2FsbHkgd2l0aCBgYnVuIHJ1biB0ZXN0OnVpYCBhbmQKIyBgYnVuIHJ1biB1aTphdWRpdGAgYmVmb3JlIHB1c2hpbmc7IHRoZXkgYXJlIHRoZSBvbmx5IHN1aXRlIHRoYXQgZXhlcmNpc2VzCiMgcmVuZGVyaW5nLCBzbyBkbyBub3Qgc2tpcCB0aGVtIGxvY2FsbHkgb24gYSBVSSBjaGFuZ2UuCgpuYW1lOiBDSQoKb246CiAgcHVzaDoKICAgIGJyYW5jaGVzOiBbbWFpbl0KICBwdWxsX3JlcXVlc3Q6CiAgd29ya2Zsb3dfZGlzcGF0Y2g6CgojIENhbmNlbCBzdXBlcnNlZGVkIHJ1bnMgb24gdGhlIHNhbWUgYnJhbmNoLiBBIG5ld2VyIGNvbW1pdCBtYWtlcyBhbiBvbGRlcgojIG9uZSdzIHJlc3VsdCBpcnJlbGV2YW50Lgpjb25jdXJyZW5jeToKICBncm91cDogY2ktJHt7IGdpdGh1Yi5yZWYgfX0KICBjYW5jZWwtaW4tcHJvZ3Jlc3M6IHRydWUKCmpvYnM6CiAgdmVyaWZ5OgogICAgcnVucy1vbjogdWJ1bnR1LWxhdGVzdAogICAgc3RlcHM6CiAgICAgIC0gdXNlczogYWN0aW9ucy9jaGVja291dEB2NAoKICAgICAgLSB1c2VzOiBvdmVuLXNoL3NldHVwLWJ1bkB2MgogICAgICAgIHdpdGg6CiAgICAgICAgICBidW4tdmVyc2lvbjogbGF0ZXN0CgogICAgICAjIGBucG0gY2lgLCBub3QgYGJ1biBpbnN0YWxsYDogcGFja2FnZS1sb2NrLmpzb24gaXMgdGhlIGxvY2tmaWxlIHRoYXQgaXMKICAgICAgIyBhY3R1YWxseSBjb21taXR0ZWQsIHNvIHRoaXMgaXMgdGhlIGluc3RhbGwgcGF0aCB0aGF0IG1hdGNoZXMgdGhlIHJlcG8uCiAgICAgICMgKGJ1bi5sb2NrIGV4aXN0cyBsb2NhbGx5IGJ1dCBpcyB1bnRyYWNrZWQg4oCUIGRvIG5vdCBzd2l0Y2ggQ0kgdG8gYnVuCiAgICAgICMgd2l0aG91dCBjb21taXR0aW5nIGEgYnVuLmxvY2sgaW4gdGhlIHNhbWUgY2hhbmdlLikgRGVsaWJlcmF0ZWx5IHJvb3QKICAgICAgIyBPTkxZOiB0aGUgZnJhbWV3b3JrIGdhdGUgYmVsb3cgY29tcG9zZXMgdGhlIHN0cnVjdCBsZWdzIGF0IHRoZWlyCiAgICAgICMgY2FwYWJpbGl0eSBib3VuZGFyaWVzIGV4YWN0bHkgYXMgdG9kYXkncyBncmVlbiBydW5zIGRvIOKAlCBhIHJlc3ZnLWxlc3MKICAgICAgIyByYXN0ZXIgbGVnIGlzIGEgbmFtZWQgY2FwYWJpbGl0eSBTS0lQLCBub3QgYSBzaWxlbnQgcGFzcy4gVGhlIHJhc3RlcgogICAgICAjIGdhdGUgY3VycmVudGx5IFJFRlVTRVMgcHVibGljL2Zhdmljb24uc3ZnIChhIDMxMC1ieXRlIGZsYXQtY29sb3IKICAgICAgIyByZW5kZXIgYWdhaW5zdCB0aGUgNTEyLWJ5dGUgZmxvb3IpIHdoZXJldmVyIGV5ZXN0cnVjdCdzIGRlcHMgQVJFCiAgICAgICMgaW5zdGFsbGVkOyB0aGF0IGZpbmRpbmcgZ29lcyByZWQgV0lUSCBpdHMgb3duIHRocmVzaG9sZCByZWNlaXB0LCBub3QKICAgICAgIyBwcm9jZWR1cmUtdG8tZ3JlZW4gb3Zlcm5pZ2h0LgogICAgICAtIG5hbWU6IEluc3RhbGwgZGVwZW5kZW5jaWVzCiAgICAgICAgcnVuOiBucG0gY2kKCiAgICAgICMgVGhyZWUgcGFzc2VzOiBzcmMsIHRoZSBQYWdlcyBGdW5jdGlvbnMgKHN0cmljdCksIGFuZCB0aGUgdGVzdCBzdWl0ZQogICAgICAjIChzdHJpY3QpLiBTZWUgdHNjb25maWcuZnVuY3Rpb25zLmpzb24gLyB0c2NvbmZpZy50ZXN0Lmpzb24gZm9yIHdoeSB0aGUKICAgICAgIyBsYXR0ZXIgdHdvIGNhbm5vdCBzaW1wbHkgYmUgZm9sZGVkIGludG8gdGhlIHJvb3QgY29uZmlnLgogICAgICAjIEJpcnRoIGdhdGUgKHRoZSBmbG93Zm9yZ2UjNSByZWZlcmVuY2UgaW1wbGVtZW50YXRpb24pOiBldmVyeQogICAgICAjIGNvbW1pdHRlZCB3b3JrZmxvdyBwYXJzZXMgd2l0aCBhIHJlYWwgWUFNTCBwYXJzZXIgKHRoZQogICAgICAjIHplcm8tY2hlY2stcnVuIHN0YXJ0dXAtZGVhdGggY2xhc3MpLCBldmVyeSBzdGFnaW5nIG1vdW50IGlzCiAgICAgICMgZGVjbGFyZWQgaW5kZXBlbmRlbnQgb2YgdGhlIGhvc3QgbGludGVyLCBhbmQgZXZlcnkgZ2l0LWRpciBzZXJkZQogICAgICAjIHNjcmlwdCBkaXNhYmxlcyBiYWNrZ3JvdW5kIGdjIGJlZm9yZSB3cml0aW5nLiBDaGVhcCwgZmFpbC1mYXN0LAogICAgICAjIHJlYWwtcGFyc2VyLWJhY2tlZCAtIHNlZSBzY3JpcHRzL2JpcnRoLWdhdGUubWpzLgogICAgICAtIG5hbWU6IEJpcnRoIGdhdGUgKHdvcmtmbG93IHN5bnRheCArIG1vdW50IGluZGVwZW5kZW5jZSArIGdjLXNhZmUgc2VyZGUpCiAgICAgICAgcnVuOiBub2RlIHNjcmlwdHMvYmlydGgtZ2F0ZS5tanMKCiAgICAgICMgUGhhc2VkIHRyYW5zcG9ydC1sYW5kcyBnYXRlIChzY3JpcHRzL3ZlcmlmeS10cmFuc3BvcnQtbGFuZHMubWpzKToKICAgICAgIyBldmVyeSBieXRlLWNhcnJ5IHNoYXBlIHRoaXMgcmVwbyB0cmFja3MgKGNodW5rLioucGFydCBmYW1pbGllcywKICAgICAgIyAqLmd6LmI2NCBwYXlsb2FkcywgcGxhaW4gLmI2NCB3cmFwcGVycykgc3RpbGwgZGVjb2RlcyBpdHMgZGVjbGFyZWQKICAgICAgIyBzaGFwZSAocGhhc2U
+# Verify: everything that must be true before a migration is allowed to touch
+# the live database.
+#
+# This job is also the gate for .github/workflows/migrate.yml — a migration to
+# production only runs if this job passed on the same commit. That ordering is
+# the whole point: a bad commit should never be able to reach D1 and then fail
+# its own typecheck.
+#
+# The browser suites (tests/ui, scripts/ui-audit) are intentionally NOT here.
+# They need a Chromium download and a running dev server, which makes CI slow
+# and flaky for a repo this size. Run them locally with `bun run test:ui` and
+# `bun run ui:audit` before pushing; they are the only suite that exercises
+# rendering, so do not skip them locally on a UI change.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch. A newer commit makes an older
+# one's result irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # `npm ci`, not `bun install`: package-lock.json is the lockfile that is
+      # actually committed, so this is the install path that matches the repo.
+      # (bun.lock exists locally but is untracked — do not switch CI to bun
+      # without committing a bun.lock in the same change.) Deliberately root
+      # ONLY: the framework gate below composes the struct legs at their
+      # capability boundaries exactly as today's green runs do — a resvg-less
+      # raster leg is a named capability SKIP, not a silent pass. The raster
+      # gate currently REFUSES public/favicon.svg (a 310-byte flat-color
+      # render against the 512-byte floor) wherever eyestruct's deps ARE
+      # installed; that finding goes red WITH its own threshold receipt, not
+      # procedure-to-green overnight.
+      - name: Install dependencies
+        run: npm ci
+
+      # Three passes: src, the Pages Functions (strict), and the test suite
+      # (strict). See tsconfig.functions.json / tsconfig.test.json for why the
+      # latter two cannot simply be folded into the root config.
+      # Birth gate (the flowforge#5 reference implementation): every
+      # committed workflow parses with a real YAML parser (the
+      # zero-check-run startup-death class), every staging mount is
+      # declared independent of the host linter, and every git-dir serde
+      # script disables background gc before writing. Cheap, fail-fast,
+      # real-parser-backed - see scripts/birth-gate.mjs.
+      - name: Birth gate (workflow syntax + mount independence + gc-safe serde)
+        run: node scripts/birth-gate.mjs
+
+      # Phased transport-lands gate (scripts/verify-transport-lands.mjs):
+      # every byte-carry shape this repo tracks (chunk.*.part families,
+      # *.gz.b64 payloads, plain .b64 wrappers) still decodes its declared
+      # shape (phase
