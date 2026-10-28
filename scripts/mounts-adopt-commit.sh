@@ -5,7 +5,8 @@
 set -euo pipefail
 git config user.name Codebuff
 git config user.email noreply@codebuff.com
-git add monoforge-staging/web/public/icon.svg \
+git add monoforge-staging/web/scripts/build-og.mjs \
+        monoforge-staging/web/public/icon.svg \
         monoforge-staging/web/public/favicon-32.png \
         monoforge-staging/web/public/icon-192.png \
         monoforge-staging/web/public/icon-512.png \
