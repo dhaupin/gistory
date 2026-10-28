@@ -1,12 +1,12 @@
 # One-shot: eyestruct goes npm - the exact pins + derived lockfiles.
 # eyestruct@0.9.0 published on npm; the devDependency pin lands in both
-# package.jsons (root + poststruct-staging) as a hand-carried heredoc here
-# (their bytes are the contract), while the LOCKFILES are never
-# hand-carried - they are derived on the runner by
-# `npm install --package-lock-only`, grinned on the exact pin, npm ci
-# proven in both trees, then committed atomically so no CI run ever sees a
-# package.json/lock disagreement. Idempotent: a re-dispatch finds nothing
-# to commit (the pins are already the recorded bytes).
+# package.jsons (root + poststruct-staging) carried as single-line base64
+# printf here (their exact bytes, decoded on the runner), while the
+# LOCKFILES are never hand-carried - they are derived by
+# `npm install --package-lock-only`, gated on the exact pin, npm ci
+# proven in both trees, then committed atomically so no CI run ever sees
+# a package.json/lock disagreement. Idempotent: a re-dispatch finds
+# nothing to commit (the pins are already the recorded bytes).
 name: eyestruct npm adopt (the exact pins + derived lockfiles)
 
 on:
@@ -33,181 +33,9 @@ jobs:
       - name: Land the two package.jsons (the EXACT eyestruct pin)
         run: |
           set -euo pipefail
-          mkdir -p /tmp/npm-adopt
-          cat > /tmp/npm-adopt/root-package.json <<'PKG'
-{
-  "name": "gistory-sync",
-  "private": false,
-  "version": "0.9.0",
-  "description": "E2EE multi-device sync engine for prompt libraries: agent crypto, merge rules (LWW + tombstones), QoS scheduling, and the storage seam — the same code the app and its service worker run.",
-  "license": "MIT",
-  "type": "module",
-  "homepage": "https://gistory.creadev.org",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dhaupin/gistory.git"
-  },
-  "bugs": "https://github.com/dhaupin/gistory/issues",
-  "keywords": [
-    "prompts",
-    "sync",
-    "e2ee",
-    "encryption",
-    "offline-first",
-    "local-first",
-    "prompt-manager",
-    "cloudflare-pages",
-    "aes-gcm",
-    "multi-device"
-  ],
-  "main": "dist/lib/index.mjs",
-  "types": "dist/lib/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/lib/index.d.ts",
-      "default": "./dist/lib/index.mjs"
-    },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist/lib",
-    "LICENSE",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
-  "//dependencies": "NONE — the published bundle is self-contained ESM. The app's UI deps (react, react-dom, react-router-dom, lucide-react, qrcode.react) live in devDependencies: the Pages/CF build and CI install dev deps too, and keeping them out of dependencies keeps `npm install gistory-sync` free of a React tree it never uses.",
-  "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@resvg/resvg-js": "^2.6.2",
-    "@types/bun": "^1.4.2",
-    "@types/react": "^19.0.6",
-    "@types/react-dom": "^19.0.3",
-    "@vitejs/plugin-react": "^4.3.4",
-    "crashtest": "^1.1.0",
-    "eslint": "^9.17.0",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.16",
-    "eyestruct": "0.9.0",
-    "freestruct": "^1.1.0",
-    "globals": "^15.14.0",
-    "lucide-react": "^1.17.0",
-    "packstruct": "1.0.0",
-    "prestruct": "^1.1.0",
-    "puppeteer": "^25.12.0",
-    "qrcode.react": "^4.2.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.18.4",
-    "typescript": "~5.6.2",
-    "typescript-eslint": "^8.18.2",
-    "vite": "^6.0.5"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && prestruct build && node scripts/build-sw.mjs",
-    "build:lib": "node scripts/build-lib.mjs && tsc -p tsconfig.lib.json",
-    "build:og": "node scripts/build-og.mjs",
-    "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
-    "lint": "npm run lint:eslint && npm run lint:language && npm run lint:docs",
-    "lint:docs": "node scripts/check-docs.mjs",
-    "lint:packs": "packstruct lint packs --deep",
-    "lint:eslint": "eslint .",
-    "lint:language": "node scripts/check-language.mjs",
-    "sync:smoke": "bun tests/sync-smoke.ts",
-    "sync:live": "bun scripts/live-sync.mjs",
-    "sync:multidev": "bun scripts/live-multidevice.mjs",
-    "sync:subscribe": "bun scripts/live-subscribe.mjs",
-    "sync:barrage": "bun tests/barrage.ts",
-    "crashtest:build": "node scripts/build-crashtest.mjs",
-    "crashtest:run": "node scripts/build-crashtest.mjs && crashtest run",
-    "framework:gate": "node scripts/framework-gate.mjs",
-    "transport:lands": "node scripts/verify-transport-lands.mjs",
-    "test:ui": "node tests/ui/run.mjs",
-    "ui:audit": "node scripts/ui-audit.mjs",
-    "probe:dist": "node scripts/dist-probe.mjs",
-    "ui:browsers": "node scripts/ui-browsers.mjs",
-    "db:init:local": "npx --yes wrangler d1 execute GISTORY_DB --local --file=schema.sql",
-    "db:init:remote": "npx --yes wrangler d1 execute GISTORY_DB --remote --config wrangler.deploy.toml --file=schema.sql",
-    "db:migrate:local": "node scripts/db-migrate.mjs --local",
-    "db:migrate:remote": "node scripts/db-migrate.mjs --remote",
-    "db:migrate:status": "node scripts/db-migrate.mjs --local --status",
-    "db:migrate:status:remote": "node scripts/db-migrate.mjs --remote --status",
-    "db:migrate:check": "node scripts/db-migrate.mjs --check",
-    "db:maintain:local": "node scripts/db-maintain.mjs --local",
-    "db:maintain:remote": "node scripts/db-maintain.mjs --remote",
-    "db:maintain:check": "node scripts/db-maintain.mjs --check",
-    "prepublishOnly": "npm run typecheck && npm run lint && npm run build:lib",
-    "preview": "vite preview",
-    "icons:adopt": "node scripts/adopt-icons.mjs"
-  }
-}
-PKG
-          cp /tmp/npm-adopt/root-package.json package.json
-          cat > poststruct-staging/package.json <<'PKG'
-{
-  "name": "poststruct",
-  "version": "0.9.0",
-  "description": "Audit what shipped. A zero-dependency CLI that walks baked HTML and verifies head, links, and site hygiene against a contract - FAIL findings exit non-zero so CI gates regressions.",
-  "type": "module",
-  "license": "SEE LICENSE IN LICENSE",
-  "bin": {
-    "poststruct": "bin/cli.mjs"
-  },
-  "exports": {
-    ".": "./src/index.mjs",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "bin/",
-    "src/",
-    "LICENSE"
-  ],
-  "scripts": {
-    "test": "node test/run.mjs && node test/shapes-run.mjs && node --test test/ship-from-download.test.cjs",
-    "packs": "node scripts/run-packs.mjs",
-    "packs:adopt": "node scripts/run-packs.mjs --adopt",
-    "lint:packs": "node bin/cli.mjs lint-packs --deep",
-    "conform:packs": "packstruct audit-conformance . --loader \"node scripts/run-packs.mjs {packs}\"",
-    "check": "npm run test && npm run lint:packs && npm run conform:packs && npm run lint:docs",
-    "site:build": "npm --prefix web run build && rm -rf dist && mkdir dist && cp -r web/dist/. dist/",
-    "site:dev": "npm --prefix web run dev",
-    "icons:adopt": "node scripts/adopt-icons.mjs",
-    "lint:docs": "node scripts/check-docs-frontmatter.cjs && node scripts/check-docs-links.cjs && node scripts/check-docs-style.cjs && node scripts/check-fiction-signatures.cjs && node scripts/check-jekyll-filters.cjs && node scripts/check-language.cjs"
-  },
-  "devDependencies": {
-    "eyestruct": "0.9.0",
-    "packstruct": "1.0.0"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "keywords": [
-    "seo",
-    "audit",
-    "ci",
-    "open-graph",
-    "json-ld",
-    "sitemap",
-    "robots",
-    "static-site",
-    "prestruct",
-    "freestruct",
-    "prerender"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dhaupin/poststruct.git"
-  },
-  "bugs": {
-    "url": "https://github.com/dhaupin/poststruct/issues"
-  },
-  "homepage": "https://github.com/dhaupin/poststruct#readme"
-}
-PKG
-          echo "both package.jsons carried" 
+          printf %s 'ewogICJuYW1lIjogImdpc3Rvcnktc3luYyIsCiAgInByaXZhdGUiOiBmYWxzZSwKICAidmVyc2lvbiI6ICIwLjkuMCIsCiAgImRlc2NyaXB0aW9uIjogIkUyRUUgbXVsdGktZGV2aWNlIHN5bmMgZW5naW5lIGZvciBwcm9tcHQgbGlicmFyaWVzOiBhZ2VudCBjcnlwdG8sIG1lcmdlIHJ1bGVzIChMV1cgKyB0b21ic3RvbmVzKSwgUW9TIHNjaGVkdWxpbmcsIGFuZCB0aGUgc3RvcmFnZSBzZWFtIOKAlCB0aGUgc2FtZSBjb2RlIHRoZSBhcHAgYW5kIGl0cyBzZXJ2aWNlIHdvcmtlciBydW4uIiwKICAibGljZW5zZSI6ICJNSVQiLAogICJ0eXBlIjogIm1vZHVsZSIsCiAgImhvbWVwYWdlIjogImh0dHBzOi8vZ2lzdG9yeS5jcmVhZGV2Lm9yZyIsCiAgInJlcG9zaXRvcnkiOiB7CiAgICAidHlwZSI6ICJnaXQiLAogICAgInVybCI6ICJnaXQraHR0cHM6Ly9naXRodWIuY29tL2RoYXVwaW4vZ2lzdG9yeS5naXQiCiAgfSwKICAiYnVncyI6ICJodHRwczovL2dpdGh1Yi5jb20vZGhhdXBpbi9naXN0b3J5L2lzc3VlcyIsCiAgImtleXdvcmRzIjogWwogICAgInByb21wdHMiLAogICAgInN5bmMiLAogICAgImUyZWUiLAogICAgImVuY3J5cHRpb24iLAogICAgIm9mZmxpbmUtZmlyc3QiLAogICAgImxvY2FsLWZpcnN0IiwKICAgICJwcm9tcHQtbWFuYWdlciIsCiAgICAiY2xvdWRmbGFyZS1wYWdlcyIsCiAgICAiYWVzLWdjbSIsCiAgICAibXVsdGktZGV2aWNlIgogIF0sCiAgIm1haW4iOiAiZGlzdC9saWIvaW5kZXgubWpzIiwKICAidHlwZXMiOiAiZGlzdC9saWIvaW5kZXguZC50cyIsCiAgImV4cG9ydHMiOiB7CiAgICAiLiI6IHsKICAgICAgInR5cGVzIjogIi4vZGlzdC9saWIvaW5kZXguZC50cyIsCiAgICAgICJkZWZhdWx0IjogIi4vZGlzdC9saWIvaW5kZXgubWpzIgogICAgfSwKICAgICIuL3BhY2thZ2UuanNvbiI6ICIuL3BhY2thZ2UuanNvbiIKICB9LAogICJmaWxlcyI6IFsKICAgICJkaXN0L2xpYiIsCiAgICAiTElDRU5TRSIsCiAgICAiUkVBRE1FLm1kIiwKICAgICJDSEFOR0VMT0cubWQiCiAgXSwKICAiZW5naW5lcyI6IHsKICAgICJub2RlIjogIj49MTgiCiAgfSwKICAiLy9kZXBlbmRlbmNpZXMiOiAiTk9ORSDigJQgdGhlIHB1Ymxpc2hlZCBidW5kbGUgaXMgc2VsZi1jb250YWluZWQgRVNNLiBUaGUgYXBwJ3MgVUkgZGVwcyAocmVhY3QsIHJlYWN0LWRvbSwgcmVhY3Qtcm91dGVyLWRvbSwgbHVjaWRlLXJlYWN0LCBxcmNvZGUucmVhY3QpIGxpdmUgaW4gZGV2RGVwZW5kZW5jaWVzOiB0aGUgUGFnZXMvQ0YgYnVpbGQgYW5kIENJIGluc3RhbGwgZGV2IGRlcHMgdG9vLCBhbmQga2VlcGluZyB0aGVtIG91dCBvZiBkZXBlbmRlbmNpZXMga2VlcHMgYG5wbSBpbnN0YWxsIGdpc3Rvcnktc3luY2AgZnJlZSBvZiBhIFJlYWN0IHRyZWUgaXQgbmV2ZXIgdXNlcy4iLAogICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAiQGVzbGludC9qcyI6ICJeOS4xNy4wIiwKICAgICJAcmVzdmcvcmVzdmctanMiOiAiXjIuNi4yIiwKICAgICJAdHlwZXMvYnVuIjogIl4xLjQuMiIsCiAgICAiQHR5cGVzL3JlYWN0IjogIl4xOS4wLjYiLAogICAgIkB0eXBlcy9yZWFjdC1kb20iOiAiXjE5LjAuMyIsCiAgICAiQHZpdGVqcy9wbHVnaW4tcmVhY3QiOiAiXjQuMy40IiwKICAgICJjcmFzaHRlc3QiOiAiXjEuMS4wIiwKICAgICJlc2xpbnQiOiAiXjkuMTcuMCIsCiAgICAiZXNsaW50LXBsdWdpbi1yZWFjdC1ob29rcyI6ICJeNS4wLjAiLAogICAgImVzbGludC1wbHVnaW4tcmVhY3QtcmVmcmVzaCI6ICJeMC40LjE2IiwKICAgICJleWVzdHJ1Y3QiOiAiMC45LjAiLAogICAgImZyZWVzdHJ1Y3QiOiAiXjEuMS4wIiwKICAgICJnbG9iYWxzIjogIl4xNS4xNC4wIiwKICAgICJsdWNpZGUtcmVhY3QiOiAiXjEuMTcuMCIsCiAgICAicGFja3N0cnVjdCI6ICIxLjAuMCIsCiAgICAicHJlc3RydWN0IjogIl4xLjEuMCIsCiAgICAicHVwcGV0ZWVyIjogIl4yNS4xMi4wIiwKICAgICJxcmNvZGUucmVhY3QiOiAiXjQuMi4wIiwKICAgICJyZWFjdCI6ICJeMTkuMC4wIiwKICAgICJyZWFjdC1kb20iOiAiXjE5LjAuMCIsCiAgICAicmVhY3Qtcm91dGVyLWRvbSI6ICJeNy4xOC40IiwKICAgICJ0eXBlc2NyaXB0IjogIn41LjYuMiIsCiAgICAidHlwZXNjcmlwdC1lc2xpbnQiOiAiXjguMTguMiIsCiAgICAidml0ZSI6ICJeNi4wLjUiCiAgfSwKICAic2NyaXB0cyI6IHsKICAgICJkZXYiOiAidml0ZSIsCiAgICAiYnVpbGQiOiAidHNjIC1iICYmIHByZXN0cnVjdCBidWlsZCAmJiBub2RlIHNjcmlwdHMvYnVpbGQtc3cubWpzIiwKICAgICJidWlsZDpsaWIiOiAibm9kZSBzY3JpcHRzL2J1aWxkLWxpYi5tanMgJiYgdHNjIC1wIHRzY29uZmlnLmxpYi5qc29uIiwKICAgICJidWlsZDpvZyI6ICJub2RlIHNjcmlwdHMvYnVpbGQtb2cubWpzIiwKICAgICJ0eXBlY2hlY2siOiAidHNjIC1iIC0tbm9FbWl0ICYmIHRzYyAtcCB0c2NvbmZpZy5mdW5jdGlvbnMuanNvbiAmJiB0c2MgLXAgdHNjb25maWcudGVzdC5qc29uIiwKICAgICJsaW50IjogIm5wbSBydW4gbGludDplc2xpbnQgJiYgbnBtIHJ1biBsaW50Omxhbmd1YWdlICYmIG5wbSBydW4gbGludDpkb2NzIiwKICAgICJsaW50OmRvY3MiOiAibm9kZSBzY3JpcHRzL2NoZWNrLWRvY3MubWpzIiwKICAgICJsaW50OnBhY2tzIjogInBhY2tzdHJ1Y3QgbGludCBwYWNrcyAtLWRlZXAiLAogICAgImxpbnQ6ZXNsaW50IjogImVzbGludCAuIiwKICAgICJsaW50Omxhbmd1YWdlIjogIm5vZGUgc2NyaXB0cy9jaGVjay1sYW5ndWFnZS5tanMiLAogICAgInN5bmM6c21va2UiOiAiYnVuIHRlc3RzL3N5bmMtc21va2UudHMiLAogICAgInN5bmM6bGl2ZSI6ICJidW4gc2NyaXB0cy9saXZlLXN5bmMubWpzIiwKICAgICJzeW5jOm11bHRpZGV2IjogImJ1biBzY3JpcHRzL2xpdmUtbXVsdGlkZXZpY2UubWpzIiwKICAgICJzeW5jOnN1YnNjcmliZSI6ICJidW4gc2NyaXB0cy9saXZlLXN1YnNjcmliZS5tanMiLAogICAgInN5bmM6YmFycmFnZSI6ICJidW4gdGVzdHMvYmFycmFnZS50cyIsCiAgICAiY3Jhc2h0ZXN0OmJ1aWxkIjogIm5vZGUgc2NyaXB0cy9idWlsZC1jcmFzaHRlc3QubWpzIiwKICAgICJjcmFzaHRlc3Q6cnVuIjogIm5vZGUgc2NyaXB0cy9idWlsZC1jcmFzaHRlc3QubWpzICYmIGNyYXNodGVzdCBydW4iLAogICAgImZyYW1ld29yazpnYXRlIjogIm5vZGUgc2NyaXB0cy9mcmFtZXdvcmstZ2F0ZS5tanMiLAogICAgInRyYW5zcG9ydDpsYW5kcyI6ICJub2RlIHNjcmlwdHMvdmVyaWZ5LXRyYW5zcG9ydC1sYW5kcy5tanMiLAogICAgInRlc3Q6dWkiOiAibm9kZSB0ZXN0cy91aS9ydW4ubWpzIiwKICAgICJ1aTphdWRpdCI6ICJub2RlIHNjcmlwdHMvdWktYXVkaXQubWpzIiwKICAgICJwcm9iZTpkaXN0IjogIm5vZGUgc2NyaXB0cy9kaXN0LXByb2JlLm1qcyIsCiAgICAidWk6YnJvd3NlcnMiOiAibm9kZSBzY3JpcHRzL3VpLWJyb3dzZXJzLm1qcyIsCiAgICAiZGI6aW5pdDpsb2NhbCI6ICJucHggLS15ZXMgd3JhbmdsZXIgZDEgZXhlY3V0ZSBHSVNUT1JZX0RCIC0tbG9jYWwgLS1maWxlPXNjaGVtYS5zcWwiLAogICAgImRiOmluaXQ6cmVtb3RlIjogIm5weCAtLXllcyB3cmFuZ2xlciBkMSBleGVjdXRlIEdJU1RPUllfREIgLS1yZW1vdGUgLS1jb25maWcgd3JhbmdsZXIuZGVwbG95LnRvbWwgLS1maWxlPXNjaGVtYS5zcWwiLAogICAgImRiOm1pZ3JhdGU6bG9jYWwiOiAibm9kZSBzY3JpcHRzL2RiLW1pZ3JhdGUubWpzIC0tbG9jYWwiLAogICAgImRiOm1pZ3JhdGU6cmVtb3RlIjogIm5vZGUgc2NyaXB0cy9kYi1taWdyYXRlLm1qcyAtLXJlbW90ZSIsCiAgICAiZGI6bWlncmF0ZTpzdGF0dXMiOiAibm9kZSBzY3JpcHRzL2RiLW1pZ3JhdGUubWpzIC0tbG9jYWwgLS1zdGF0dXMiLAogICAgImRiOm1pZ3JhdGU6c3RhdHVzOnJlbW90ZSI6ICJub2RlIHNjcmlwdHMvZGItbWlncmF0ZS5tanMgLS1yZW1vdGUgLS1zdGF0dXMiLAogICAgImRiOm1pZ3JhdGU6Y2hlY2siOiAibm9kZSBzY3JpcHRzL2RiLW1pZ3JhdGUubWpzIC0tY2hlY2siLAogICAgImRiOm1haW50YWluOmxvY2FsIjogIm5vZGUgc2NyaXB0cy9kYi1tYWludGFpbi5tanMgLS1sb2NhbCIsCiAgICAiZGI6bWFpbnRhaW46cmVtb3RlIjogIm5vZGUgc2NyaXB0cy9kYi1tYWludGFpbi5tanMgLS1yZW1vdGUiLAogICAgImRiOm1haW50YWluOmNoZWNrIjogIm5vZGUgc2NyaXB0cy9kYi1tYWludGFpbi5tanMgLS1jaGVjayIsCiAgICAicHJlcHVibGlzaE9ubHkiOiAibnBtIHJ1biB0eXBlY2hlY2sgJiYgbnBtIHJ1biBsaW50ICYmIG5wbSBydW4gYnVpbGQ6bGliIiwKICAgICJwcmV2aWV3IjogInZpdGUgcHJldmlldyIsCiAgICAiaWNvbnM6YWRvcHQiOiAibm9kZSBzY3JpcHRzL2Fkb3B0LWljb25zLm1qcyIKICB9Cn0K' | base64 -d > package.json
+          printf %s 'ewogICJuYW1lIjogInBvc3RzdHJ1Y3QiLAogICJ2ZXJzaW9uIjogIjAuOS4wIiwKICAiZGVzY3JpcHRpb24iOiAiQXVkaXQgd2hhdCBzaGlwcGVkLiBBIHplcm8tZGVwZW5kZW5jeSBDTEkgdGhhdCB3YWxrcyBiYWtlZCBIVE1MIGFuZCB2ZXJpZmllcyBoZWFkLCBsaW5rcywgYW5kIHNpdGUgaHlnaWVuZSBhZ2FpbnN0IGEgY29udHJhY3QgLSBGQUlMIGZpbmRpbmdzIGV4aXQgbm9uLXplcm8gc28gQ0kgZ2F0ZXMgcmVncmVzc2lvbnMuIiwKICAidHlwZSI6ICJtb2R1bGUiLAogICJsaWNlbnNlIjogIlNFRSBMSUNFTlNFIElOIExJQ0VOU0UiLAogICJiaW4iOiB7CiAgICAicG9zdHN0cnVjdCI6ICJiaW4vY2xpLm1qcyIKICB9LAogICJleHBvcnRzIjogewogICAgIi4iOiAiLi9zcmMvaW5kZXgubWpzIiwKICAgICIuL3BhY2thZ2UuanNvbiI6ICIuL3BhY2thZ2UuanNvbiIKICB9LAogICJmaWxlcyI6IFsKICAgICJiaW4vIiwKICAgICJzcmMvIiwKICAgICJMSUNFTlNFIgogIF0sCiAgInNjcmlwdHMiOiB7CiAgICAidGVzdCI6ICJub2RlIHRlc3QvcnVuLm1qcyAmJiBub2RlIHRlc3Qvc2hhcGVzLXJ1bi5tanMgJiYgbm9kZSAtLXRlc3QgdGVzdC9zaGlwLWZyb20tZG93bmxvYWQudGVzdC5janMiLAogICAgInBhY2tzIjogIm5vZGUgc2NyaXB0cy9ydW4tcGFja3MubWpzIiwKICAgICJwYWNrczphZG9wdCI6ICJub2RlIHNjcmlwdHMvcnVuLXBhY2tzLm1qcyAtLWFkb3B0IiwKICAgICJsaW50OnBhY2tzIjogIm5vZGUgYmluL2NsaS5tanMgbGludC1wYWNrcyAtLWRlZXAiLAogICAgImNvbmZvcm06cGFja3MiOiAicGFja3N0cnVjdCBhdWRpdC1jb25mb3JtYW5jZSAuIC0tbG9hZGVyIFwibm9kZSBzY3JpcHRzL3J1bi1wYWNrcy5tanMge3BhY2tzfVwiIiwKICAgICJjaGVjayI6ICJucG0gcnVuIHRlc3QgJiYgbnBtIHJ1biBsaW50OnBhY2tzICYmIG5wbSBydW4gY29uZm9ybTpwYWNrcyAmJiBucG0gcnVuIGxpbnQ6ZG9jcyIsCiAgICAic2l0ZTpidWlsZCI6ICJucG0gLS1wcmVmaXggd2ViIHJ1biBidWlsZCAmJiBybSAtcmYgZGlzdCAmJiBta2RpciBkaXN0ICYmIGNwIC1yIHdlYi9kaXN0Ly4gZGlzdC8iLAogICAgInNpdGU6ZGV2IjogIm5wbSAtLXByZWZpeCB3ZWIgcnVuIGRldiIsCiAgICAiaWNvbnM6YWRvcHQiOiAibm9kZSBzY3JpcHRzL2Fkb3B0LWljb25zLm1qcyIsCiAgICAibGludDpkb2NzIjogIm5vZGUgc2NyaXB0cy9jaGVjay1kb2NzLWZyb250bWF0dGVyLmNqcyAmJiBub2RlIHNjcmlwdHMvY2hlY2stZG9jcy1saW5rcy5janMgJiYgbm9kZSBzY3JpcHRzL2NoZWNrLWRvY3Mtc3R5bGUuY2pzICYmIG5vZGUgc2NyaXB0cy9jaGVjay1maWN0aW9uLXNpZ25hdHVyZXMuY2pzICYmIG5vZGUgc2NyaXB0cy9jaGVjay1qZWt5bGwtZmlsdGVycy5janMgJiYgbm9kZSBzY3JpcHRzL2NoZWNrLWxhbmd1YWdlLmNqcyIKICB9LAogICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAiZXllc3RydWN0IjogIjAuOS4wIiwKICAgICJwYWNrc3RydWN0IjogIjEuMC4wIgogIH0sCiAgImVuZ2luZXMiOiB7CiAgICAibm9kZSI6ICI+PTIwIgogIH0sCiAgImtleXdvcmRzIjogWwogICAgInNlbyIsCiAgICAiYXVkaXQiLAogICAgImNpIiwKICAgICJvcGVuLWdyYXBoIiwKICAgICJqc29uLWxkIiwKICAgICJzaXRlbWFwIiwKICAgICJyb2JvdHMiLAogICAgInN0YXRpYy1zaXRlIiwKICAgICJwcmVzdHJ1Y3QiLAogICAgImZyZWVzdHJ1Y3QiLAogICAgInByZXJlbmRlciIKICBdLAogICJyZXBvc2l0b3J5IjogewogICAgInR5cGUiOiAiZ2l0IiwKICAgICJ1cmwiOiAiZ2l0K2h0dHBzOi8vZ2l0aHViLmNvbS9kaGF1cGluL3Bvc3RzdHJ1Y3QuZ2l0IgogIH0sCiAgImJ1Z3MiOiB7CiAgICAidXJsIjogImh0dHBzOi8vZ2l0aHViLmNvbS9kaGF1cGluL3Bvc3RzdHJ1Y3QvaXNzdWVzIgogIH0sCiAgImhvbWVwYWdlIjogImh0dHBzOi8vZ2l0aHViLmNvbS9kaGF1cGluL3Bvc3RzdHJ1Y3QjcmVhZG1lIgp9Cg==' | base64 -d > poststruct-staging/package.json
+          node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); JSON.parse(require('fs').readFileSync('poststruct-staging/package.json','utf8')); console.log('both package.jsons carried and parse')"
 
       - name: Derive the lockfiles + prove the trees install
         run: |
@@ -237,6 +65,5 @@ PKG
           if git diff --cached --quiet; then echo 'nothing to land (one-shot already done)'; exit 0; fi
           git config user.name Codebuff
           git config user.email noreply@codebuff.com
-          git commit -m "eyestruct@npm: the exact pins land with the derived lockfiles" \
-                     -m "eyestruct@0.9.0 is on npm. The devDependency pin is EXACT (the packstruct discipline) in both package.jsons; the lockfiles are derived on the runner (never hand-carried), gated on the pin, and both trees are npm-ci proven before the atomic commit. No lock/package disagreement ever hits CI."
+          git commit -m "eyestruct@npm: the exact pins land with the derived lockfiles" -m "eyestruct@0.9.0 is on npm. The devDependency pin is EXACT (the packstruct discipline) in both package.jsons; the lockfiles are derived on the runner (never hand-carried), gated on the pin, and both trees are npm-ci proven before the atomic commit. No lock/package disagreement ever hits CI."
           git push origin main
