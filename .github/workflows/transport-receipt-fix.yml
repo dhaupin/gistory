@@ -1,0 +1,44 @@
+# ONE-SHOT (retires after its receipt): fixes the two transcription words in
+# the landed labs/transport.md (TASSS -> TASKS, KeEPS -> keeps) runner-side
+# and blob-gates against the local target 69d2aad4. The repair-lane shape
+# from labs/transport.md, applied byte-exactly instead of re-carrying the
+# whole file through chat again.
+name: transport-receipt-fix
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fix the two drifted words + blob-gate
+        run: |
+          set -euo pipefail
+          f="labs/transport.md"
+          grep -c 'TASSS' "$f" | grep -q '^1$' || { echo "TASSS marker not unique"; exit 1; }
+          grep -c 'KeEPS' "$f" | grep -q '^1$' || { echo "KeEPS marker not unique"; exit 1; }
+          sed -i 's/TASSS/TASKS/; s/KeEPS/keeps/' "$f"
+          got="$(git hash-object "$f")"
+          if [ "$got" != "69d2aad4c0912305311b845e2a9d1e892419fecf" ]; then
+            echo "GATE FAIL: $f (=$got) != 69d2aad4c0912305311b845e2a9d1e892419fecf"
+            exit 1
+          fi
+          echo "gate: transport.md now equals the local target (69d2aad4)"
+
+      - name: Commit the whitelisted fix
+        run: |
+          set -euo pipefail
+          git config user.name Codebuff
+          git config user.email noreply@codebuff.com
+          git add labs/transport.md
+          git status --porcelain > /tmp/changes.txt
+          bad="$(grep -Ev '^(M |A )' /tmp/changes.txt || true)"
+          if [ -n "$bad" ]; then echo "UNEXPECTED WORKTREE STATE; refusing:"; echo "$bad"; exit 1; fi
+          git commit -m "repair-lane receipt byte-fix 2: transport.md runner-side word correction (TASSS->TASKS, KeEPS->keeps), blob-gated (69d2aad4)"
+          git push
+          echo "fix landed"
