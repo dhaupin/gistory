@@ -107,14 +107,27 @@
  - The cut law: an unmapped internal dependency refuses loudly; shortfall
    lazies must be declared in cutlist.json and ship as documented call-site
    degrades (per-package README carries the list: absence is honest).
-@@ -23,6 +26,14 @@
-   config, stray dir) and the doctor fail (unfilled) / pass (filled) pair.
+@@ -20,9 +23,26 @@
+   template block with a single instance is a bet, and the doctor cannot
+   verify bets.
+ - The negative test in `test/run.mjs` asserts the refusal paths (bad
+-  config, stray dir) and the doctor fail (unfilled) / pass (filled) pair.
++  config, stray dir), the doctor fail (unfilled) / pass (filled) pair,
++  and the canon checks (monoforge#12 rider): a dangling
++  `labs/.eyes/ledger.json` artifact pointer fails `dangling-canon`, an
++  UNSET canon pin fails `canon-pin`, and a canon-free tree stays silent
++  (the canon is opt-in; auditing nothing is never dressed up as a pass).
    Update the test in the same commit as any check change; run
    `npm test` first.
 +- The battery is one verb for CI and humans: `npm run check` (test +
 +  docs gates + language gate). The packstruct leg is deliberately not
 +  wired into check until the factory's own packs land; until then
-+  `monoforge lint-packs` answers exit 2 as the readiness probe.
++  `monoforge lint-packs` answers exit 2 as the readiness probe. The
++  phone publish lane rides the battery: `scripts/ship-from-download.cjs`
++  is copied byte-as-is from eyestruct@9744c76 (zero repo imports) and
++  `node --test test/ship-from-download.test.cjs` runs inside `npm test`
++  (monoforge#14; the .cjs extension is the one mechanical rename the ESM
++  root forces).
 +- The icon lane is the family's parameterized one: `npm run icons:adopt`
 +  (scripts/adopt-icons.mjs + scripts/brand-mark.json authored seal),
 +  same contract as gistory#17/eyestruct. Derived icon bytes are
@@ -1116,6 +1129,77 @@
          const p3 = join(dir, f)
          if (!existsSync(p3) && !f.includes('*')) fail('files-path', `files entry ${f} does not exist in the tree`)
        }
+@@ -129,6 +151,70 @@
+     }
+   }
+ 
++  // 7. the .eyes canon, when the tree docks it (monoforge#12 rider, the
++  // eyestruct DANGLING_ROW refusal scored as a doctor check; the canon is
++  // a second truth surface, so its rows must resolve exactly like bin /
++  // exports / files paths do above). A canon-free tree stays silent -
++  // the canon is opt-in; auditing nothing is never dressed up as a pass.
++  const canonCheck = (eyesHome) => {
++    const ledgerFile = join(dir, eyesHome, 'ledger.json')
++    const manifestFile = join(dir, eyesHome, 'manifest.yml')
++    if (existsSync(manifestFile)) {
++      let s
++      try { s = readFileSync(manifestFile, 'utf8') } catch {
++        fail('canon-pin', `${eyesHome}/manifest.yml is not readable`)
++        return
++      }
++      // The pin block parses in the family subset, and every seeded pin
++      // must have been replaced by a real reference: 'UNSET' markers are
++      // the unfilled truth-slot class wearing the canon's uniform.
++      const pin = {}
++      const m = s.match(/^pin:\s*\n((?:\s{2}.+\n?)+)?/m)
++      if (m && m[1]) {
++        for (const line of m[1].split('\n')) {
++          if (!line.trim()) continue
++          const kv = line.trim().match(/^([\w-]+):\s*(.+)$/)
++          if (!kv) { fail('canon-pin', `${eyesHome}/manifest.yml pin row is not key: value -> "${line.trim()}"`); continue }
++          pin[kv[1]] = kv[2].trim()
++        }
++      } else {
++        fail('canon-pin', `${eyesHome}/manifest.yml carries no pin block (the canon token the captures resolve)`)
++      }
++      for (const key of ['browser-image', 'renderer']) {
++        const v = pin[key] || ''
++        if (!v) fail('canon-pin', `${eyesHome}/manifest.yml pin.${key} is missing (the canon cannot resolve without it)`)
++        else if (/\bUNSET\b|edit-me/i.test(v)) fail('canon-pin', `${eyesHome}/manifest.yml pin.${key} is still "${v}" - a shipped UNSET pin is a canon token pointing at nothing`)
++      }
++    }
++    if (!existsSync(ledgerFile)) return
++    let rows
++    try {
++      rows = JSON.parse(readFileSync(ledgerFile, 'utf8'))
++    } catch (e) {
++      fail('dangling-canon', `${eyesHome}/ledger.json does not parse (LEDGER_CORRUPT): the gate would refuse it loudly - the doctor refuses first`)
++      return
++    }
++    if (!Array.isArray(rows)) {
++      fail('dangling-canon', `${eyesHome}/ledger.json is not an array of rows (LEDGER_CORRUPT)`)
++      return
++    }
++    const refs = []
++    for (const row of rows) {
++      if (!row || typeof row !== 'object') { fail('dangling-canon', `${eyesHome}/ledger.json carries a row that is not an object`); continue }
++      if (typeof row.artifact === 'string') refs.push({ id: row.id, p: row.artifact })
++      if (Array.isArray(row.artifacts)) for (const a of row.artifacts) if (typeof a === 'string') refs.push({ id: row.id, p: a })
++    }
++    for (const { id, p } of refs) {
++      if (typeof p !== 'string' || p.startsWith('/') || p.split(/[\\/]/).includes('..')) {
++        fail('dangling-canon', `${eyesHome}/ledger.json row ${id || '?'} path "${p}" escapes the eyes home (UNSAFE_PATH)`)
++      } else if (!existsSync(join(dir, eyesHome, p))) {
++        fail('dangling-canon', `${eyesHome}/ledger.json row ${id || '?'} points at "${p}" and no such committed artifact exists (DANGLING_ROW: the row references a file that no longer exists)`)
++      }
++    }
++  }
++  canonCheck('labs/.eyes')
++  canonCheck('labs/.eyes-receipt')
++
+   const counts = { fail: findings.filter((f) => f.level === 'fail').length, warn: findings.filter((f) => f.level === 'warn').length }
+   return { dir, counts, findings, ok: counts.fail === 0 }
+ }
 --- a/monoforge-staging/templates/.github/workflows/docs.yml
 +++ b/monoforge-staging/templates/.github/workflows/docs.yml
 @@ -71,7 +71,7 @@
@@ -1149,3 +1233,53 @@
 +npx --yes freestruct@1.1.0 --strict     # discovers docs/freestruct.config.yml + docs/_site
  npx --yes pagefind --site docs/_site    # local-dev only, see note
  echo "docs build complete: docs/_site"
+--- a/monoforge-staging/test/run.mjs
++++ b/monoforge-staging/test/run.mjs
+@@ -55,6 +55,7 @@
+         wf(p, rf(p, 'utf8')
+           .replaceAll('FORGE-TODO', 'DONE')
+           .replaceAll('DONE:truth', 'filled by the factory test')
++          .replaceAll('UNSET-edit-me', 'test-pinned@1.0.0')
+           .replaceAll(/__[A-Z][A-Z0-9_]*__/g, 'test-token-filled'))
+       } catch {}
+     }
+@@ -67,9 +68,38 @@
+ // its warn, but the tree must be fail-free.
+ assert(d5.counts.fail === 0, `doctor should pass a refilled tree (got: ${JSON.stringify(d5.findings.filter(f => f.level === 'fail').slice(0, 3))})`)
+ 
++// 6. the canon checks (monoforge#12 rider, the eyestruct DANGLING_ROW
++// refusal scored as a doctor check).
++// 6a. a dangling canon pointer fails: a ledger row whose artifact never
++//     landed is the same lie as a files entry pointing at nothing.
++const d6a = mkdtempSync(join(tmpdir(), 'forge-canon-'))
++mkdirSync(join(d6a, 'labs/.eyes'), { recursive: true })
++writeFileSync(join(d6a, 'labs/.eyes/manifest.yml'), 'pin:\n  browser-image: local-chrome@154.0.0.0\n  renderer: resvg@2.6.2\nroutes:\n  - path: /  view: desktop-1280  theme: dark  viewport: 1280x800\n')
++writeFileSync(join(d6a, 'labs/.eyes/ledger.json'), JSON.stringify([
++  { id: 'row-0001', ts: 1, agent: 't', commit: 'c', artifact: 'home/desktop-1280/current.png', type: 'adopt', note: 'ghost pointer' },
++]))
++const r6a = await doctor(d6a)
++assert(r6a.findings.some((f) => f.id === 'dangling-canon' && f.level === 'fail'), 'dangling canon pointer: the doctor refuses (DANGLING_ROW as a doctor finding)')
++// 6b. an UNSET pin fails: a canon token pointing at nothing is an unfilled
++//     truth slot in the canon's uniform.
++const d6b = mkdtempSync(join(tmpdir(), 'forge-canon-'))
++mkdirSync(join(d6b, 'labs/.eyes'), { recursive: true })
++writeFileSync(join(d6b, 'labs/.eyes/manifest.yml'), 'pin:\n  browser-image: UNSET-edit-me\n  renderer: UNSET-edit-me\nroutes:\n  - path: /  view: desktop-1280  theme: dark  viewport: 1280x800\n')
++writeFileSync(join(d6b, 'labs/.eyes/ledger.json'), '[]')
++const r6b = await doctor(d6b)
++assert(r6b.findings.some((f) => f.id === 'canon-pin' && f.level === 'fail'), 'UNSET canon pins: the doctor refuses until something fills them')
++// 6c. canon-free tree stays silent: no canon, no findings, no fake pass.
++const d6c = mkdtempSync(join(tmpdir(), 'forge-canon-'))
++writeFileSync(join(d6c, 'placeholder.txt'), 'no canon here')
++const r6c = await doctor(d6c)
++assert(!r6c.findings.some((f) => f.id === 'dangling-canon' || f.id === 'canon-pin'), 'canon-free tree: the canon checks stay silent, never a dressed-up pass')
++rmSync(d6a, { recursive: true, force: true })
++rmSync(d6b, { recursive: true, force: true })
++rmSync(d6c, { recursive: true, force: true })
++
+ rmSync(base, { recursive: true, force: true })
+ if (fails.length) { console.error('SELF-TEST FAIL:\n  ' + fails.join('\n  ')); process.exit(1) }
+-console.log('monoforge self-test: bad-config refused, stray dir refused, stamp ok, unfilled doctor FAIL, refilled doctor PASS - PASS')
++console.log('monoforge self-test: bad-config refused, stray dir refused, stamp ok, unfilled doctor FAIL, refilled doctor PASS, canon dangling/UNSET refused, canon-free silent - PASS')
+ process.exit(0)
+ 
+ function require3(p) { return rf(p, 'utf8') }
