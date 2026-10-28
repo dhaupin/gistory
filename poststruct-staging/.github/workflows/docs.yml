@@ -26,8 +26,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 20 }
 
-      # Docs truth gates (ported house checkers): frontmatter law,
-      # resolvable links, style law, fiction-signature + Jekyll-filter trap
+      # Docs truth gates (ported house checkers): frontmatter 5-field law,
+      # resolvable links, style law (no dashes in prose, language-tagged
+      # fences, no trailing ws), fiction-signature + Jekyll-filter trap
       # scanners (the rig-pass generation, gistory#23), English-only prose.
       - name: Docs gates
         run: |
