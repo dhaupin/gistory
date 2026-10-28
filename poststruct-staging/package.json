@@ -29,6 +29,7 @@
     "lint:docs": "node scripts/check-docs-frontmatter.cjs && node scripts/check-docs-links.cjs && node scripts/check-docs-style.cjs && node scripts/check-fiction-signatures.cjs && node scripts/check-jekyll-filters.cjs && node scripts/check-language.cjs"
   },
   "devDependencies": {
+    "eyestruct": "0.9.0",
     "packstruct": "1.0.0"
   },
   "engines": {
