@@ -1846,3 +1846,16 @@ exactly like crashtest/packstruct (eyes:gate ledger + eyes:packs
   block), and the poststruct docs layout grows its favicon links
   (baseurl-safe). Landing receipts: text via the commit lane, binaries via
   this one-shot; each blob-diffed against origin head after the run.
+- **Fourth pass, same day (the repair-lane receipt, 2026-10-28):** the
+  gistory#23 transcription class (package.json + docs.yml drifted across
+  three commit-lane carries) got its own correction lane and it now has
+  its receipt: `poststruct-rig-gates-repair.yml` re-derived both files
+  runner-side from the pre-drift rev b4fdf3a via rehearsed transforms and
+  blob-gated the outputs (3d04c42d / 00a18f12) before committing
+  (repair commit cd2316c). Dispatch 1 died at the depth=1 checkout
+  (shallow law proven on a runner: old revs need `fetch-depth: 0`);
+  dispatch 2 died at the YAML block-scalar indent (the runner receives
+  `run: |` minus its base column). The one-shot retires from the board
+  now - the shape is documented in labs/transport.md, so the NEXT drift
+  of a gate-chain file is a re-derive + blob gate, never a fourth
+  hand-carry.
