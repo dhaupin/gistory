@@ -44,7 +44,7 @@ jobs:
               path = m.TARGET
               r = subprocess.run(["git", "show", f"HEAD:{path}"], capture_output=True, text=True)
               assert r.returncode == 0, f"missing on HEAD: {path}"
-              cur = r.stdout if r.stdout.endswith("\\n") else r.stdout + "\\n"
+              cur = r.stdout if r.stdout.endswith(chr(10)) else r.stdout + chr(10)
               for a, b in m.PAIRS:
                   assert cur.count(a) == 1, f"ANCHOR FAIL {path}: {a[:80]!r}"
                   cur = cur.replace(a, b, 1)
