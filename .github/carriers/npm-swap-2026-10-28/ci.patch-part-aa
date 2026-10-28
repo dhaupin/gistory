@@ -1,0 +1,57 @@
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -143,78 +143,44 @@
+       # committed labs/.eyes/ ledger: 0 unexplained drift, all rows
+       # explained). Family exit contract; skips are NAMED, never fake
+       # passes.
+-      - name: Checkout eyestruct upstream (the EYES legs' tool of record)
+-        uses: actions/checkout@v4
+-        with:
+-          repository: dhaupin/eyestruct
+-          # eyestruct's check-trifecta verifies cited receipts with
+-          # git cat-file INSIDE this checkout; a shallow fetch-depth 1
+-          # clone reports real upstream commit ids as GHOST_COMMIT, so the
+-          # battery needs the history, not just the tree.
+-          fetch-depth: 0
+-          path: eyestruct-upstream
+-
+-      - name: Install eyestruct upstream
+-        run: npm ci --prefix eyestruct-upstream
++      # Eyestruct: the npm pin. The devDependencies carry eyestruct@0.9.0
++      # EXACT (the packstruct discipline), so `npm ci` lands the tool in
++      # node_modules for every leg - no checkout, no env knobs. The
++      # resolvers walk OUT from their own ROOT and find the install:
++      # poststruct-staging's own pin (its lockfile) and the root pin (the
++      # raster + gate legs), both right here.
++      - name: Install (root pin + poststruct's own pin)
++        run: |
++          npm ci --ignore-scripts
++          npm ci --ignore-scripts --prefix poststruct-staging
+ 
+       - name: Framework gate (poststruct x eyestruct legs)
+-        env:
+-          EYESTRUCT_BIN: eyestruct-upstream/bin/eyestruct.js
+-          # The eyestruct-shapes pack's canon leg is the tree of record: the
+-          # same upstream checkout (retirement budget = eyestruct-staging
+-          # mount is gone since 2026-10-27, so the old sibling default no
+-          # longer resolves and the pack would docket a BOUNDED canon-absent
+-          # row the ledger reads as NEW). Absolute on purpose: the pack
+-          # runner resolves the knob from ITS OWN cwd (poststruct-staging/),
+-          # so a repo-relative value misses (run 40658890651 receipt).
+-          EYESTRUCT_TREE: ${{ github.workspace }}/eyestruct-upstream
+         run: node scripts/framework-gate.mjs
+ 
+-  # The staging repos are writing repos of their own — they tar over to
+-  # dhaupin/poststruct, while eyestruct graduated upstream outright — and
+-  # this job is where the batteries prove their loaders/packs/ledgers stay
+-  # conformant with the packstruct spec all family legs share. Separate
+-  # job, by receipt: the raster gate refuses public/favicon.svg (310-byte
+-  # flat-color render against the 512-byte floor) wherever eyestruct deps
+-  # are installed, so this job installs them deliberately and scopes
+-  # itself to receipt-backed truths (loaders, packs, docs gates, smoke).
+-  # Honest centerpiece: failures fail under their own name, and the
+-  # framework gate in verify keeps its capability boundary until the raster
+-  # threshold has one.
++  # The staging repos are writing repos of their own - they tar over to
++  # dhaupin/poststruct, and eyestruct ships as the npm package the
++  # devDependency pins pin - so this job is where the batteries prove

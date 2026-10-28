@@ -1,0 +1,45 @@
++  # their loaders/packs/ledgers stay conformant with the packstruct spec
++  # all family legs share. The eyestruct devDependency rides the same
++  # `npm ci` (no checkout, no env knob); eyestruct's own repo tooling
++  # (its test spine, docs gates, packs battery) is eyestruct's repo CI's
++  # job - the npm package is tool-only, and gistory consumes it AS a
++  # tool. Honest centerpiece: failures fail under their own name.
+   staging-hosts:
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/checkout@v4
+ 
+-      # Eyestruct: upstream repo (the staging mount retired 2026-10-27).
+-      # fetch-depth 0 for the same receipt-HISTORY reason as the verify
+-      # job's checkout above; a shallow clone makes the trifecta lie.
+-      - uses: actions/checkout@v4
+-        with:
+-          repository: dhaupin/eyestruct
+-          fetch-depth: 0
+-          path: eyestruct-upstream
+-
+       - uses: actions/setup-node@v4
+         with:
+           node-version: 22
+ 
+-      - name: Install (poststruct staging + eyestruct upstream)
+-        run: |
+-          npm ci --prefix poststruct-staging
+-          npm ci --prefix eyestruct-upstream
++      - name: Install (devDeps carry the packstruct + eyestruct exact pins)
++        run: npm ci --prefix poststruct-staging
+ 
+       - name: Poststruct battery (test + lint:packs + conform:packs)
+-        env:
+-          EYESTRUCT_BIN: eyestruct-upstream/bin/eyestruct.js
+         run: npm run check --prefix poststruct-staging
+ 
+-      - name: Eyestruct smoke (node:test spine, upstream)
+-        run: npm test --prefix eyestruct-upstream
+-
+-      - name: Eyestruct battery (docs gates + packs + lint:packs + conform:packs, upstream)
+-        run: npm run check --prefix eyestruct-upstream
+-
+       - name: "Monoforge battery (self-test: stamp + doctor + lock refusals)"
+         run: node test/run.mjs
+         working-directory: monoforge-staging
