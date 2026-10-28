@@ -1,7 +1,6 @@
 {
   "name": "monoforge-site",
   "private": true,
-  "version": "0.9.0",
   "type": "module",
   "description": "monoforge site - the landing for the fleet factory (prestruct prerender + static hosting)",
   "scripts": {
