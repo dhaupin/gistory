@@ -160,6 +160,12 @@ jobs:
       - name: Framework gate (poststruct x eyestruct legs)
         env:
           EYESTRUCT_BIN: eyestruct-upstream/bin/eyestruct.js
+          # The eyestruct-shapes pack's canon leg is the tree of record: the
+          # same upstream checkout (retirement budget = eyestruct-staging
+          # mount is gone since 2026-10-27, so the old sibling default no
+          # longer resolves and the pack would docket a BOUNDED canon-absent
+          # row the ledger reads as NEW).
+          EYESTRUCT_TREE: eyestruct-upstream
         run: node scripts/framework-gate.mjs
 
   # The staging repos are writing repos of their own — they tar over to
