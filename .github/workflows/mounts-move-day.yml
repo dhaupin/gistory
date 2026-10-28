@@ -31,6 +31,7 @@ jobs:
       - name: Apply the move-day modules (lanes, new files, 33 moves)
         run: |
           set -euo pipefail
+          export PYTHONDONTWRITEBYTECODE=1
           python3 /dev/stdin <<'PY'
           import importlib, os, shutil, subprocess, sys
           sys.path.insert(0, ".github/move-day")
@@ -96,6 +97,7 @@ jobs:
       - name: Whitelist-commit the whole reorg
         run: |
           set -euo pipefail
+          export PYTHONDONTWRITEBYTECODE=1
           git add -A
           python3 /dev/stdin <<'PY'
           import importlib, subprocess, sys
@@ -117,6 +119,9 @@ jobs:
                   if oldp not in oldps: bad.append(("R-old", oldp))
                   if newp not in newps: bad.append(("R-new", newp))
                   continue
+              # the runner's own module dir is self-consistent: any residual
+              # change there (e.g. a stray bytecode cache) commits and rides
+              if pathpart.startswith(".github/move-day/"): continue
               if st.startswith("A") and (pathpart in lanes or pathpart in newps): continue
               if st.startswith("M") and (pathpart in lanes or pathpart in newps): continue
               if st.startswith("D") and pathpart in oldps: continue
