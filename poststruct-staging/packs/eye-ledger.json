@@ -24,17 +24,17 @@
     {
       "pack": "eyestruct-shapes",
       "id": "eyes/receipt-provenance",
-      "verdict": "PASSED"
+      "verdict": "BOUNDED"
     },
     {
       "pack": "eyestruct-shapes",
       "id": "eyes/verdict-count-drift",
-      "verdict": "PASSED"
+      "verdict": "BOUNDED"
     },
     {
       "pack": "eyestruct-shapes",
       "id": "eyes/reason-table-drift",
-      "verdict": "PASSED"
+      "verdict": "BOUNDED"
     },
     {
       "pack": "eyestruct-shapes",
