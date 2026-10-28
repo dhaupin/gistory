@@ -1,0 +1,5 @@
+pin:
+  browser-image: UNSET-edit-me
+  renderer: UNSET-edit-me
+routes:
+  - path: /          view: desktop-1280  theme: dark  viewport: 1280x800
