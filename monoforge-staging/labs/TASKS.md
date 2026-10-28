@@ -1,152 +1,36 @@
 # labs - monoforge (staging mount)
 
-Rolling work log for the monoforge staging tree, in the family TASKS
-convention. The two PRDs here are carried byte-exact from
-dhaupin/monoforge (labs/, upstream commit f8e45fb):
+Rolling work log for the monoforge staging tree, in the family TASKS convention. The two PRDs here are carried byte-exact from dhaupin/monoforge (labs/, upstream commit f8e45fb):
 
 - prd-factory.md — the factory itself (new / doctor / lock / cut verbs)
 - prd-creadev-mono.md — the component-family profile's first customer
 
 ## 2026-10-26 — the mount stands up in gistory
 
-- The staged tool is 0.9.0 UNCHANGED: the tree unpacks from
-  `horcrux/monoforge-0.9.0-lock.tar.gz` (tarball-first landing, sha-gated
-  ferry), because a mount and its lock archive must not be allowed to
-  drift apart in transit.
-- What the mount ADDS over the standalone repo, beyond the tool:
-  `labs/TASKS.md` (this file) and the horcrux receipts
-  (`horcrux/README.md`, lock archive in place). The minted provisioner
-  stone stays owned by dhaupin/monoforge — it does not ride this mount
-  (size class already burned the payload lane once tonight).
-- Family battery lane (own CI under gistory `staging-hosts`): the
-  self-test `node test/run.mjs` — stamp + doctor + lock refusals per
-  PRD §5 — runs straight off the zero-dep tree; no install step needed.
-- tar-move-plan.md carries the monoforge row: → dhaupin/monoforge
-  (repo already exists with labs/ + horcrux/; move day merges the tool
-  tree onto it and keeps those dirs intact).
+- The staged tool is 0.9.0 UNCHANGED: the tree unpacks from `horcrux/monoforge-0.9.0-lock.tar.gz` (tarball-first landing, sha-gated ferry), because a mount and its lock archive must not be allowed to drift apart in transit.
+- What the mount ADDS over the standalone repo, beyond the tool: `labs/TASKS.md` (this file) and the horcrux receipts (`horcrux/README.md`, lock archive in place). The minted provisioner stone stays owned by dhaupin/monoforge — it does not ride this mount (size class already burned the payload lane once tonight).
+- Family battery lane (own CI under gistory `staging-hosts`): the self-test `node test/run.mjs` — stamp + doctor + lock refusals per PRD §5 — runs straight off the zero-dep tree; no install step needed.
+- tar-move-plan.md carries the monoforge row: → dhaupin/monoforge (repo already exists with labs/ + horcrux/; move day merges the tool tree onto it and keeps those dirs intact).
 
 ## Honest limits tonight
 
-- Doctor was NOT run against this mount itself: the doctor battery is
-  written for STAMPED repos (factory law, FORGE-TODO slots) and the
-  mount is a write-repo host, not a stamped output. Its own self-test
-  exercises doctor on a freshly stamped temp tree instead.
-- The templates/ blocks are the 2026-10-24 extraction and predate
-  tonight: drift against the two struct instances is the known, watched
-  risk (PRD §6), not something tonight changes.
-- **Completion sprint (2026-10-26, pre-move).** 1) Template-layer drift
-  repaired at the SOURCE: the docs layout shipped packstruct's nav
-  (SPEC v1 / linter pages) and footer identity, the configs shipped
-  packstruct's description, and a backreference artifact rode both -
-  every stamped repo would have inherited another tool's identity.
-  Templates now emit __SPECIES__/__DESCRIPTION__ tokens and a home+search
-  nav (the monoforge instance adds verbs/packs); the doctor-scoped
-  stamp-manifest law is untouched (self-test still green endpoints:
-  bad-config refused, stray dir refused, stamp ok, unfilled doctor FAIL,
-  refilled doctor PASS). 2) docs playbook grew from 2 pages to 4:
-  verbs.md (usage lines match bin/forge.mjs help exactly) and packs.md
-  (the contract + SPEC v1 link + the honest "no packs shipped yet by
-  design"). 3) site/ landing built per the PRD inventory: slogan, verb
-  grid, receipts-only numbers, limits, terms/privacy static pages
-  (footer links no longer point at 404s). Frontmatter/links/style/
-  language gates all PASS on the new pages.
-- **Ferry law, receipts (2026-10-26, evening).** The six template/doc
-  repairs that ride INSIDE the lock archive cannot sit in the mount tree
-  durably: the ferry ("the mount tool tree matches its lock")
-  reassembles them from the archive on every interleaved lane run. The
-  fixed bytes + the convergence recipe now ride
-  `horcrux/lock-archive-overlay.patch` - a git unified diff against the
-  archive bytes, landed through the commit lane in base64 mode (blob
-  44a0c4a9), in the ferry-safe horcrux slot until the upstream re-lock
-  retires it. Move-day steps live in the patch header: apply it inside
-  dhaupin/monoforge (needs the repo's first write grant), rerun the
-  self-test battery, cut a fresh lock, and re-pin gistory's ferry to
-  that lock; this patch then retires in the same commit the pin moves.
-  Three transport teachings landed tonight, recorded for the family:
-  (1) a single-line pure base64 carry (9.8KB prose+diff) verified
-  blob-exact on the first try - safest text-lane shape found;
-  (2) wrapped-row carries still scramble occasionally (one two-row hit
-  near row 117 of a 224-row gz+b64 payload), so every carry needs its
-  blob id checked BEFORE anything dispatches against it; (3) receipts
-  above ~10KB belong to a runner-side emit (payload + one-shot, sha-gated
-  from the burn file) rather than a text lane.
-- **The flowforge rig pass (2026-10-27) - the structure converges with
-  eyestruct.** The mount gets the rig shape its siblings already have:
-  1) The landing is the rig `web/` now (prestruct + react + inject-brand,
-  brand as data in ssr.config.js); the 0.9.0 static `site/index.html` is
-  retired (move day deletes upstream's `site/` and points Pages at
-  `web/dist`). 2) The docs layer rides the rig engine: the pagefind
-  layout, `_data/nav.yml` single nav source, the monoforge mark, the
-  five rig gate scripts (frontmatter/links/style/fiction/jekyll),
-  frontmatter normalized to the rig contract, and the packstruct-copy
-  identity scrubbed from layout + configs (this mount's docs had been
-  describing the shared /packs SPEC, not monoforge). 3) `MANIFEST.md`
-  records the provenance rows. 4) The mount's own `.github/workflows/
-  test.yml` mints the standalone battery: zero-dep self-test + docs
-  gates + language gate, no install step. All green locally before
-  landing: `npm run check` (self-test PASS; 5 docs gates PASS; language
-  gate PASS) and a throwaway `prestruct build` whose dist proved zero
-  flowforge/eyestruct strings and a fully monoforge-branded prerender
-  (3/3 pages + 404 + sitemap).
-- **Transport receipts, the 2026-10-27 corollary:** hand-echoed
-  base64 is NOT a shape in this family at any size class. Two carries of
-  a 16.9KB gz+b64 part failed the blob gate at different scattered byte
-  offsets (f3ff0467, then fe9cc06e vs disk 145ed142); a 1.5KB svg carried
-  a single trailing-newline drift; a 9KB workflow yml carried ~160 bytes
-  of composed-not-carried comment drift. The shape that finally worked:
-  carry NO payload bytes at all - the emit ferry (`.github/workflows/
-  mono-web-emit.yml` one-shot) derives the 58KB package-lock.json
-  runner-side from eyestruct's committed lock (two name swaps, sha gate
-  34931ee6 proven byte-identical harness-side) and re-renders the five
-  PNG marks with the same @resvg/resvg-js 2.6.2 from the committed SVGs
-  (five sha gates), staging copies of the unchanged engine files and
-  docs-gate scripts from eyestruct's committed tree. Everything lands
-  blob-gated; the ferry retires through the commit lane after receipts.
+- Doctor was NOT run against this mount itself: the doctor battery is written for STAMPED repos (factory law, FORGE-TODO slots) and the mount is a write-repo host, not a stamped output. Its own self-test exercises doctor on a freshly stamped temp tree instead.
+- The templates/ blocks are the 2026-10-24 extraction and predate tonight: drift against the two struct instances is the known, watched risk (PRD §6), not something tonight changes.
+- **Completion sprint (2026-10-26, pre-move).** 1) Template-layer drift repaired at the SOURCE: the docs layout shipped packstruct's nav (SPEC v1 / linter pages) and footer identity, the configs shipped packstruct's description, and a backreference artifact rode both - every stamped repo would have inherited another tool's identity. Templates now emit __SPECIES__/__DESCRIPTION__ tokens and a home+search nav (the monoforge instance adds verbs/packs); the doctor-scoped stamp-manifest law is untouched (self-test still green endpoints: bad-config refused, stray dir refused, stamp ok, unfilled doctor FAIL, refilled doctor PASS). 2) docs playbook grew from 2 pages to 4: verbs.md (usage lines match bin/forge.mjs help exactly) and packs.md (the contract + SPEC v1 link + the honest "no packs shipped yet by design"). 3) site/ landing built per the PRD inventory: slogan, verb grid, receipts-only numbers, limits, terms/privacy static pages (footer links no longer point at 404s). Frontmatter/links/style/ language gates all PASS on the new pages.
+- **Ferry law, receipts (2026-10-26, evening).** The six template/doc repairs that ride INSIDE the lock archive cannot sit in the mount tree durably: the ferry ("the mount tool tree matches its lock") reassembles them from the archive on every interleaved lane run. The fixed bytes + the convergence recipe now ride `horcrux/lock-archive-overlay.patch` - a git unified diff against the archive bytes, landed through the commit lane in base64 mode (blob 44a0c4a9), in the ferry-safe horcrux slot until the upstream re-lock retires it. Move-day steps live in the patch header: apply it inside dhaupin/monoforge (needs the repo's first write grant), rerun the self-test battery, cut a fresh lock, and re-pin gistory's ferry to that lock; this patch then retires in the same commit the pin moves. Three transport teachings landed tonight, recorded for the family: (1) a single-line pure base64 carry (9.8KB prose+diff) verified blob-exact on the first try - safest text-lane shape found; (2) wrapped-row carries still scramble occasionally (one two-row hit near row 117 of a 224-row gz+b64 payload), so every carry needs its blob id checked BEFORE anything dispatches against it; (3) receipts above ~10KB belong to a runner-side emit (payload + one-shot, sha-gated from the burn file) rather than a text lane.
+- **The flowforge rig pass (2026-10-27) - the structure converges with eyestruct.** The mount gets the rig shape its siblings already have: 1) The landing is the rig `web/` now (prestruct + react + inject-brand, brand as data in ssr.config.js); the 0.9.0 static `site/index.html` is retired (move day deletes upstream's `site/` and points Pages at `web/dist`). 2) The docs layer rides the rig engine: the pagefind layout, `_data/nav.yml` single nav source, the monoforge mark, the five rig gate scripts (frontmatter/links/style/fiction/jekyll), frontmatter normalized to the rig contract, and the packstruct-copy identity scrubbed from layout + configs (this mount's docs had been describing the shared /packs SPEC, not monoforge). 3) `MANIFEST.md` records the provenance rows. 4) The mount's own `.github/workflows/ test.yml` mints the standalone battery: zero-dep self-test + docs gates + language gate, no install step. All green locally before landing: `npm run check` (self-test PASS; 5 docs gates PASS; language gate PASS) and a throwaway `prestruct build` whose dist proved zero flowforge/eyestruct strings and a fully monoforge-branded prerender (3/3 pages + 404 + sitemap).
+- **Transport receipts, the 2026-10-27 corollary:** hand-echoed base64 is NOT a shape in this family at any size class. Two carries of a 16.9KB gz+b64 part failed the blob gate at different scattered byte offsets (f3ff0467, then fe9cc06e vs disk 145ed142); a 1.5KB svg carried a single trailing-newline drift; a 9KB workflow yml carried ~160 bytes of composed-not-carried comment drift. The shape that finally worked: carry NO payload bytes at all - the emit ferry (`.github/workflows/ mono-web-emit.yml` one-shot) derives the 58KB package-lock.json runner-side from eyestruct's committed lock (two name swaps, sha gate 34931ee6 proven byte-identical harness-side) and re-renders the five PNG marks with the same @resvg/resvg-js 2.6.2 from the committed SVGs (five sha gates), staging copies of the unchanged engine files and docs-gate scripts from eyestruct's committed tree. Everything lands blob-gated; the ferry retires through the commit lane after receipts.
 
 ## 2026-10-28 - the third-instance blocks land in templates (monoforge#12 rider + #14)
 
-- The doctor grows the canon checks: `dangling-canon` (a
-  labs/.eyes/ledger.json row pointing at an artifact that never landed
-  fails, UNSAFE_PATH refuses escape-shaped paths, LEDGER_CORRUPT refuses
-  a ledger the gate itself would refuse) and `canon-pin` (UNSET canon
-  pins refuse: a canon token pointing at nothing is the unfilled truth
-  slot in the canon's uniform). Canon-free trees stay silent - the canon
-  is opt-in, and auditing nothing is never dressed up as a pass.
-- The canon skeleton extracts into templates/: `labs/.eyes/manifest.yml`
-  (the family pin + route-matrix shape, pins seeded UNSET-edit-me per
-  eyestruct init's convention) + `labs/.eyes/ledger.json` (an honest
-  empty rows array). A fresh stamp carries the canon from birth: the
-  owner fills the pins, the first look cuts the first row.
-- Battery: `test/run.mjs` gains the three canon legs (dangling refused,
-  UNSET pins refused, canon-free silent) and the refill fills the canon
-  pins so the factory's own law stays self-consistent. `npm run check`
-  green end to end.
-- monoforge#14: `scripts/ship-from-download.cjs` copied byte-identical
-  from eyestruct@9744c76 (zero repo imports, the Termux phone publish
-  lane), behavior test at `test/ship-from-download.test.cjs` (21
-  cases green) wired into `npm test`.
-- Deliberately NOT carried yet (rule-of-three pruning, the ask's own
-  doctrine): the ratify dispatch workflow port and the reusable
-  eye-ci-gate pack template - the monoforge template test.yml is a
-  different stamped shape (stamped repos lint their own packs). Those
-  two extract when the monoforge template tree carries the canon CI
-  lane shape (tracked here; the doctor rides the canon NOW, so a
-  stamped repo already self-audits it in `npm test`).
+- The doctor grows the canon checks: `dangling-canon` (a labs/.eyes/ledger.json row pointing at an artifact that never landed fails, UNSAFE_PATH refuses escape-shaped paths, LEDGER_CORRUPT refuses a ledger the gate itself would refuse) and `canon-pin` (UNSET canon pins refuse: a canon token pointing at nothing is the unfilled truth slot in the canon's uniform). Canon-free trees stay silent - the canon is opt-in, and auditing nothing is never dressed up as a pass.
+- The canon skeleton extracts into templates/: `labs/.eyes/manifest.yml` (the family pin + route-matrix shape, pins seeded UNSET-edit-me per eyestruct init's convention) + `labs/.eyes/ledger.json` (an honest empty rows array). A fresh stamp carries the canon from birth: the owner fills the pins, the first look cuts the first row.
+- Battery: `test/run.mjs` gains the three canon legs (dangling refused, UNSET pins refused, canon-free silent) and the refill fills the canon pins so the factory's own law stays self-consistent. `npm run check` green end to end.
+- monoforge#14: `scripts/ship-from-download.cjs` copied byte-identical from eyestruct@9744c76 (zero repo imports, the Termux phone publish lane), behavior test at `test/ship-from-download.test.cjs` (21 cases green) wired into `npm test`.
+- Deliberately NOT carried yet (rule-of-three pruning, the ask's own doctrine): the ratify dispatch workflow port and the reusable eye-ci-gate pack template - the monoforge template test.yml is a different stamped shape (stamped repos lint their own packs). Those two extract when the monoforge template tree carries the canon CI lane shape (tracked here; the doctor rides the canon NOW, so a stamped repo already self-audits it in `npm test`).
 
 ## 2026-10-28 - the logo adopts + the og card lane (identity fills in)
 
-- web/public/monoforge-logo.jpg (the owner-uploaded art) adopts through
-  `npm run icons:adopt`: potrace-traced ink + accent layers, the
-  scripts/brand-mark.json authored seal, the full 5-face raster set
-  (icon.svg, favicon-32, icon-192, icon-512, apple-touch-icon) into
-  web/public, and the byte-identical docs copy at docs/icon.svg
-  (documentation baseurl lays it out at /monoforge/icon.svg).
-- web/scripts/build-og.mjs: the family og card lane (the poststruct
-  shape, retuned to the mint library palette) - the placeholder
-  square-art card retires for the word-mark cards: "stamp repos |
-  doctor truth | lock bytes" eyebrow, four-line identity block, chip
-  urls. web/public/og-image.png + docs/og-image.png are committed
-  bytes; docs/freestruct.config.yml gains the og block so the docs
-  page head carries the card like poststruct does.
-- web/index.html: the leftover "Generate from favicon.io" template
-  prose retires; the head carries the real-identity comment form.
+- web/public/monoforge-logo.jpg (the owner-uploaded art) adopts through `npm run icons:adopt`: potrace-traced ink + accent layers, the scripts/brand-mark.json authored seal, the full 5-face raster set (icon.svg, favicon-32, icon-192, icon-512, apple-touch-icon) into web/public, and the byte-identical docs copy at docs/icon.svg (documentation baseurl lays it out at /monoforge/icon.svg).
+- web/scripts/build-og.mjs: the family og card lane (the poststruct shape, retuned to the mint library palette) - the placeholder square-art card retires for the word-mark cards: "stamp repos | doctor truth | lock bytes" eyebrow, four-line identity block, chip urls. web/public/og-image.png + docs/og-image.png are committed bytes; docs/freestruct.config.yml gains the og block so the docs page head carries the card like poststruct does.
+- web/index.html: the leftover "Generate from favicon.io" template prose retires; the head carries the real-identity comment form.

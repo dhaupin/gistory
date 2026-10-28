@@ -3,160 +3,55 @@
 Last updated: 2026-10-24 (scaffold complete at 0.9.0; push pending crashtest#18)
 
 ## Now
-- [ ] PUSH to GitHub: the scaffold is complete, the repo exists on GitHub,
-      and push is 403 for freebuff-web[bot] (permission only, not not-found).
-      Blocker filed as crashtest#18: Rook reconnects the repo to the
-      Freebuff app, then the tree paints as-is.
-- [ ] Manual 0.9.0 npm publish the day the push lands (npm prep: a machine
-      with npm credentials; DEPLOY.md is the runbook).
+- [ ] PUSH to GitHub: the scaffold is complete, the repo exists on GitHub, and push is 403 for freebuff-web[bot] (permission only, not not-found). Blocker filed as crashtest#18: Rook reconnects the repo to the Freebuff app, then the tree paints as-is.
+- [ ] Manual 0.9.0 npm publish the day the push lands (npm prep: a machine with npm credentials; DEPLOY.md is the runbook).
 
 ## Next (M1)
-- [ ] Pack loader in core (packstruct SPEC v1, check profile): manifest
-      validation, slug-namespaced ids, collision refusal. Local paths only.
-- [ ] links module: internal link graph vs files present + `_redirects`;
-      renamed route fails CI.
-- [ ] First shape packs: wp-seo-shapes, jekyll-shapes, prestruct-shapes,
-      freestruct-shapes (the engines' CI gains its guarantee through me).
-- [ ] Optional `--check-external` link validation (network gate, opt-in),
-      and re-add the scheduled weekly `linkcheck.yml` alongside it (removed
-      at lock time: the 0.9.0 workflow called a CLI mode that did not
-      exist, so it would have failed CI on the first push).
+- [ ] Pack loader in core (packstruct SPEC v1, check profile): manifest validation, slug-namespaced ids, collision refusal. Local paths only.
+- [ ] links module: internal link graph vs files present + `_redirects`; renamed route fails CI.
+- [ ] First shape packs: wp-seo-shapes, jekyll-shapes, prestruct-shapes, freestruct-shapes (the engines' CI gains its guarantee through me).
+- [ ] Optional `--check-external` link validation (network gate, opt-in), and re-add the scheduled weekly `linkcheck.yml` alongside it (removed at lock time: the 0.9.0 workflow called a CLI mode that did not exist, so it would have failed CI on the first push).
 
 ## Later (M2+)
-- [ ] i18n + a11y-lite + language modules (dash classes, cliche lexicon,
-      per-org voice packs), feeds module, npm-source pack loading.
+- [ ] i18n + a11y-lite + language modules (dash classes, cliche lexicon, per-org voice packs), feeds module, npm-source pack loading.
 
 ## crashtest lane (deferred, with trigger)
-- [ ] poststruct-site-shapes pack (crashtest scenario lane,
-      crashtest.config.js + packs/public/) - trigger: the prestruct-example
-      landing build exists. Surface to attack then: the /api/health Pages
-      Function (in-process, prestruct-proxy precedent) + the baked tree via
-      a static-site double (freestruct-docs-shapes precedent). Until then
-      there is no transport surface worth an attack; the audit surface is
-      covered by the negative-tested fixtures (8/8 expected FAIL ids).
+- [ ] poststruct-site-shapes pack (crashtest scenario lane, crashtest.config.js + packs/public/) - trigger: the prestruct-example landing build exists. Surface to attack then: the /api/health Pages Function (in-process, prestruct-proxy precedent) + the baked tree via a static-site double (freestruct-docs-shapes precedent). Until then there is no transport surface worth an attack; the audit surface is covered by the negative-tested fixtures (8/8 expected FAIL ids).
 
 ## 2026-10-26 - completion sprint (pre-move verification pass)
 
-- Batteries re-run locally and green: npm test + lint:packs (1 pack) +
-  conform:packs 8/8; the pack runner then LIVE-fired against a freshly
-  baked gistory dist - the eyes-reference og:image leg PASSED through
-  its local twin, and the framework gate's text/eyes-art/text-ref/
-  eyes-mem legs all PASSED on the same build (the raster gate rode the
-  renamed r1/r2 stones byte-stable).
-- The tar-move plan's injected change #1 turned out to be already
-  landed in the mount: run-packs.mjs carries POSTSTRUCT_DIST and
-  EYESTRUCT_BIN knobs with the agreed resolution order (--dist, env,
-  gistory-mount sibling, ./dist). Verified by reading, no edit needed;
-  the npx-pinned flip for EYESTRUCT_BIN stays a post-publish event.
-- No code changes this pass: the mount was already at its planned
-  shape; this entry is the local-green receipt so move-day can skip
-  re-verification.
+- Batteries re-run locally and green: npm test + lint:packs (1 pack) + conform:packs 8/8; the pack runner then LIVE-fired against a freshly baked gistory dist - the eyes-reference og:image leg PASSED through its local twin, and the framework gate's text/eyes-art/text-ref/ eyes-mem legs all PASSED on the same build (the raster gate rode the renamed r1/r2 stones byte-stable).
+- The tar-move plan's injected change #1 turned out to be already landed in the mount: run-packs.mjs carries POSTSTRUCT_DIST and EYESTRUCT_BIN knobs with the agreed resolution order (--dist, env, gistory-mount sibling, ./dist). Verified by reading, no edit needed; the npx-pinned flip for EYESTRUCT_BIN stays a post-publish event.
+- No code changes this pass: the mount was already at its planned shape; this entry is the local-green receipt so move-day can skip re-verification.
 
 ## 2026-10-27 - sendoff pass: the landing landed, dogfood green
 
-- web/ tree complete and family-shaped: shell, vite/prestruct config,
-  ssr.config identity, Nav (burger + GitHub icon + theme switch),
-  Home/Terms/Privacy/NotFound. Terms + Privacy follow the crashtest
-  canonical form (plain language, no theater: eyebrow, dated web version,
-  named third parties Cloudflare Pages + npmjs).
-- Palette retuned to the repo's real identity: audit olive #a8c000 on
-  ink #0c0f0a (docs theme parity), full light half in the same token set.
-- Identity assets generated by the family lane: authored seal
-  web/public/icon.svg (the audit lens); web/scripts/make-icons.mjs renders
-  favicon-32/192/512/apple-touch + byte-identical docs/assets/icon.svg;
-  web/scripts/build-og.mjs renders product + docs OG cards (resvg,
-  Liberation fonts; FONTS_DIR env for machines without the system dir).
-- npm run site:build verified: 3/3 routes prerendered, sitemap emitted,
-  repair-404 gate PASS, web/dist copied to root dist/ (wrangler contract).
-- DOGFOOD: poststruct audit dist/ gates clean (0 FAIL). The audit itself
-  caught three site bugs, fixed same pass: shell-comment literal <title>
-  poisoning the first-match title check (12 warns -> 6), Terms description
-  outside the 70-165 band, missing h1 on legal pages.
-- Docs footer wrong-repo link fixed (prestruct -> poststruct); docs
-  freestruct og spot wired to the committed docs/og-image.png; README
-  Landing & docs now says what is real.
-- Riders: monoforge shell gets the same title-comment fix; prestruct#65
-  filed (og:image dims/alt + optional JSON-LD in inject-brand); family
-  terms/privacy parity filed on eyestruct#7 + packstruct#34 + crashtest#45.
+- web/ tree complete and family-shaped: shell, vite/prestruct config, ssr.config identity, Nav (burger + GitHub icon + theme switch), Home/Terms/Privacy/NotFound. Terms + Privacy follow the crashtest canonical form (plain language, no theater: eyebrow, dated web version, named third parties Cloudflare Pages + npmjs).
+- Palette retuned to the repo's real identity: audit olive #a8c000 on ink #0c0f0a (docs theme parity), full light half in the same token set.
+- Identity assets generated by the family lane: authored seal web/public/icon.svg (the audit lens); web/scripts/make-icons.mjs renders favicon-32/192/512/apple-touch + byte-identical docs/assets/icon.svg; web/scripts/build-og.mjs renders product + docs OG cards (resvg, Liberation fonts; FONTS_DIR env for machines without the system dir).
+- npm run site:build verified: 3/3 routes prerendered, sitemap emitted, repair-404 gate PASS, web/dist copied to root dist/ (wrangler contract).
+- DOGFOOD: poststruct audit dist/ gates clean (0 FAIL). The audit itself caught three site bugs, fixed same pass: shell-comment literal <title> poisoning the first-match title check (12 warns -> 6), Terms description outside the 70-165 band, missing h1 on legal pages.
+- Docs footer wrong-repo link fixed (prestruct -> poststruct); docs freestruct og spot wired to the committed docs/og-image.png; README Landing & docs now says what is real.
+- Riders: monoforge shell gets the same title-comment fix; prestruct#65 filed (og:image dims/alt + optional JSON-LD in inject-brand); family terms/privacy parity filed on eyestruct#7 + packstruct#34 + crashtest#45.
 
 ## 2026-10-27 (late) - the payload ferry: binary payload landed, zero bytes carried
 
-- The eight remaining artifact paths (web/package-lock.json,
-  web/public/{favicon-32,icon-192,icon-512,apple-touch-icon,og-image}.png,
-  docs/assets/icon.svg, docs/og-image.png) landed through
-  `.github/workflows/poststruct-web-emit.yml` - a one-shot run from
-  workflow_dispatch, retired through the commit lane after receipts
-  (mono-web-emit is the proven shape).
-- web/package-lock.json is minted runner-side from the COMMITTED
-  web/package.json (`npm install --package-lock-only --ignore-scripts`) and
-  sha-gated. No sibling lock to derive from: the dep sets match the
-  monoforge/eyestruct web trees exactly, but poststruct resolved
-  rollup 4.65.1 where those locks sit at 4.65.0. First dispatch FAILED the
-  gate against stale harness bytes (7959565e != the retired fb27a3d3 local
-  lock) - that is the gate doing its job; the npm-10 mint was then
-  reproduced byte-identically harness-side (node v22.23.3 / npm 10.9.9
-  tarball run), adopted as the canonical snapshot, and the rerun passed
-  (electron-to-chromium 1.5.467 vs 1.5.466 is the one registry-currency
-  node between the mints - a browserslist db refresh, not a build change).
-- The icon set + og cards are rendered by the COMMITTED make-icons.mjs +
-  build-og.mjs with @resvg/resvg-js@2.6.2 (the family's provably
-  cross-site-identical renderer), Liberation fonts present on the runner,
-  and every PNG sha-gated against the locally verified build. resvg is
-  installed OUTSIDE the tree so nothing stray enters the commit.
-- ALL EIGHT origin blobs verified byte-exact against the local builds
-  post-run (blob-sha walk). The web/ + docs identity payload is complete:
-  poststruct-staging on origin == the verified local build.
+- The eight remaining artifact paths (web/package-lock.json, web/public/{favicon-32,icon-192,icon-512,apple-touch-icon,og-image}.png, docs/assets/icon.svg, docs/og-image.png) landed through `.github/workflows/poststruct-web-emit.yml` - a one-shot run from workflow_dispatch, retired through the commit lane after receipts (mono-web-emit is the proven shape).
+- web/package-lock.json is minted runner-side from the COMMITTED web/package.json (`npm install --package-lock-only --ignore-scripts`) and sha-gated. No sibling lock to derive from: the dep sets match the monoforge/eyestruct web trees exactly, but poststruct resolved rollup 4.65.1 where those locks sit at 4.65.0. First dispatch FAILED the gate against stale harness bytes (7959565e != the retired fb27a3d3 local lock) - that is the gate doing its job; the npm-10 mint was then reproduced byte-identically harness-side (node v22.23.3 / npm 10.9.9 tarball run), adopted as the canonical snapshot, and the rerun passed (electron-to-chromium 1.5.467 vs 1.5.466 is the one registry-currency node between the mints - a browserslist db refresh, not a build change).
+- The icon set + og cards are rendered by the COMMITTED make-icons.mjs + build-og.mjs with @resvg/resvg-js@2.6.2 (the family's provably cross-site-identical renderer), Liberation fonts present on the runner, and every PNG sha-gated against the locally verified build. resvg is installed OUTSIDE the tree so nothing stray enters the commit.
+- ALL EIGHT origin blobs verified byte-exact against the local builds post-run (blob-sha walk). The web/ + docs identity payload is complete: poststruct-staging on origin == the verified local build.
 
 ## 2026-10-28 - the eyestruct-shapes pack: poststruct#19 lands the canon audit
 
-- `packs/public/eyestruct-shapes/` ships poststruct#19's seven pure file
-  checks over an eyestruct-shaped lab's .eyes canon tree:
-  `eyes/ledger-corrupt` (append-only schema mirrored from the host ledger
-  module), `eyes/dangling-canon` (pointers resolve or UNSAFE_PATH),
-  `eyes/manifest-pin-drift` (the family pin + route-matrix subset, loose
-  pins refused), `eyes/reason-table-drift` (docs table vs lib codes,
-  count + names), `eyes/verdict-count-drift` (the committed baseline
-  covers the exported packs exactly), `eyes/receipt-provenance` (hall
-  rows resolve, sha fields shaped), `eyes/note-unsafety` (the host
-  UNSAFE_TEXT class byte-for-byte).
-- Born stress-tested on the real eyestruct tree: a fresh checkout runs
-  the battery with all eight rows PASSED and the committed
-  `packs/eye-ledger.json` baseline adopted (8 rows). The one catch the
-  birth run produced - its pack baseline is the `{schemaVersion, rows}`
-  envelope - became the shape contract the parser now honors.
-- Negative permanence: `test/shapes-run.mjs` walks
-  `test/fixtures/eyes-shapes/` - a good canon (7/7 rows) plus ten bad
-  fixtures, each hitting EXACTLY its expected EXPLOITED id
-  (corrupt/dangling/unsafe-path/manifest/loose-pin/theme/notes/
-  receipt-sha/verdict-coverage/reason-table). `npm test` carries the
-  whole spine.
-- The runner arms `moduleCtx.eyestructTree` (EYESTRUCT_TREE outranks the
-  sibling upstream checkout; a null arm dockets one `eyes/canon-absent`
-  BOUNDED row, never a fake pass) and pack runs are now guarded:
-  a REFUSED-shape throw names the pack and exits 2.
-- poststruct#21 rides the same battery: `scripts/ship-from-download.cjs`
-  copied byte-identical from eyestruct@9744c76 (zero repo imports, the
-  Termux phone publish lane), with its behavior test at
-  `test/ship-from-download.test.cjs` (21 node:test cases green; the .cjs
-  extension is the one mechanical rename the ESM root forces) wired into
-  `npm test`.
-- done: poststruct#19 + poststruct#21, receipts cross-file to
-  gistory#20's survey hub.
+- `packs/public/eyestruct-shapes/` ships poststruct#19's seven pure file checks over an eyestruct-shaped lab's .eyes canon tree: `eyes/ledger-corrupt` (append-only schema mirrored from the host ledger module), `eyes/dangling-canon` (pointers resolve or UNSAFE_PATH), `eyes/manifest-pin-drift` (the family pin + route-matrix subset, loose pins refused), `eyes/reason-table-drift` (docs table vs lib codes, count + names), `eyes/verdict-count-drift` (the committed baseline covers the exported packs exactly), `eyes/receipt-provenance` (hall rows resolve, sha fields shaped), `eyes/note-unsafety` (the host UNSAFE_TEXT class byte-for-byte).
+- Born stress-tested on the real eyestruct tree: a fresh checkout runs the battery with all eight rows PASSED and the committed `packs/eye-ledger.json` baseline adopted (8 rows). The one catch the birth run produced - its pack baseline is the `{schemaVersion, rows}` envelope - became the shape contract the parser now honors.
+- Negative permanence: `test/shapes-run.mjs` walks `test/fixtures/eyes-shapes/` - a good canon (7/7 rows) plus ten bad fixtures, each hitting EXACTLY its expected EXPLOITED id (corrupt/dangling/unsafe-path/manifest/loose-pin/theme/notes/ receipt-sha/verdict-coverage/reason-table). `npm test` carries the whole spine.
+- The runner arms `moduleCtx.eyestructTree` (EYESTRUCT_TREE outranks the sibling upstream checkout; a null arm dockets one `eyes/canon-absent` BOUNDED row, never a fake pass) and pack runs are now guarded: a REFUSED-shape throw names the pack and exits 2.
+- poststruct#21 rides the same battery: `scripts/ship-from-download.cjs` copied byte-identical from eyestruct@9744c76 (zero repo imports, the Termux phone publish lane), with its behavior test at `test/ship-from-download.test.cjs` (21 node:test cases green; the .cjs extension is the one mechanical rename the ESM root forces) wired into `npm test`.
+- done: poststruct#19 + poststruct#21, receipts cross-file to gistory#20's survey hub.
 
 ## 2026-10-28 - the logo adopts (icons set + docs favicon wiring + brand seal)
 
-- web/public/poststruct-logo.jpg (the owner-uploaded art) adopts through
-  `npm run icons:adopt`: potrace-traced ink + accent layers, the
-  scripts/brand-mark.json authored seal, and the 5-face raster set
-  (icon.svg, favicon-32, icon-192, icon-512, apple-touch-icon) written
-  INTO BOTH FACES - docs/ is the family-default public dir, and a
-  second --public-dir web/public pass re-derives the same bytes
-  deterministically (cmp-proven identical across the two passes).
-- docs/_layouts/default.html grows the favicon links (icon.svg +
-  favicon-32 + apple-touch-icon through relative_url - the docs live
-  under baseurl /poststruct); the stale unreferenced
-  docs/assets/icon.svg placeholder retires in the same pass.
-- Dogfood: rebuild (site:build) is byte-identical on the HTML (the
-  prerender cache held) with only the identity assets refreshed; the
-  audit's og-dims/JSON-LD WARN class is the accepted contract state
-  (same WARNs on origin; exit 0).
+- web/public/poststruct-logo.jpg (the owner-uploaded art) adopts through `npm run icons:adopt`: potrace-traced ink + accent layers, the scripts/brand-mark.json authored seal, and the 5-face raster set (icon.svg, favicon-32, icon-192, icon-512, apple-touch-icon) written INTO BOTH FACES - docs/ is the family-default public dir, and a second --public-dir web/public pass re-derives the same bytes deterministically (cmp-proven identical across the two passes).
+- docs/_layouts/default.html grows the favicon links (icon.svg + favicon-32 + apple-touch-icon through relative_url - the docs live under baseurl /poststruct); the stale unreferenced docs/assets/icon.svg placeholder retires in the same pass.
+- Dogfood: rebuild (site:build) is byte-identical on the HTML (the prerender cache held) with only the identity assets refreshed; the audit's og-dims/JSON-LD WARN class is the accepted contract state (same WARNs on origin; exit 0).
