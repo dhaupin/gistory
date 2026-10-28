@@ -56,7 +56,7 @@ const TOKEN_ENV_ALIAS = 'NPM_SHIP_TOKEN'
 
 function expandHome(p) {
   if (p === '~') return os.homedir()
-  return p.replace(/^~(?=\\/|$)/, os.homedir())
+  return p.replace(/^~(?=\/|$)/, os.homedir())
 }
 
 function refuse(code, msg, fix) {
