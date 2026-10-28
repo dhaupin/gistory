@@ -1,5 +1,5 @@
-# eyestruct site - crawler policy (all the way open, it's a library site)
+# monoforge site - crawler policy (all the way open, it's a library site)
 User-agent: *
 Allow: /
 
-Sitemap: https://eyestruct.creadev.org/sitemap.xml
+Sitemap: https://monoforge.creadev.org/sitemap.xml
