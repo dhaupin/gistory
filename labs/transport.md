@@ -95,3 +95,19 @@ Every carry, regardless of shape, passes these five before it counts:
   a wrapped row, one word-boundary byte, one missed wrap newline) were
   found only by hand-diffing the landed copies against the pristine local
   buffers; this gate makes that class a named refusal instead.
+- `poststruct-rig-gates-repair.yml` - the runner-side re-derive one-shot
+  (2026-10-28, RETIRED after its receipt). The repair class it serves:
+  "a tracked file whose commit-lane carry keeps drifting" gets
+  re-derived on the RUNNER from the last known-good rev via rehearsed
+  transforms. Receipts: poststruct-staging/package.json re-derived from
+  the pre-drift rev b4fdf3a via a scripted JSON edit (lint:docs gains
+  the two scanner passes; check consumes them) and .github/workflows/
+  docs.yml via a pinned block replace - each output blob-gated against
+  the intended result (3d04c42d / 00a18f12) and committed only after
+  both gates held (repair commit cd2316c). Dispatch 1 died at
+  `git show <old-rev>` under a depth=1 checkout (the shallow law above,
+  now proven on a runner); the fix is `fetch-depth: 0` on the one-shot's
+  own checkout. New law from dispatch 2: the runner receives a
+  `run: |` scalar minus its base indent, so heredoc python must sit at
+  the block's base column - one extra level of indent is an
+  IndentationError that reads as a broken script, not a YAML law.
