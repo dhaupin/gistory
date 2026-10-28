@@ -142,3 +142,21 @@ Last updated: 2026-10-24 (scaffold complete at 0.9.0; push pending crashtest#18)
   `npm test`.
 - done: poststruct#19 + poststruct#21, receipts cross-file to
   gistory#20's survey hub.
+
+## 2026-10-28 - the logo adopts (icons set + docs favicon wiring + brand seal)
+
+- web/public/poststruct-logo.jpg (the owner-uploaded art) adopts through
+  `npm run icons:adopt`: potrace-traced ink + accent layers, the
+  scripts/brand-mark.json authored seal, and the 5-face raster set
+  (icon.svg, favicon-32, icon-192, icon-512, apple-touch-icon) written
+  INTO BOTH FACES - docs/ is the family-default public dir, and a
+  second --public-dir web/public pass re-derives the same bytes
+  deterministically (cmp-proven identical across the two passes).
+- docs/_layouts/default.html grows the favicon links (icon.svg +
+  favicon-32 + apple-touch-icon through relative_url - the docs live
+  under baseurl /poststruct); the stale unreferenced
+  docs/assets/icon.svg placeholder retires in the same pass.
+- Dogfood: rebuild (site:build) is byte-identical on the HTML (the
+  prerender cache held) with only the identity assets refreshed; the
+  audit's og-dims/JSON-LD WARN class is the accepted contract state
+  (same WARNs on origin; exit 0).

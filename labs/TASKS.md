@@ -1835,3 +1835,14 @@ exactly like crashtest/packstruct (eyes:gate ledger + eyes:packs
   - Deletion lands via this one-shot: the mount dir + horcrux/tars/
     eyestruct-* go in THIS commit, so CI on it is the green
     upstream-consumed shape.
+- **Third pass, same day (the mounts' identity adopt, 2026-10-28):** the
+  uploaded JPG logos land as bytes on origin (55b4b0b / 7f19a39); both
+  mounts now carry the full adopt: traced icon set (svg + favicon-32 +
+  icon-192 + icon-512 + apple-touch-icon) into web/public AND the
+  poststruct docs face, the scripts/brand-mark.json authored seals, the
+  rebuilt baked sites (poststruct site:build byte-identical HTML, monoforge
+  web/dist mint re-bake), monoforge's og card lane retunes the placeholder
+  card to the family word-mark shape (web + docs cards + the freestruct og
+  block), and the poststruct docs layout grows its favicon links
+  (baseurl-safe). Landing receipts: text via the commit lane, binaries via
+  this one-shot; each blob-diffed against origin head after the run.

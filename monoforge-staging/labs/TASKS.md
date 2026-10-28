@@ -132,3 +132,21 @@ dhaupin/monoforge (labs/, upstream commit f8e45fb):
   two extract when the monoforge template tree carries the canon CI
   lane shape (tracked here; the doctor rides the canon NOW, so a
   stamped repo already self-audits it in `npm test`).
+
+## 2026-10-28 - the logo adopts + the og card lane (identity fills in)
+
+- web/public/monoforge-logo.jpg (the owner-uploaded art) adopts through
+  `npm run icons:adopt`: potrace-traced ink + accent layers, the
+  scripts/brand-mark.json authored seal, the full 5-face raster set
+  (icon.svg, favicon-32, icon-192, icon-512, apple-touch-icon) into
+  web/public, and the byte-identical docs copy at docs/icon.svg
+  (documentation baseurl lays it out at /monoforge/icon.svg).
+- web/scripts/build-og.mjs: the family og card lane (the poststruct
+  shape, retuned to the mint library palette) - the placeholder
+  square-art card retires for the word-mark cards: "stamp repos |
+  doctor truth | lock bytes" eyebrow, four-line identity block, chip
+  urls. web/public/og-image.png + docs/og-image.png are committed
+  bytes; docs/freestruct.config.yml gains the og block so the docs
+  page head carries the card like poststruct does.
+- web/index.html: the leftover "Generate from favicon.io" template
+  prose retires; the head carries the real-identity comment form.
