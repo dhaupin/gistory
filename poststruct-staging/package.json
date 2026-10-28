@@ -1,10 +1,21 @@
 {
   "name": "poststruct",
   "version": "0.9.0",
-  "description": "Audit what actually shipped - the bake auditor. head hygiene + site contract checks over built output, exit-contract first.",
+  "description": "Audit what shipped. A zero-dependency CLI that walks baked HTML and verifies head, links, and site hygiene against a contract - FAIL findings exit non-zero so CI gates regressions.",
   "type": "module",
-  "main": "src/index.mjs",
-  "bin": { "poststruct": "bin/cli.mjs" },
+  "license": "SEE LICENSE IN LICENSE",
+  "bin": {
+    "poststruct": "bin/cli.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node test/run.mjs && node test/shapes-run.mjs && node --test test/ship-from-download.test.cjs",
     "packs": "node scripts/run-packs.mjs",
@@ -12,39 +23,36 @@
     "lint:packs": "node bin/cli.mjs lint-packs --deep",
     "conform:packs": "packstruct audit-conformance . --loader \"node scripts/run-packs.mjs {packs}\"",
     "check": "npm run test && npm run lint:packs && npm run conform:packs && npm run lint:docs",
-    "lint:docs": "node scripts/check-docs-frontmatter.cjs && node scripts/check-docs-links.cjs && node scripts/check-docs-style.cjs && node scripts/check-fiction-signatures.cjs && node scripts/check-jekyll-filters.cjs && node scripts/check-language.cjs",
     "site:build": "npm --prefix web run build && rm -rf dist && mkdir dist && cp -r web/dist/. dist/",
     "site:dev": "npm --prefix web run dev",
-    "icons:adopt": "node scripts/adopt-icons.mjs"
+    "icons:adopt": "node scripts/adopt-icons.mjs",
+    "lint:docs": "node scripts/check-docs-frontmatter.cjs && node scripts/check-docs-links.cjs && node scripts/check-docs-style.cjs && node scripts/check-fiction-signatures.cjs && node scripts/check-jekyll-filters.cjs && node scripts/check-language.cjs"
   },
   "devDependencies": {
     "packstruct": "1.0.0"
   },
-  "files": [
-    "bin/",
-    "src/",
-    "LICENSE",
-    "README.md"
-  ],
   "engines": {
     "node": ">=20"
   },
-  "author": "Creadev.org",
-  "license": "MIT",
+  "keywords": [
+    "seo",
+    "audit",
+    "ci",
+    "open-graph",
+    "json-ld",
+    "sitemap",
+    "robots",
+    "static-site",
+    "prestruct",
+    "freestruct",
+    "prerender"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dhaupin/poststruct.git"
   },
-  "keywords": [
-    "audit",
-    "baked-output",
-    "html",
-    "seo",
-    "ci",
-    "exit-contract",
-    "struct-family",
-    "packs",
-    "packstruct",
-    "creadev"
-  ]
+  "bugs": {
+    "url": "https://github.com/dhaupin/poststruct/issues"
+  },
+  "homepage": "https://github.com/dhaupin/poststruct#readme"
 }

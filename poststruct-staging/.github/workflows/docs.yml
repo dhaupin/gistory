@@ -61,23 +61,45 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: Install deps
-        run: |
-          npm ci
+        working-directory: docs
+        run: bundle install
 
-      - name: Build docs
+      # House-measured: the pagefind npm package resolves a platform binary at
+      # install and an npx fallback DIED in CI ("Failed to install either of
+      # [pagefind_extended, pagefind]" - dhaupin/freestruct docs.yml note).
+      # The standalone musl tarball is the proven path (prestruct docs.yml).
+      - name: Download Pagefind
+        working-directory: docs
         run: |
-          bundle exec jekyll build
-          npm --prefix . exec --yes freestruct@1.1.0 -- dist/ --strict
-          npm exec --yes pagefind --site docs/_site
+          VERSION=$(curl -sL "https://api.github.com/repos/Pagefind/pagefind/releases/latest" | grep '"tag_name"' | sed 's/.*"v\([^\"]*\)".*/\1/')
+          curl -sL "https://github.com/Pagefind/pagefind/releases/download/v${VERSION}/pagefind-v${VERSION}-x86_64-unknown-linux-musl.tar.gz" -o pagefind.tar.gz
+          tar -xzf pagefind.tar.gz
+          rm pagefind.tar.gz
+
+      - name: Jekyll build
+        working-directory: docs
+        run: bundle exec jekyll build
+
+      # freestruct AFTER jekyll (post-render SEO layer; discovers
+      # docs/freestruct.config.yml + docs/_site by the engine's own rule) --
+      # --strict: broken links fail the build.
+      - name: Freestruct (strict)
+        run: npx --yes freestruct@1.1.0 --strict
+
+      # Pagefind LAST - index over the FINAL html (freestruct-injected)
+      - name: Index search with Pagefind
+        working-directory: docs
+        run: ./pagefind --site _site
 
       - name: Upload artifact
+        id: upload-artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'docs/_site'
 
   deploy:
-    runs-on: ubuntu-latest
     needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
