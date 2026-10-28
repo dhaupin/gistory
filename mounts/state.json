@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-10-28",
+  "tiers": ["public", "private", "local"],
+  "mounts": {
+    "poststruct": {
+      "tier": "public",
+      "tree": "poststruct-staging/",
+      "repo": "dhaupin/poststruct",
+      "boot": {
+        "tars": ["poststruct-0.9.0-rig-lock.tar.gz", "poststruct-staging-git-*.tar.gz"],
+        "stone": ["poststruct-p_poststruct2026.svg", "poststruct-p_wordprint-2026.svg"]
+      }
+    },
+    "monoforge": {
+      "tier": "public",
+      "tree": "monoforge-staging/",
+      "repo": "dhaupin/monoforge",
+      "boot": {
+        "tars": ["monoforge-0.9.0-lock.tar.gz", "monoforge-staging-git-*.tar.gz"],
+        "handoff": ["chunk.*.part", "identity-*", "lock-archive-overlay.patch", "og-image-src.svg"]
+      }
+    }
+  }
+}

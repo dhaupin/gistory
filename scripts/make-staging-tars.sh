@@ -8,7 +8,10 @@
 # packs the .git dir itself with deterministic tar flags (sorted paths,
 # owner=0/group=0/numeric, epoch mtime) and gzip -n.
 #
-# The result lands under horcrux/tars/<mount>-git-<TODAY>.tar.gz. Byte
+# The result lands under mounts/public/<mount>/boot/tars/<mount>-git-<TODAY>.tar.gz.
+# Boot layout (2026-10-28 /mounts reorg): every mount payload (snapshot
+# tars + lock archives + handoff + stone) lives in the registry tree,
+# mirroring vant's /models rigging; gistory's own horcrux/ stayed home. Byte
 # determinism means a fresh ferry run over an unchanged tree produces the
 # exact same tar (no index/hooks/COMMIT_EDITMSG/log churn: all rebuilt
 # surfaces are deleted before packing), so a workflow commit that would
@@ -20,6 +23,9 @@ TODAY="$(date -u +%F)"
 # poststruct + monoforge only: eyestruct graduated upstream
 # (dhaupin/eyestruct) and its mount + tar chain retired 2026-10-27.
 MOUNTS="poststruct-staging monoforge-staging"
+# The registry strips the -staging suffix: the snapshot tree is
+# poststruct-staging/, but its boot registry is mounts/public/poststruct/.
+boot_tars() { echo "mounts/public/${1%-staging}/boot/tars"; }
 GIT_NAME="Codebuff"
 GIT_EMAIL="noreply@codebuff.com"
 GIT_DATE="2026-10-26T00:00:00Z"
@@ -27,15 +33,16 @@ GIT_DATE="2026-10-26T00:00:00Z"
 REBUILT=".git/hooks .git/description .git/COMMIT_EDITMSG .git/logs .git/branches .git/index .git/packed-refs .git/info"
 
 for m in $MOUNTS; do
+    boot="$(boot_tars "$m")"
     seed=""
     # newest seed tarball by filename suffix (date; lexical sort is enough).
     # The archive/ dir is IN the search: today's own tar is excluded as seed,
     # so on same-day re-runs (e.g. right after a path reorg) the chain must be
     # able to fall back to a superseded seed in archive/ — a fresh init here
     # would silently orphan the mount's snapshot history.
-    for s in $(ls horcrux/tars/${m}-git-*.tar.gz \
-                    horcrux/tars/archive/${m}-git-*.tar.gz 2>/dev/null | sort -r); do
-        if [ "$s" != "horcrux/tars/${m}-git-${TODAY}.tar.gz" ]; then
+    for s in $(ls "$boot/"${m}-git-*.tar.gz \
+                    "$boot/archive/"${m}-git-*.tar.gz 2>/dev/null | sort -r); do
+        if [ "$s" != "$boot/${m}-git-${TODAY}.tar.gz" ]; then
             seed="$s"; break
         fi
     done
@@ -77,6 +84,6 @@ for m in $MOUNTS; do
         rm -rf "$m/$r";
     done
     tar --sort=name --numeric-owner --owner=0 --group=0 --mode=u+rwX,go+rX,go-w --mtime=@0 \
-        -cf - -C "$m" .git | gzip -n > "horcrux/tars/${m}-git-${TODAY}.tar.gz"
-    echo "tar: horcrux/tars/${m}-git-${TODAY}.tar.gz  $(git -C "$m" log -1 --format=%H)"
+        -cf - -C "$m" .git | gzip -n > "$boot/${m}-git-${TODAY}.tar.gz"
+    echo "tar: $boot/${m}-git-${TODAY}.tar.gz  $(git -C "$m" log -1 --format=%H)"
 done
