@@ -1,0 +1,57 @@
+# ONE-SHOT: mounts identity adopt (2026-10-28) - derive EVERY binary from
+# bytes already committed to this repo (labs/transport.md: nothing binary
+# hand-carries across the transport lane; the 4KB+ text lane corrupted twice,
+# so the manufactured script is a sha-gated sed-delta of the FAMILY MOLD,
+# poststruct's committed build-og.mjs, not an echo). The owner logos are
+# committed: monoforge 55b4b0b / poststruct 7f19a39. Any drift refuses.
+#
+# Retires through the commit lane after receipts.
+name: mounts-identity-adopt
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mounts-identity-adopt-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  adopt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Pinned build-local helpers (same versions the harness ran)
+        run: |
+          set -euo pipefail
+          npm i --no-save --no-fund --no-audit sharp@0.35.5 potrace@2.1.8 @resvg/resvg-js@2.6.2 >/dev/null
+          node -e "require('sharp'); require('potrace'); require('@resvg/resvg-js'); console.log('helpers ok')"
+
+      - name: Liberation fonts for the og card text (same set the harness used)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-liberation >/dev/null
+          node -e "if(!require('fs').existsSync('/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf')) throw new Error('fonts missing'); console.log('fonts ok')"
+
+      - name: Manufacture the monoforge og lane (mold delta, blob-gated)
+        run: bash scripts/mounts-adopt-prepare.sh
+
+      - name: Derive icon sets + og cards
+        run: bash scripts/mounts-adopt-emit.sh
+
+      - name: Sha-gate every derived file (the 20-file contract)
+        run: bash scripts/mounts-adopt-gate.sh
+
+      - name: Append the landing receipts to the work logs
+        run: bash scripts/mounts-adopt-receipts.sh
+
+      - name: Commit + push the whitelisted derived set
+        run: bash scripts/mounts-adopt-commit.sh
