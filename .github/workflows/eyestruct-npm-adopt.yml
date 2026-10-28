@@ -58,7 +58,7 @@ jobs:
           npm ci --no-audit --no-fund --ignore-scripts --prefix poststruct-staging
           echo "both trees install clean from the derived locks"
 
-      - name: Commit (atomic: package.jsons + lockfiles)
+      - name: "Commit (atomic: package.jsons + lockfiles)"
         run: |
           set -euo pipefail
           git add package.json package-lock.json poststruct-staging/package.json poststruct-staging/package-lock.json
