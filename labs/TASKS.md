@@ -12,6 +12,31 @@ Conventions
 
 ## Now
 
+- **New-issue sweep: #29/#27/#19 + #28/#26/#18 + gistory#26-wp-static (2026-10-28, in progress).** (1) eyestruct@npm
+  pull-in: BOTH pin surfaces move EXACT `0.9.0` -> `1.0.0` (root +
+  poststruct-staging package.jsons; the locks re-derived by
+  `npm install --package-lock-only` - never hand-carried - and the root
+  lock regeneration also pruned 77 packages whose package.json entries no
+  longer ask for them, stale drift the old pin hid); the one-shot adopt
+  lane retires in the same commit (its gate refuses any non-0.9.0 pin);
+  ci.yml + eyes-ratify.yml pin comments re-say 1.0.0; eyestruct-shapes's
+  header drops its hand-copied "28 named codes" (census wording instead).
+  Local proof: root npm ci + `require('eyestruct')` -> 1.0.0
+  (`reasonCodes.length` 30, derives), lint:version/language/docs PASS,
+  poststruct npm run check all green, monoforge test + check all green.
+  (2) The version-truth census legs land per the sealed ruling
+  (eyestruct@3d8a822): scripts/check-version-truth.mjs rides the root
+  lint chain; both mounts' test/version-truth.mjs ride their test chains
+  (refuse a side web/package.json version copy OR its drift; pin the
+  README H1 status copy); the two web/package.json version fields DROP
+  (rig rides the root version); poststruct README "What 0.9.0 audits" ->
+  "What this version audits", monoforge README's numbered status line
+  rewords era-free, gistory root README's ladder lines drop the version
+  hand-copies. React-router #27/#25/#17 stays record-only (the mounts
+  ride ^6.23.1 - lawful; the prestruct engine fix ships in 1.2.0).
+  gistory#26 wp-static pack skeleton: docketed, build after this sweep
+  closes. Lockfiles land via a one-shot lock lane, never hand-carried.
+
 - **Issue sweep: gistory#21-#25 closed out (2026-10-28).** #23 rider: both mounts' four lane ymls (docs/test/publish/release) adopt the eyestruct SHA-pin law byte-for-byte (checkout/setup-node/configure-pages/upload-pages bumped v3 to v5 + deploy-pages, ruby/setup-ruby at v1.335.0, the eyestruct@main pins repeated exactly). #24: the walk-exit rule bullet lands in BOTH mounts' AGENTS (family law from eyestruct@70dfbea; walks DISCOVER classes, the battery REMEMBERS them). #25: unwrap-prose adopts - scripts/unwrap-prose.cjs copied byte-as-is from eyestruct@3adda1d into all three trees and run over the living surfaces (discussions posts + index, README, AGENTS, CHANGELOG, TASKS + PRDs). #22: gistory's own scripts/ gains ship-from-download.cjs (byte-as-is from eyestruct@9744c76; the mounts already ship both file and behavior test). #21: record-only closeout - ci.yml no longer carries an eyestruct upstream checkout at all (the npm pin rides npm ci), so the shallow-clone class cannot recur through gistory's lanes. All gates re-run green over the unwrapped trees: gistory check-docs PASS (12 pages) + language gate PASS (29 prose files), monoforge 6-gate battery PASS, poststruct 6-gate battery PASS.
   Sweep rider, PRD lands verified (2026-10-28): the compiled
   handoff copies survive the unwrap byte-exact on origin -

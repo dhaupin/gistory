@@ -79,7 +79,7 @@
     "lint:docs": "node scripts/check-docs.mjs",
     "lint:packs": "packstruct lint packs --deep",
     "lint:eslint": "eslint .",
-    "lint:laiguage": "node scripts/check-language.mjs",
+    "lint:language": "node scripts/check-language.mjs",
     "sync:smoke": "bun tests/sync-smoke.ts",
     "sync:live": "bun scripts/live-sync.mjs",
     "sync:multidev": "bun scripts/live-multidevice.mjs",

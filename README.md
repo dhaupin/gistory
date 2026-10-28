@@ -54,13 +54,13 @@ this file describes the gistory-sync package, not those trees.
 
 ## Install
 
-The release ladder is tag-driven (`0.9.0` first, then OIDC takes over), so the
-plain install line resolves from npm **only once the `0.9.0` tag is published**
-— until then it can 404 on the registry:
+The release ladder is tag-driven (the first tag lands by hand, then OIDC takes
+over), so the plain install line resolves from npm **only once the first tag is
+published** — until then it can 404 on the registry:
 
 ```bash
 npm i github:dhaupin/gistory   # git-sourced; works before the npm tag exists
-npm i gistory-sync             # after the 0.9.0 tag is up
+npm i gistory-sync             # after the first tag is up
 ```
 
 ## Quick start

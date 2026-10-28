@@ -1,7 +1,8 @@
 // eyestruct-shapes - file checks over an eyestruct-shaped lab's .eyes canon
 // tree, hosted by poststruct (the TEXT leg audits the EYES' receipts). The
 // check ids come straight from eyestruct's shipped gate semantics (its
-// lib/gate.js + lib/reasons.js 28 named codes + the exit contract 0-1-2),
+// lib/gate.js + lib/reasons.js named-code census (derived, never
+// hand-copied) + the exit contract 0-1-2),
 // and the fixture material it was born stress-tested against is the eye's
 // own 4-pack, 30-verdict, 0-exploited adversarial campaign. All pure file
 // reads: JSON / the family YAML manifest subset / text tables. Zero
