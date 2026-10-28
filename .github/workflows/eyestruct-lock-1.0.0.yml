@@ -5,10 +5,9 @@
 # the contract); the LOCKFILES are never hand-carried - they are derived
 # here by `npm install --package-lock-only`, gated on the exact 1.0.0 pin,
 # npm-ci proven, and committed atomically with the labs TASKS rider (the
-# sweep's work-log row) and this lane's own retirement. The lane also
-# repairs, in place, the one-byte typos the hand-carrying typed and the
-# two comment/ladder prose surfaces, each pinned by a hash gate against
-# the verified local bytes.
+# sweep's work-log row). The lane also repairs, in place, the one-byte
+# typos the hand-carrying typed and the two comment/ladder prose surfaces,
+# each pinned by a hash gate against the verified local bytes.
 #
 # Gates (any refusal exits before the commit):
 #   before: labs/TASKS.md must still be the pre-landing blob 89079f96*
@@ -18,10 +17,15 @@
 #   after:  both derived locks pin node_modules/eyestruct == 1.0.0
 #   after:  require('eyestruct').version == 1.0.0
 #   after:  the root lint gates + both mounts' test chains exit 0
+#
+# The lane yml itself is NOT deleted from the runner push: a commit touching
+# .github/workflows needs the workflows scope, which this Contents-token
+# push cannot carry (the move-day law). It is retired through the host lane
+# right after the green run.
 name: "eyestruct 1.0.0: derived locks + in-repo repairs + the TASKS rider"
 
-workflow_dispatch:
-  empty: true
+on:
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -98,7 +102,7 @@ jobs:
       - name: Append the TASKS rider
         run: |
           set -euo pipefail
-          printf %s 'LSAqKk5ldy1pc3N1ZSBzd2VlcDogIzI5LyMyNy8jMTkgKyAjMjgvIzI2LyMxOCArIGdpc3RvcnkjMjYtd3Atc3RhdGljICgyMDI2LTEwLTI4LCBpbiBwcm9ncmVzcykuKiogKDEpIGV5ZXN0cnVjdEBucG0KICBwdWxsLWluOiBCT1RIIHBpbiBzdXJmYWNlcyBtb3ZlIEVYQUNUIGAwLjkuMGAgLT4gYDEuMC4wYCAocm9vdCArCiAgcG9zdHN0cnVjdC1zdGFnaW5nIHBhY2thZ2UuanNvbnM7IHRoZSBsb2NrcyByZS1kZXJpdmVkIGJ5CiAgYG5wbSBpbnN0YWxsIC0tcGFja2FnZS1sb2NrLW9ubHlgIC0gbmV2ZXIgaGFuZC1jYXJyaWVkIC0gYW5kIHRoZSByb290CiAgbG9jayByZWdlbmVyYXRpb24gYWxzbyBwcnVuZWQgNzcgcGFja2FnZXMgd2hvc2UgcGFja2FnZS5qc29uIGVudHJpZXMgbm8KICBsb25nZXIgYXNrIGZvciB0aGVtLCBzdGFsZSBkcmlmdCB0aGUgb2xkIHBpbiBoaWQpOyB0aGUgb25lLXNob3QgYWRvcHQKICBsYW5lIHJldGlyZXMgaW4gdGhlIHNhbWUgY29tbWl0IChpdHMgZ2F0ZSByZWZ1c2VzIGFueCBub24tMC45LjAgcGluKTsKICBjaS55bWwgKyBleWVzLXJhdGlmeS55bWwgcGluIGNvbW1lbnRzIHJlLXNheSAxLjAuMDsgZXllc3RydWN0LXNoYXBlcydzCiAgaGVhZGVyIGRyb3BzIGl0cyBoYW5kLWNvcGllZCAiMjggbmFtZWQgY29kZXMiIChjZW5zdXMgd29yZGluZyBpbnN0ZWFkKS4KICBMb2NhbCBwcm9vZjogcm9vdCBucG0gY2kgKyBgcmVxdWlyZSgnZXllc3RydWN0JylgIC0+IDEuMC4wCiAgKGByZWFzb25Db2Rlcy5sZW5ndGhgIDMwLCBkZXJpdmVzKSwgbGludDp2ZXJzaW9uL2xhbmd1YWdlL2RvY3MgUEFTUywKICBwb3N0c3RydWN0IG5wbSBydW4gY2hlY2sgYWxsIGdyZWVuLCBtb25vZm9yZ2UgdGVzdCArIGNoZWNrIGFsbCBncmVlbi4KICAoMikgVGhlIHZlcnNpb24tdHJ1dGggY2Vuc3VzIGxlZ3MgbGFuZCBwZXIgdGhlIHNlYWxlZCBydWxpbmcKICAoZXllc3RydWN0QDNkOGE4MjIpOiBzY3JpcHRzL2NoZWNrLXZlcnNpb24tdHJ1dGgubWpzIHJpZGVzIHRoZSByb290CiAgbGludCBjaGFpbjsgYm90aCBtb3VudHMnIHRlc3QvdmVyc2lvbi10cnV0aC5tanMgcmlkZSB0aGVpciB0ZXN0IGNoYWlucwogIChyZWZ1c2UgYSBzaWRlIHdlYi9wYWNrYWdlLmpzb24gdmVyc2lvbiBjb3B5IE9SIGl0cyBkcmlmdDsgcGluIHRoZQogIFJFQURNRSBIMSBzdGF0dXMgY29weSk7IHRoZSB0d28gd2ViL3BhY2thZ2UuanNvbiB2ZXJzaW9uIGZpZWxkcyBEUk9QCiAgKHJpZyByaWRlcyB0aGUgcm9vdCB2ZXJzaW9uKTsgcG9zdHN0cnVjdCBSRUFETUUgIldoYXQgMC45LjAgYXVkaXRzIiAtPgogICJXaGF0IHRoaXMgdmVyc2lvbiBhdWRpdHMiLCBtb25vZm9yZ2UgUkVBRE1FJ3MgbnVtYmVyZWQgc3RhdHVzIGxpbmUKICByZXdvcmRzIGVyYS1mcmVlLCBnaXN0b3J5IHJvb3QgUkVBRE1FJ3MgbGFkZGVyIGxpbmVzIGRyb3AgdGhlIHZlcnNpb24KICBoYW5kLWNvcGllcy4gUmVhY3Qtcm91dGVyICMyNy8jMjUvIzE3IHN0YXlzIHJlY29yZC1vbmx5ICh0aGUgbW91bnRzCiAgcmlkZSBeNi4yMy4xIC0gbGF3ZnVsOyB0aGUgcHJlc3RydWN0IGVuZ2luZSBmaXggc2hpcHMgaW4gMS4yLjApLgogIGdpc3RvcnkjMjYgd3Atc3RhdGljIHBhY2sgc2tlbGV0b246IGRvY2tldGVkLCBidWlsZCBhZnRlciB0aGlzIHN3ZWVwCiAgY2xvc2VzLiBMb2NrZmlsZXMgbGFuZCB2aWEgYSBvbmUtc2hvdCBsb2NrIGxhbmUsIG5ldmVyIGhhbmQtY2FycmllZC4K' | base64 -d > /tmp/tasks-rider-1028.md
+          printf %s 'LSAqKk5ldy1pc3N1ZSBzd2VlcDogIzI5LyMyNy8jMTkgKyAjMjgvIzI2LyMxOCArIGdpc3RvcnkjMjYtd3Atc3RhdGljICgyMDI2LTEwLTI4LCBpbiBwcm9ncmVzcykuKiogKDEpIGV5ZXN0cnVjdEBucG0KICBwdWxsLWluOiBCT1RIIHBpbiBzdXJmYWNlcyBtb3ZlIEVYQUNUIGAwLjkuMGAgLT4gYDEuMC4wYCAocm9vdCArCiAgcG9zdHN0cnVjdC1zdGFnaW5nIHBhY2thZ2UuanNvbnM7IHRoZSBsb2NrcyByZS1kZXJpdmVkIGJ5CiAgYG5wbSBpbnN0YWxsIC0tcGFja2FnZS1sb2NrLW9ubHlgIC0gbmV2ZXIgaGFuZC1jYXJyaWVkIC0gYW5kIHRoZSByb290CiAgbG9jayByZWdlbmVyYXRpb24gYWxzbyBwcnVuZWQgNzcgcGFja2FnZXMgd2hvc2UgcGFja2FnZS5qc29uIGVudHJpZXMgbm8KICBsb25nZXIgYXNrIGZvciB0aGVtLCBzdGFsZSBkcmlmdCB0aGUgb2xkIHBpbiBoaWQpOyB0aGUgb25lLXNob3QgYWRvcHQKICBsYW5lIHJldGlyZXMgaW4gdGhlIHNhbWUgY29tbWl0IChpdHMgZ2F0ZSByZWZ1c2VzIGFueSBub24tMC45LjAgcGluKTsKICBjaS55bWwgKyBleWVzLXJhdGlmeS55bWwgcGluIGNvbW1lbnRzIHJlLXNheSAxLjAuMDsgZXllc3RydWN0LXNoYXBlcydzCiAgaGVhZGVyIGRyb3BzIGl0cyBoYW5kLWNvcGllZCAiMjggbmFtZWQgY29kZXMiIChjZW5zdXMgd29yZGluZyBpbnN0ZWFkKS4KICBMb2NhbCBwcm9vZjogcm9vdCBucG0gY2kgKyBgcmVxdWlyZSgnZXllc3RydWN0JylgIC0+IDEuMC4wCiAgKGByZWFzb25Db2Rlcy5sZW5ndGhgIDMwLCBkZXJpdmVzKSwgbGludDp2ZXJzaW9uL2xhbmd1YWdlL2RvY3MgUEFTUywKICBwb3N0c3RydWN0IG5wbSBydW4gY2hlY2sgYWxsIGdyZWVuLCBtb25vZm9yZ2UgdGVzdCArIGNoZWNrIGFsbCBncmVlbi4KICAoMikgVGhlIHZlcnNpb24tdHJ1dGggY2Vuc3VzIGxlZ3MgbGFuZCBwZXIgdGhlIHNlYWxlZCBydWxpbmcKICAoZXllc3RydWN0QDNkOGE4MjIpOiBzY3JpcHRzL2NoZWNrLXZlcnNpb24tdHJ1dGgubWpzIHJpZGVzIHRoZSByb290CiAgbGludCBjaGFpbjsgYm90aCBtb3VudHMnIHRlc3QvdmVyc2lvbi10cnV0aC5tanMgcmlkZSB0aGVpciB0ZXN0IGNoYWlucwogIChyZWZ1c2UgYSBzaWRlIHdlYi9wYWNrYWdlLmpzb24gdmVyc2lvbiBjb3B5IE9SIGl0cyBkcmlmdDsgcGluIHRoZQogIFJFQURNRSBIMSBzdGF0dXMgY29weSk7IHRoZSB0d28gd2ViL3BhY2thZ2UuanNvbiB2ZXJzaW9uIGZpZWxkcyBEUk9QCiAgKHJpZyByaWRlcyB0aGUgcm9vdCB2ZXJzaW9uKTsgcG9zdHN0cnVjdCBSRUFETUUgIldoYXQgMC45LjAgYXVkaXRzIiAtPgogICJXaGF0IHRoaXMgdmVyc2lvbiBhdWRpdHMiLCBtb25vZm9yZ2UgUkVBRE1FJ3MgbnVtYmVyZWQgc3RhdHVzIGxpbmUKICByZXdvcmRzIGVyYS1mcmVlLCBnaXN0b3J5IHJvb3QgUkVBRE1FJ3MgbGFkZGVyIGxpbmVzIGRyb3AgdGhlIHZlcnNpb24KICBoYW5kLWNvcGllcy4gUmVhY3Qtcm91dGVyICMyNy8jMjUvIzE3IHN0YXlzIHJlY29yZC1vbmx5ICh0aGUgbW91bnRzCiAgcmlkZSBeNi4yMy4xIC0gbGF3ZnVsOyB0aGUgcHJlc3RydWN0IGVuZ2luZSBmaXggc2hpcHMgaW4gMS4yLjApLgogIGdpc3RvcnkjMjYgd3Atc3RhdGljIHBhY2sgc2tlbGV0b246IGRvY2tldGVkLCBidWlsZCBhZnRlciB0aGlzIHN3ZWVwCiAgY2xvc2VzLiBMb2NrZmlsZXMgbGFuZCB2aWEgYSBvbmUtc2hvdCBsb2NrIGxhbmUsIG5ldmVyIGhhbmQtY2FycmllZC4K' | base64 -d > /tmp/tasks-rider-1028.md
           node -e 'const fs=require("fs");const r=fs.readFileSync("/tmp/tasks-rider-1028.md","utf8");const p="labs/TASKS.md";let t=fs.readFileSync(p,"utf8");if(t.includes("New-issue sweep: #29")){console.log("rider already present");process.exit(0)}const nl=String.fromCharCode(10);const a="## Now"+nl;if(!t.includes(a))process.exit(4);fs.writeFileSync(p,t.replace(a,a+nl+r));console.log("rider appended to labs/TASKS.md")'
 
       - name: Derive the lockfiles + prove the trees install
@@ -121,14 +125,13 @@ jobs:
           (cd poststruct-staging && npm run test)
           (cd monoforge-staging && npm run test)
 
-      - name: Atomic commit (repairs + locks + rider) and the lane retires
+      - name: Atomic commit (repairs + locks + rider)
         run: |
           set -euo pipefail
           git config user.name "Codebuff"
           git config user.email "noreply@codebuff.com"
           git add package.json README.md .github/workflows/ci.yml .github/workflows/eyes-ratify.yml poststruct-staging/README.md poststruct-staging/packs/public/eyestruct-shapes/index.mjs package-lock.json poststruct-staging/package-lock.json labs/TASKS.md
           git status --porcelain
-          git commit -m "eyestruct@1.0.0: the derived lockfiles + the in-repo repairs + the TASKS rider (the pins' lane)" -m "eyestruct 1.0.0 is the freeze release (eyestruct#29 pull-in). The exact devDep pins rode npm ci through the preceding commits; the lockfiles are derived here on the runner - never hand-carried, gated on the 1.0.0 pin, both trees npm-ci proven, the census + tool-version + prose gates green - and the sweep's TASKS rider lands in the same atomic commit (base blob 89079f96* gated). The lane also repairs the two one-byte typos the hand-carrying typed (package.json's lint key, the README pack-literal comma) and lands the pin-comment/ladder prose surfaces, each hash-gated against the verified contract blobs. The lane yml itself is retired through the host lane right after (a commit touching .github/workflows needs the workflows scope, which a Contents-token push cannot carry - the same move-day law)."
+          git commit -m "eyestruct@1.0.0: the derived lockfiles + the in-repo repairs + the TASKS rider (the pins' lane)" -m "eyestruct 1.0.0 is the freeze release (eyestruct#29 pull-in). The exact devDep pins rode npm ci through the preceding commits; the lockfiles are derived here on the runner - never hand-carried, gated on the 1.0.0 pin, both trees npm-ci proven, the census + tool-version + prose gates green - and the sweep's TASKS rider lands in the same atomic commit (base blob 89079f96* gated). The lane also repairs the two one-byte typos the hand-carrying typed (package.json's lint key, the README pack-literal comma) and lands the pin-comment/ladder prose surfaces, each hash-gated against the verified contract blobs. The lane yml itself is NOT deleted from this push: a commit touching .github/workflows needs the workflows scope, which this Contents-token push cannot carry (the move-day law) - it is retired through the host lane right after the green run."
           git push
           echo "pushed: $(git rev-parse HEAD)"
-
