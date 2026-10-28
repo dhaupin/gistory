@@ -13,8 +13,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  workflows: write  # the reorg commit touches lane workflow files on push
+  contents: write  # contents-only commit: the lane ymls pre-landed stage 1
+                   # (a GITHUB_TOKEN push of workflow files is refused at
+                   # the ref update, and `workflows` is not even a legal
+                   # permissions scope, so the runner can never carry them)
 
 concurrency:
   group: mounts-move-day
@@ -38,7 +40,7 @@ jobs:
           sys.path.insert(0, ".github/move-day")
           def blob(p):
               return subprocess.run(["git", "hash-object", p], capture_output=True, text=True).stdout.strip()
-          mods = ["data0", "data1", "data2", "data3", "data4", "data5", "data6", "data7", "data8", "data9", "moves", "newfiles"]
+          mods = ["data0", "data1", "data9", "moves", "newfiles"]  # data2-data8 (the seven lane ymls) pre-landed stage 1
           for name in mods:
               m = importlib.import_module(name)
               if not hasattr(m, "PAIRS"):
@@ -107,11 +109,7 @@ jobs:
           oldps = set(mv.OLDPINS)
           newps = {n for _, n in mv.MOVES}
           lanes = {"scripts/make-staging-tars.sh", "scripts/verify-staging-tars.sh",
-                   ".github/workflows/staging-tars.yml", ".github/workflows/mount-stone-mirror.yml",
-                   ".github/workflows/mono-web-emit.yml", ".github/workflows/monoforge-ferry.yml",
-                   ".github/workflows/mono-rig-emit.yml", ".github/workflows/identity-emit.yml",
-                   ".github/workflows/doctor-fix-emit.yml", "horcrux/README.md",
-                   "mounts/README.md", "mounts/state.json"}
+                   "horcrux/README.md", "mounts/README.md", "mounts/state.json"}
           bad = []
           for line in subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True).stdout.splitlines():
               st, pathpart = line[:2], line[3:]
