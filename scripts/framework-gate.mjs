@@ -15,11 +15,11 @@
 //
 // The legs cascade cheap-to-expensive: text gates first, then pixels.
 //
-// Eyestruct source of truth: the staging mount is retired (the
-// 2026-10-27 graduation) and dhaupin/eyestruct is the tool upstream.
-// Set EYESTRUCT_BIN to a bin/eyestruct.js from a checkout (CI does exactly
-// that); a workspace with no eyestruct anywhere names the skip, it does not
-// fake a pass.
+// Eyestruct source of truth: the npm package (dhaupin/eyestruct publishes
+// it; the devDependencies pin is EXACT, "0.9.0" - the packstruct
+// discipline). EYESTRUCT_BIN still outranks the resolved install (a
+// checkout picks its own truth); a workspace with no eyestruct anywhere
+// names the skip with the install command - never a fake pass.
 //
 // Exit contract mirrors the family: 0 all ran legs green, 1 a ran leg
 // failed, 2 usage/setup. Skipped legs carry a named reason and do not
@@ -35,15 +35,19 @@ import { fileURLToPath } from 'node:url'
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const POSTSTRUCT_STAGING = path.join(ROOT, 'poststruct-staging')
 
-// EYESTRUCT_BIN wins; the retired mount path is a legacy fallback so a
-// workspace that still carries the old tree keeps working during the
-// retirement window. No eyestruct anywhere = an honest SKIP with the
-// upstream repo named.
+// EYESTRUCT_BIN wins (a checkout picks its own truth); the standalone
+// default resolves the npm package - eyestruct is a devDependency with an
+// EXACT pin ("0.9.0") - by walking OUT from ROOT for
+// node_modules/eyestruct/bin/eyestruct.js, which finds both the staging
+// tree's own install and a host repo's root install. No eyestruct anywhere
+// = an honest SKIP with the install command named.
 function resolveEyestructBin() {
   if (process.env.EYESTRUCT_BIN) return { bin: path.resolve(process.env.EYESTRUCT_BIN), label: process.env.EYESTRUCT_BIN }
-  const legacy = path.join(ROOT, 'eyestruct-staging', 'bin', 'eyestruct.js')
-  if (fs.existsSync(legacy)) return { bin: legacy, label: 'legacy eyestruct-staging (retirement window)' }
-  return { bin: null, label: null }
+  for (let dir = ROOT; ; dir = path.dirname(dir)) {
+    const candidate = path.join(dir, 'node_modules', 'eyestruct', 'bin', 'eyestruct.js')
+    if (fs.existsSync(candidate)) return { bin: candidate, label: 'npm eyestruct (exact devDependency pin)' }
+    if (path.dirname(dir) === dir) return { bin: null, label: null }
+  }
 }
 
 function cli(bin, argv, cwd) {
@@ -102,7 +106,7 @@ if (eyes.bin) {
     legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no renderable stones in horcrux/stones/ or public/' })
   }
 } else {
-  legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no eyestruct resolved - set EYESTRUCT_BIN to a bin/eyestruct.js (dhaupin/eyestruct is upstream)' })
+  legs.push({ name: 'eyes-art leg (eyestruct raster gate)', state: 'SKIP', reason: 'no eyestruct resolved - the devDependency pin (eyestruct@0.9.0) is not installed here, or set EYESTRUCT_BIN to override' })
 }
 
 // --- TEXT-REF leg (poststruct's eyes-reference pack) ----------------------
@@ -132,7 +136,7 @@ if (eyes.bin && fs.existsSync(path.join(ROOT, EYES_LEDGER))) {
   const r = cli(eyes.bin, ['gate', '--manifest', EYES_MANIFEST, '--ledger', EYES_LEDGER], ROOT)
   legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: r.code === 0 ? 'PASS' : r.code === 2 ? 'CAPABILITY' : 'FAIL', code: r.code, detail: r.out.trim() })
 } else {
-  legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: 'SKIP', reason: eyes.bin ? `no ${EYES_LEDGER} in this workspace - watch it from the eyestruct checkout itself` : 'no eyestruct resolved - set EYESTRUCT_BIN (dhaupin/eyestruct is upstream)' })
+  legs.push({ name: `eyes-mem leg (eyestruct gate at ${EYES_HOME})`, state: 'SKIP', reason: eyes.bin ? `no ${EYES_LEDGER} in this workspace - watch it from the origin tree itself` : 'no eyestruct resolved - the devDependency pin (eyestruct@0.9.0) is not installed here' })
 }
 
 let failed = false

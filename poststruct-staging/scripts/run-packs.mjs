@@ -12,8 +12,9 @@
 // a verdict change vs a recorded row fails, re-baseline is explicit
 // --adopt. Targets the audited site via --dist (default ../gistory dist).
 // A second leg ships with eyestruct-shapes: file checks over a canon-
-// carrying lab tree (default sibling ../eyestruct, override EYESTRUCT_TREE)
-// - absent tree, one BOUNDED docket, never a fake pass.
+// carrying lab tree (the default walks OUT for the nearest labs/.eyes
+// canon; EYESTRUCT_TREE overrides) - absent tree, one BOUNDED docket,
+// never a fake pass.
 
 'use strict'
 
@@ -52,27 +53,39 @@ const localTwinRels = new Map([
   ['https://docs.creadev.org/gistory/og-image.png', ['../gistory/docs/og-image.png']],
 ])
 
-// EYESTRUCT_BIN: the raster leg's host-decision knob. Eyestruct graduated
-// upstream (dhaupin/eyestruct; the gistory staging mount retired
-// 2026-10-27), so a checkout of the eye's own repo is the reference and
-// the env knob OUTRANKS any sibling guess - a checkout picks its own
-// truth. Once eyestruct publishes to npm the standalone default flips to
-// an npx-resolved path with a pinned version - never a bare `npx
-// eyestruct` (the pin discipline the ecosystem carries everywhere else).
-const eyestructBin = process.env.EYESTRUCT_BIN
-  ? path.resolve(process.env.EYESTRUCT_BIN)
-  : [path.resolve(ROOT, '..', 'eyestruct-staging', 'bin', 'eyestruct.js'),
-     path.resolve(ROOT, '..', 'eyestruct', 'bin', 'eyestruct.js')].find((p) => fs.existsSync(p))
-     || path.resolve(ROOT, '..', 'eyestruct-staging', 'bin', 'eyestruct.js')
+// EYESTRUCT_BIN: the raster leg's host-decision knob. Eyestruct is an npm
+// dependency now (EXACT pin "0.9.0" in devDependencies, the packstruct
+// discipline): the standalone default walks OUT from ROOT for
+// node_modules/eyestruct/bin/eyestruct.js - it finds the staging tree's
+// own install AND a host repo's root install. Env still outranks it - a
+// checkout picks its own truth. Never a bare `npx eyestruct`: the pin
+// discipline the ecosystem carries everywhere else.
+let eyestructBin = null
+if (process.env.EYESTRUCT_BIN) {
+  eyestructBin = path.resolve(process.env.EYESTRUCT_BIN)
+} else {
+  for (let dir = ROOT; ; dir = path.dirname(dir)) {
+    const candidate = path.join(dir, 'node_modules', 'eyestruct', 'bin', 'eyestruct.js')
+    if (fs.existsSync(candidate)) { eyestructBin = candidate; break }
+    if (path.dirname(dir) === dir) break
+  }
+}
 
 // EYESTRUCT_TREE: the canon-tree leg's host-decision knob, same discipline
-// as EYESTRUCT_BIN - env outranks the sibling guess. This is where the
-// eyestruct-shapes pack audits: resolve a repo root or hand the pack null
-// and let it docket BOUNDED (never fabricate a verdict with no target).
+// as EYESTRUCT_BIN - env outranks the derived default. The canon leg
+// audits a canon-carrying tree (a repo with the labs/.eyes convention):
+// the derived default walks OUT for the nearest one - gistory's tree is
+// the family's record (labs/.eyes beside crashledger.json). This is where
+// the eyestruct-shapes pack audits: resolve a repo root or hand the pack
+// null and let it docket BOUNDED (never fabricate a verdict with no target).
 const eyestructTreeRoot = process.env.EYESTRUCT_TREE
   ? (fs.existsSync(path.resolve(process.env.EYESTRUCT_TREE)) ? path.resolve(process.env.EYESTRUCT_TREE) : null)
-  : [path.resolve(ROOT, '..', 'eyestruct'), path.resolve(ROOT, '..', 'eyestruct-staging')]
-      .find((p) => fs.existsSync(p) && fs.existsSync(path.join(p, 'labs'))) || null
+  : (function walkOut() {
+      for (let dir = ROOT; ; dir = path.dirname(dir)) {
+        if (fs.existsSync(path.join(dir, 'labs', '.eyes', 'manifest.yml'))) return dir
+        if (path.dirname(dir) === dir) return null
+      }
+    })()
 
 function armTreeFs() {
   const safe = (rel) => {
@@ -113,6 +126,9 @@ function armModuleCtx() {
     // Interop: the EYES leg's raster gate is the renderer of record for SVG.
     raster(rel) {
       const abs = path.join(distDir, rel)
+      if (!eyestructBin) {
+        return { code: 2, out: `MISSING_RENDER: eyestruct not resolved (the devDependency pin eyestruct@0.9.0 is not installed) - set EYESTRUCT_BIN to override` }
+      }
       try {
         return { code: 0, out: execFileSync(process.execPath, [eyestructBin, 'raster', abs], { cwd: ROOT, encoding: 'utf8' }) }
       } catch (err) {
