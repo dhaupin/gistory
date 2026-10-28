@@ -23,13 +23,22 @@
   template block with a single instance is a bet, and the doctor cannot
   verify bets.
 - The negative test in `test/run.mjs` asserts the refusal paths (bad
-  config, stray dir) and the doctor fail (unfilled) / pass (filled) pair.
+  config, stray dir), the doctor fail (unfilled) / pass (filled) pair,
+  and the canon checks (monoforge#12 rider): a dangling
+  `labs/.eyes/ledger.json` artifact pointer fails `dangling-canon`, an
+  UNSET canon pin fails `canon-pin`, and a canon-free tree stays silent
+  (the canon is opt-in; auditing nothing is never dressed up as a pass).
   Update the test in the same commit as any check change; run
   `npm test` first.
 - The battery is one verb for CI and humans: `npm run check` (test +
   docs gates + language gate). The packstruct leg is deliberately not
   wired into check until the factory's own packs land; until then
-  `monoforge lint-packs` answers exit 2 as the readiness probe.
+  `monoforge lint-packs` answers exit 2 as the readiness probe. The
+  phone publish lane rides the battery: `scripts/ship-from-download.cjs`
+  is copied byte-as-is from eyestruct@9744c76 (zero repo imports) and
+  `node --test test/ship-from-download.test.cjs` runs inside `npm test`
+  (monoforge#14; the .cjs extension is the one mechanical rename the ESM
+  root forces).
 - The icon lane is the family's parameterized one: `npm run icons:adopt`
   (scripts/adopt-icons.mjs + scripts/brand-mark.json authored seal),
   same contract as gistory#17/eyestruct. Derived icon bytes are
