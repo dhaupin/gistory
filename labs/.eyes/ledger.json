@@ -104,5 +104,27 @@
     "verified": true,
     "id": "row-0010",
     "ts": 1792974032696
+  },
+  {
+    "type": "ratify",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "home/desktop-1280-dark/current.png",
+    "note": "reproduced byte-identical (80835B) in the pinned environment via http://localhost:4173/",
+    "pin": "local-chrome@154.0.8037.57",
+    "verified": true,
+    "id": "row-0011",
+    "ts": 1793220587761
+  },
+  {
+    "type": "ratify",
+    "agent": "local-agent",
+    "commit": "uncommitted",
+    "artifact": "settings/desktop-1280-dark/current.png",
+    "note": "reproduced byte-identical (61030B) in the pinned environment via http://localhost:4173/",
+    "pin": "local-chrome@154.0.8037.57",
+    "verified": true,
+    "id": "row-0012",
+    "ts": 1793220590574
   }
 ]
