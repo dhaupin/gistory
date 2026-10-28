@@ -11,7 +11,7 @@
 # verified before tar ever opens it.
 #
 # The unpack merges over monoforge-staging/ (the receipts this mount
-# adds on top - labs/, horcrux/README - are not in the lock, so they
+# adds on top - labs/, boot tars (the /mounts registry) - are not in the lock, so they
 # survive; known limitation: a re-lock that DELETES a tool file leaves
 # the stale one behind, so re-locks should sweep first). THE CONVERGE
 # LAW (2026-10-27): main's tracked bytes ARE the rig generation, and a
@@ -68,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p monoforge-staging/horcrux
-          cp /tmp/mf-lock.tar.gz monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz
+          cp /tmp/mf-lock.tar.gz mounts/public/monoforge/boot/tars/monoforge-0.9.0-lock.tar.gz
           tar -xzf /tmp/mf-lock.tar.gz -C monoforge-staging --strip-components=1
           echo "unpacked $(find monoforge-staging -type f | wc -l) files"
 

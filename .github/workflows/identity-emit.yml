@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           for c in aa ab ac ad ae; do
-            cat "monoforge-staging/horcrux/handoff/identity-tail.$c.part"
+            cat "mounts/public/monoforge/boot/handoff/identity-tail.$c.part"
           done | base64 -d | gunzip > /tmp/identity-tail.patch
           got=$(sha256sum /tmp/identity-tail.patch | cut -d' ' -f1)
           want=c3f8c9a0b8df88bb243f5dcdf0befa8a796f740ba0be1db71a3db1d4b5ea2966
@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           for c in aa ab ac; do
-            cat "monoforge-staging/horcrux/handoff/identity-layout.$c.part"
+            cat "mounts/public/monoforge/boot/handoff/identity-layout.$c.part"
           done | base64 -d | gunzip > /tmp/mf-layout.html
           got=$(sha256sum /tmp/mf-layout.html | cut -d' ' -f1)
           want=f45e5999d458948b81fcfe696fb0a01576d03fc9342f6e120f1aa02f5664bf7a

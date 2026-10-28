@@ -74,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf /tmp/lockbase && mkdir -p /tmp/lockbase
-          tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/lockbase
+          tar -xzf mounts/public/monoforge/boot/tars/monoforge-0.9.0-lock.tar.gz -C /tmp/lockbase
           base="/tmp/lockbase/$(ls /tmp/lockbase)"
           LIST=".github/workflows/test.yml package.json docs/_config.yml docs/_layouts/default.html docs/freestruct.config.yml docs/index.md docs/search.md scripts/check-docs-frontmatter.cjs scripts/check-docs-links.cjs scripts/check-docs-style.cjs"
           : > /tmp/rig-overlay.patch
@@ -94,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf /tmp/locktest && mkdir -p /tmp/locktest
-          tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/locktest
+          tar -xzf mounts/public/monoforge/boot/tars/monoforge-0.9.0-lock.tar.gz -C /tmp/locktest
           base2="/tmp/locktest/$(ls /tmp/locktest)"
           # temporary repo look-alike so the monoforge-staging/ target paths resolve
           rm -rf /tmp/patchtest && mkdir -p /tmp/patchtest/monoforge-staging

@@ -38,13 +38,13 @@ jobs:
         run: |
           set -euo pipefail
           expect="046908c681a607d355925146234c7d4adf3726581a2e8799544954d7c4cf2952"
-          actual="$(sha256sum monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz | cut -d' ' -f1)"
+          actual="$(sha256sum mounts/public/monoforge/boot/tars/monoforge-0.9.0-lock.tar.gz | cut -d' ' -f1)"
           echo "expect: $expect"
           echo "actual: $actual"
           test "$actual" = "$expect" \
             || { echo "LOCK GATE FAIL: refused to unpack anything"; exit 1; }
           rm -rf /tmp/lockbase && mkdir -p /tmp/lockbase
-          tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/lockbase
+          tar -xzf mounts/public/monoforge/boot/tars/monoforge-0.9.0-lock.tar.gz -C /tmp/lockbase
           echo "lock unpacked: /tmp/lockbase/$(ls /tmp/lockbase)"
 
       - name: Surgery on doctor.mjs (carried patch hunk, sha-gated)
@@ -181,7 +181,7 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/locktest /tmp/patchtest
           mkdir -p /tmp/locktest /tmp/patchtest/monoforge-staging
-          tar -xzf monoforge-staging/horcrux/monoforge-0.9.0-lock.tar.gz -C /tmp/locktest
+          tar -xzf mounts/public/monoforge/boot/tars/monoforge-0.9.0-lock.tar.gz -C /tmp/locktest
           base2="/tmp/locktest/$(ls /tmp/locktest)"
           cp -r "$base2"/. /tmp/patchtest/monoforge-staging/
           ( cd /tmp/patchtest && patch -p1 --force --quiet < "$GITHUB_WORKSPACE/horcrux/rig-overlay.patch" )

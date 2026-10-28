@@ -59,9 +59,9 @@ jobs:
           }
           # The magpie mirror pair retired with the eyestruct mount
           # (2026-10-27): upstream dhaupin/eyestruct carries the stone
-          # mirrors in its own horcrux/ now.
+          # mirrors in the boot registry now (the /mounts reorg, 2026-10-28).
           mirror horcrux/stones/poststruct-p_wordprint-2026.svg \
-                 poststruct-staging/horcrux/poststruct-p_wordprint-2026.svg
+                 mounts/public/poststruct/boot/stone/poststruct-p_wordprint-2026.svg
           if git diff --cached --quiet; then
             echo 'nothing to commit (all mirrored)'
           else

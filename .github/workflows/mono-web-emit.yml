@@ -91,7 +91,7 @@ jobs:
           const fs = require('node:fs')
           const { Resvg } = require('@resvg/resvg-js')
           const icon = fs.readFileSync('monoforge-staging/web/public/icon.svg', 'utf8')
-          const og = fs.readFileSync('monoforge-staging/horcrux/handoff/og-image-src.svg', 'utf8')
+          const og = fs.readFileSync('mounts/public/monoforge/boot/handoff/og-image-src.svg', 'utf8')
           const render = (svg, w) => new Resvg(svg, { fitTo: { mode: 'width', value: w } }).render().asPng()
           fs.writeFileSync('monoforge-staging/web/public/og-image.png', render(og, 1200))
           fs.writeFileSync('monoforge-staging/web/public/icon-512.png', render(icon, 512))
