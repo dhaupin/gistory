@@ -41,9 +41,9 @@ jobs:
       - name: Determinism proof (rebuild must be byte-identical)
         run: |
           set -euo pipefail
-          sha256sum horcrux/tars/*-git-*.tar.gz > /tmp/tars-a.sha
+          sha256sum mounts/public/*/boot/tars/*-git-*.tar.gz > /tmp/tars-a.sha
           bash scripts/make-staging-tars.sh
-          sha256sum horcrux/tars/*-git-*.tar.gz > /tmp/tars-b.sha
+          sha256sum mounts/public/*/boot/tars/*-git-*.tar.gz > /tmp/tars-b.sha
           diff /tmp/tars-a.sha /tmp/tars-b.sha
           echo "Determinism proven: two consecutive builds produced byte-identical tars."
 
