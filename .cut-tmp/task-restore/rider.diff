@@ -1,0 +1,18 @@
+3,4c3
+< Living file. Update it **before and after every pass** so a fresh session (or a
+< crash) can see where we are.
+---
+> Living file. Update it **before and after every pass** so a fresh session (or a crash) can see where we are.
+15a15,24
+> - **Issue sweep: gistory#21-#25 closed out (2026-10-28).** #23 rider: both mounts' four lane ymls (docs/test/publish/release) adopt the eyestruct SHA-pin law byte-for-byte (checkout/setup-node/configure-pages/upload-pages bumped v3 to v5 + deploy-pages, ruby/setup-ruby at v1.335.0, the eyestruct@main pins repeated exactly). #24: the walk-exit rule bullet lands in BOTH mounts' AGENTS (family law from eyestruct@70dfbea; walks DISCOVER classes, the battery REMEMBERS them). #25: unwrap-prose adopts - scripts/unwrap-prose.cjs copied byte-as-is from eyestruct@3adda1d into all three trees and run over the living surfaces (discussions posts + index, README, AGENTS, CHANGELOG, TASKS + PRDs). #22: gistory's own scripts/ gains ship-from-download.cjs (byte-as-is from eyestruct@9744c76; the mounts already ship both file and behavior test). #21: record-only closeout - ci.yml no longer carries an eyestruct upstream checkout at all (the npm pin rides npm ci), so the shallow-clone class cannot recur through gistory's lanes. All gates re-run green over the unwrapped trees: gistory check-docs PASS (12 pages) + language gate PASS (29 prose files), monoforge 6-gate battery PASS, poststruct 6-gate battery PASS.
+>   Sweep rider, PRD lands verified (2026-10-28): the compiled
+>   handoff copies survive the unwrap byte-exact on origin -
+>   horcrux/prds/prd-poststruct.md `632227f2`, horcrux/prds/prd-monoforge.md
+>   `c7271d20`, monoforge-staging/labs/prd-monoforge.md `786ff98f`, and the
+>   three working PRDs `2dd84e9a`/`57cabda9`/`57a13691`. Full batteries
+>   re-run green on the final tree at close: gistory check-docs (12 pages)
+>   + language gate (29 files), monoforge npm run check (21/21 + 5 gates),
+>   poststruct npm run check (21/21 + packs/packstruct/conform + 6 gates).
+> 
+1835d1843
+< 
