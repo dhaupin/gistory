@@ -1,0 +1,137 @@
+# ONE-SHOT MOVE DAY: the /mounts registry reorg (2026-10-28). The family
+# mount payloads (snapshot tars, lock archives, handoff carriers, prov
+# stones) leave the staging mounts' horcrux/ + gistory's horcrux/tars/
+# for mounts/public/<mount>/boot/ (tier spec: mounts/README.md, borrowed
+# from vant's /models rigging). Lane patches ride as replay-proven anchor
+# pairs from .github/move-day/*.py, blob-gated byte-exact against pinned
+# git blob ids; the 33 payload moves gate on pre-move blob pins; the
+# deterministic ferry re-seeds; pre-tar verify gates the push. ZERO
+# payload bytes cross this file. Retires on receipt.
+name: mounts-move-day
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mounts-move-day
+  cancel-in-progress: false
+
+jobs:
+  move:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply the move-day modules (lanes, new files, 33 moves)
+        run: |
+          set -euo pipefail
+          python3 /dev/stdin <<'PY'
+          import importlib, os, shutil, subprocess, sys
+          sys.path.insert(0, ".github/move-day")
+          def blob(p):
+              return subprocess.run(["git", "hash-object", p], capture_output=True, text=True).stdout.strip()
+          mods = ["data0", "data1", "data2", "data3", "data4", "data5", "data6", "data7", "data8", "data9", "moves", "newfiles"]
+          for name in mods:
+              m = importlib.import_module(name)
+              if not hasattr(m, "PAIRS"):
+                  continue
+              path = m.TARGET
+              r = subprocess.run(["git", "show", f"HEAD:{path}"], capture_output=True, text=True)
+              assert r.returncode == 0, f"missing on HEAD: {path}"
+              cur = r.stdout if r.stdout.endswith("\\n") else r.stdout + "\\n"
+              for a, b in m.PAIRS:
+                  assert cur.count(a) == 1, f"ANCHOR FAIL {path}: {a[:80]!r}"
+                  cur = cur.replace(a, b, 1)
+              os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+              open(path, "w", newline="").write(cur)
+              got, want = blob(path), m.PIN
+              assert got == want, f"LANE BLOB GATE FAIL {path}: {got[:12]} != {want[:12]}"
+              print("lane ok", path, got[:12])
+          nf = importlib.import_module("newfiles")
+          for f in nf.NEWFILES:
+              os.makedirs(os.path.dirname(f["path"]) or ".", exist_ok=True)
+              open(f["path"], "w", newline="").write(f["content"])
+              got = blob(f["path"])
+              assert got == f["pin"], f"NEWFILE BLOB GATE FAIL {f['path']}"
+              print("new file ok", f["path"], got[:12])
+          mv = importlib.import_module("moves")
+          # pins computed at run time from HEAD (the immutable commit that
+          # carries these modules) - never transcribed, never hand-carried
+          for old, new in mv.MOVES:
+              pin = subprocess.run(["git", "rev-parse", f"HEAD:{old}"],
+                                   capture_output=True, text=True).stdout.strip()
+              assert len(pin) == 40, f"missing on HEAD: {old}"
+              got = blob(old)
+              assert got == pin, f"PRE-MOVE PIN FAIL {old}: {got[:12]} != {pin[:12]}"
+              assert not os.path.exists(new), f"DESTINATION OCCUPIED {new}"
+              os.makedirs(os.path.dirname(new), exist_ok=True)
+              shutil.move(old, new)
+              moved = blob(new)
+              assert moved == pin, f"MOVE BYTE DRIFT {old}"
+          print("moves ok:", len(mv.MOVES))
+          PY
+
+      - name: Run the deterministic ferry over the boot registry
+        run: |
+          set -euo pipefail
+          bash scripts/make-staging-tars.sh
+          sha256sum mounts/public/*/boot/tars/*-git-*.tar.gz > /tmp/a.sha
+          bash scripts/make-staging-tars.sh
+          sha256sum mounts/public/*/boot/tars/*-git-*.tar.gz > /tmp/b.sha
+          diff /tmp/a.sha /tmp/b.sha && echo "FERRY DETERMINISM OK"
+
+      - name: Pre-tar verify (committed == fresh rebuild)
+        run: |
+          set -euo pipefail
+          git stash --include-untracked --quiet || true
+          git stash pop --quiet || true
+          bash scripts/verify-staging-tars.sh
+
+      - name: Whitelist-commit the whole reorg
+        run: |
+          set -euo pipefail
+          git add -A
+          python3 /dev/stdin <<'PY'
+          import importlib, subprocess, sys
+          sys.path.insert(0, ".github/move-day")
+          mv = importlib.import_module("moves")
+          oldps = set(mv.OLDPINS)
+          newps = {n for _, n in mv.MOVES}
+          lanes = {"scripts/make-staging-tars.sh", "scripts/verify-staging-tars.sh",
+                   ".github/workflows/staging-tars.yml", ".github/workflows/mount-stone-mirror.yml",
+                   ".github/workflows/mono-web-emit.yml", ".github/workflows/monoforge-ferry.yml",
+                   ".github/workflows/mono-rig-emit.yml", ".github/workflows/identity-emit.yml",
+                   ".github/workflows/doctor-fix-emit.yml", "horcrux/README.md",
+                   "mounts/README.md", "mounts/state.json"}
+          bad = []
+          for line in subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True).stdout.splitlines():
+              st, pathpart = line[:2], line[3:]
+              if st.startswith("R"):
+                  oldp, newp = [x.strip() for x in pathpart.split("->")]
+                  if oldp not in oldps: bad.append(("R-old", oldp))
+                  if newp not in newps: bad.append(("R-new", newp))
+                  continue
+              if st.startswith("A") and (pathpart in lanes or pathpart in newps): continue
+              if st.startswith("M") and (pathpart in lanes or pathpart in newps): continue
+              if st.startswith("D") and pathpart in oldps: continue
+              bad.append((st, pathpart))
+          assert not bad, f"WHITELIST FAILURES: {bad}"
+          print("whitelist ok")
+          PY
+          git config user.name  "mounts-move-day"
+          git config user.email "noreply@codebuff.com"
+          git commit -q -m "mounts reorg: the family mount registry (public/<mount>/boot payloads, tier spec in mounts/README.md) - payloads move out of the staging horcruxes + gistory horcrux returns home; lanes re-pinned; ferry re-seeded and verified"
+          git log --oneline -1
+          git push origin main
+          echo "PUSH LANED"
+
+      - name: Final verify on the pushed bytes
+        run: |
+          set -euo pipefail
+          bash scripts/verify-staging-tars.sh
