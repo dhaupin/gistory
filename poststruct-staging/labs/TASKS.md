@@ -106,3 +106,39 @@ Last updated: 2026-10-24 (scaffold complete at 0.9.0; push pending crashtest#18)
 - ALL EIGHT origin blobs verified byte-exact against the local builds
   post-run (blob-sha walk). The web/ + docs identity payload is complete:
   poststruct-staging on origin == the verified local build.
+
+## 2026-10-28 - the eyestruct-shapes pack: poststruct#19 lands the canon audit
+
+- `packs/public/eyestruct-shapes/` ships poststruct#19's seven pure file
+  checks over an eyestruct-shaped lab's .eyes canon tree:
+  `eyes/ledger-corrupt` (append-only schema mirrored from the host ledger
+  module), `eyes/dangling-canon` (pointers resolve or UNSAFE_PATH),
+  `eyes/manifest-pin-drift` (the family pin + route-matrix subset, loose
+  pins refused), `eyes/reason-table-drift` (docs table vs lib codes,
+  count + names), `eyes/verdict-count-drift` (the committed baseline
+  covers the exported packs exactly), `eyes/receipt-provenance` (hall
+  rows resolve, sha fields shaped), `eyes/note-unsafety` (the host
+  UNSAFE_TEXT class byte-for-byte).
+- Born stress-tested on the real eyestruct tree: a fresh checkout runs
+  the battery with all eight rows PASSED and the committed
+  `packs/eye-ledger.json` baseline adopted (8 rows). The one catch the
+  birth run produced - its pack baseline is the `{schemaVersion, rows}`
+  envelope - became the shape contract the parser now honors.
+- Negative permanence: `test/shapes-run.mjs` walks
+  `test/fixtures/eyes-shapes/` - a good canon (7/7 rows) plus ten bad
+  fixtures, each hitting EXACTLY its expected EXPLOITED id
+  (corrupt/dangling/unsafe-path/manifest/loose-pin/theme/notes/
+  receipt-sha/verdict-coverage/reason-table). `npm test` carries the
+  whole spine.
+- The runner arms `moduleCtx.eyestructTree` (EYESTRUCT_TREE outranks the
+  sibling upstream checkout; a null arm dockets one `eyes/canon-absent`
+  BOUNDED row, never a fake pass) and pack runs are now guarded:
+  a REFUSED-shape throw names the pack and exits 2.
+- poststruct#21 rides the same battery: `scripts/ship-from-download.cjs`
+  copied byte-identical from eyestruct@9744c76 (zero repo imports, the
+  Termux phone publish lane), with its behavior test at
+  `test/ship-from-download.test.cjs` (21 node:test cases green; the .cjs
+  extension is the one mechanical rename the ESM root forces) wired into
+  `npm test`.
+- done: poststruct#19 + poststruct#21, receipts cross-file to
+  gistory#20's survey hub.
