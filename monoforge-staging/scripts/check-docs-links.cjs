@@ -1,75 +1,87 @@
 #!/usr/bin/env node
-// Docs link checker for the monoforge docs tree (eyestruct's checker,
-// adapted to this repo's baseurl - docs.creadev.org/monoforge).
-//
-// Rules checked over the BUILT site (_site/):
-// - every nav + in-page link resolves to a real file or anchor
-// - /monoforge/<permalink> links must match a real frontmatter permalink
-// - og:image / twitter:image refs point at REAL files in the tree
-// - every .md doc page declares exactly one h1 (jekyll renders it; the
-//   layout does not inject one, so a heading-less page renders with none)
-//
-// Usage: node scripts/check-docs-links.cjs [docs-dist-dir]
-//        (default: docs/_site — the jekyll build output on the docs lane)
-
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
-import path from 'node:path'
-
-const SITE_DIR = process.argv[2] || 'docs/_site'
-const SITE_PREFIX = '/monoforge'
-
-function walk(dir) {
-  const out = []
-  for (const name of readdirSync(dir)) {
-    const p = path.join(dir, name)
-    if (statSync(p).isDirectory()) out.push(...walk(p))
-    else out.push(p)
+/**
+ * Docs link checker (ported from vant's scripts/check-docs-links.js,
+ * adapted to this repo's baseurl - docs.creadev.org/monoforge).
+ *
+ * Validates every markdown link in docs/:
+ * - /monoforge/<permalink> links must match a real frontmatter permalink
+ *   (the gate that catches the doubled-prefix class and dead permalinks)
+ * - other absolute links must match a permalink or resolve under docs/
+ * - relative links must resolve on disk
+ * Skips code fences, inline code, external URLs, and pure anchors.
+ * Exit 1 on any broken link.
+ */
+const fs = require('fs');
+const path = require('path');
+const DOCS = path.resolve(__dirname, '..', 'docs');
+const SITE_PREFIX = '/monoforge'; // the docs baseurl - mirror docs/_config.yml
+// normalize: leading slash, no trailing slash ('' -> '/')
+const norm = (s) => {
+  s = '/' + String(s).replace(/^\/+|\/+$/g, '');
+  return s === '/' ? '/' : s;
+};
+const files = [];
+(function walk(d) {
+  for (const f of fs.readdirSync(d, { withFileTypes: true })) {
+    const p = d + '/' + f.name;
+    if (f.isDirectory() && f.name !== '_data' && f.name !== '_layouts' && f.name !== '_freestruct') walk(p);
+    else if (f.name.endsWith('.md')) files.push(p);
   }
-  return out
-}
-
-if (!existsSync(SITE_DIR)) {
-  console.log(`docs site dir ${SITE_DIR} not found - run the jekyll build first`)
-  process.exit(2)
-}
-
-const files = walk(SITE_DIR).filter((f) => f.endsWith('.html'))
-const bad = []
-
-function checkLink(href, from) {
-  if (/^(https?:)?\/\//.test(href) || href.startsWith('mailto:') || href === '#') return
-  // The doubled-prefix class first (/monoforge/monoforge/...): name it
-  // precisely rather than as a generic 404 so the fix is obvious.
-  const u = href.split('#')[0]
-  if (u.startsWith(SITE_PREFIX + '/') && /^\/monoforge(\/|$)/.test(u.slice(SITE_PREFIX.length))) {
-    bad.push(`BROKEN (bad /monoforge/ permalink) in ${from} -> ${href}`)
-    return
-  }
-  // Resolve against the built tree.
-  const clean = u.split('?')[0]
-  const candidates = [
-    path.join(SITE_DIR, clean == null ? clean : clean.replace(/^\/monoforge\//, '')),
-    path.join(SITE_DIR, clean == null ? clean : clean.replace(/^-\/monoforge/, ''))
-  ].filter(Boolean)
-  const file = candidates.map((c) => (c.endsWith('/') ? c + 'index.html' : c)).find((c) => existsSync(c))
-  if (!file) bad.push(`BROKEN (missing target) in ${from} -> ${href}`)
-}
-
+})(DOCS);
+const perm = new Set();
 for (const f of files) {
-  const html = readFileSync(f, 'utf8')
-  const rel = path.relative(SITE_DIR, f)
-  // nav + in-page links
-  for (const m of html.matchAll(/href="([^"]+)"/g)) checkLink(m[1], rel)
-  // image refs must be real files (og/twitter cards included)
-  for (const m of html.matchAll(/(?:src|content)="((?:\/[^"]*\.(?:png|svg|jpg|jpeg|webp)))"/g)) {
-    const file = path.join(SITE_DIR, m[1].slice(1))
-    if (!existsSync(file)) bad.push(`BROKEN (image) in ${rel} -> ${m[1]}`)
+  const t = fs.readFileSync(f, 'utf8');
+  const m = t.match(/^permalink: (\S+)/m);
+  if (m) perm.add(norm(m[1]));
+}
+let broken = 0;
+for (const f of files) {
+  const lines = fs.readFileSync(f, 'utf8').split('\n');
+  let inFence = false;
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    const parts = line.split('`');
+    for (let s = 0; s < parts.length; s += 2) { // outside inline code only
+      for (const m of parts[s].matchAll(/\]\(([^)\s]+)\)/g)) {
+        let u = m[1];
+        if (/^(https?:|mailto:)/.test(u)) continue;
+        const anchor = u.includes('#') ? u.slice(u.indexOf('#')) : '';
+        u = anchor ? u.slice(0, u.length - anchor.length) : u;
+        if (!u) continue; // pure anchor
+        const rel = f.replace(DOCS + '/', '');
+        // The doubled-prefix class first (/monoforge/monoforge/...): name
+        // it, never read it as a missing permalink.
+        if (u.startsWith(SITE_PREFIX + '/') && /^\/monoforge(\/|$)/.test(u.slice(SITE_PREFIX.length))) {
+          console.log('BROKEN (doubled site prefix) in', rel, '->', m[1]);
+          broken++;
+          continue;
+        }
+        if (u.startsWith(SITE_PREFIX) || u === SITE_PREFIX) {
+          const key = norm(u.slice(SITE_PREFIX.length));
+          if (!perm.has(key)) {
+            console.log('BROKEN (bad /monoforge/ permalink) in', rel, '->', m[1]);
+            broken++;
+          }
+          continue;
+        }
+        if (u.startsWith('/')) {
+          const key = norm(u);
+          if (!perm.has(key) && !fs.existsSync(path.join(DOCS, u))) {
+            console.log('BROKEN (abs) in', rel, '->', m[1]);
+            broken++;
+          }
+          continue;
+        }
+        const p = path.resolve(path.dirname(f), u.replace(/\.md$/, ''));
+        if (fs.existsSync(p + '.md') || fs.existsSync(path.join(p, 'index.md')) || fs.existsSync(p)) continue;
+        console.log('BROKEN (rel) in', rel, '->', m[1]);
+        broken++;
+      }
+    }
   }
 }
-
-if (bad.length) {
-  console.log(`docs links: ${bad.length} broken ref(s)`)
-  for (const b of bad) console.log('  ' + b)
-  process.exit(1)
-}
-console.log(`docs links: OK (${files.length} pages walked)`)
+console.log(broken === 0
+  ? 'DOCS LINKS: PASS (' + files.length + ' files)'
+  : 'DOCS LINKS: FAIL (' + broken + ' broken)');
+process.exit(broken === 0 ? 0 : 1);
