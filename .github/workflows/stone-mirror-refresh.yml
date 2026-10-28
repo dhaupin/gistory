@@ -1,0 +1,48 @@
+# One-shot transport lane #2: the stone re-cut (graduation text, blob 89f58ce2)
+# must also land in its mount copy, but the standing mirror lane REFUSES to
+# overwrite a divergent dst by design (blob compare), so the refresh rides
+# the same gz.b64 carrier shape: decode, gunzip, sha-gate against the stone's
+# offline blob id, install into the mount path, sweep the carrier.
+name: stone mirror refresh one-shot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the stone payload (chunked carrier -> decode -> gunzip)
+        run: |
+          set -euo pipefail
+          test -d .cut-tmp/one-shots
+          cat .cut-tmp/one-shots/stone-chunk.* | base64 -d | gunzip > /tmp/stone.svg
+          test -s /tmp/stone.svg
+
+      - name: Sha-gate the payload (offline blob id, git hash-object)
+        run: |
+          set -euo pipefail
+          expect="89f58ce2633fde8fef17f24c021a7f9e0e4e956a"
+          actual="$(git hash-object /tmp/stone.svg)"
+          echo "expect stone: $expect"
+          echo "actual stone: $actual"
+          test "$actual" = "$expect" \
+            || { echo "GATE FAIL: stone payload did not round-trip; refusing to commit"; exit 1; }
+
+      - name: Install into the mount path, sweep the carrier, commit
+        run: |
+          set -euo pipefail
+          mkdir -p mounts/public/poststruct/boot/stone
+          cp /tmp/stone.svg mounts/public/poststruct/boot/stone/poststruct-p_wordprint-2026.svg
+          git config user.name  "one-shot transport"
+          git config user.email "actions@users.noreply.github.com"
+          git add mounts/public/poststruct/boot/stone/poststruct-p_wordprint-2026.svg
+          git rm -r -q .cut-tmp/one-shots
+          git commit -m "mount stone refresh: the poststruct wordprint copy rides the re-cut (sha-gated one-shot)" \
+                     -m "The ferry re-cut the stone with the 2026-10-28 graduation text (89f58ce2); the mirror lane rightly refused to overwrite the stale mount copy (295e5a17), so the refresh carries the fresh stone to the mount path sha-gated - after which the mirror lane sees an exact match and goes green."
+          git push origin main
