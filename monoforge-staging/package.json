@@ -20,6 +20,7 @@
     "lint:docs": "node scripts/check-docs-frontmatter.cjs && node scripts/check-docs-links.cjs && node scripts/check-docs-style.cjs && node scripts/check-fiction-signatures.cjs && node scripts/check-jekyll-filters.cjs",
     "lint:language": "node scripts/check-language.cjs",
     "check": "npm test && npm run lint:docs && npm run lint:language",
+    "prepublishOnly": "npm run check",
     "icons:adopt": "node scripts/adopt-icons.mjs"
   },
   "devDependencies": {

@@ -23,6 +23,7 @@
     "lint:packs": "node bin/cli.mjs lint-packs --deep",
     "conform:packs": "packstruct audit-conformance . --loader \"node scripts/run-packs.mjs {packs}\"",
     "check": "npm run test && npm run lint:packs && npm run conform:packs && npm run lint:docs",
+    "prepublishOnly": "npm run check",
     "site:build": "npm --prefix web run build && rm -rf dist && mkdir dist && cp -r web/dist/. dist/",
     "site:dev": "npm --prefix web run dev",
     "icons:adopt": "node scripts/adopt-icons.mjs",
