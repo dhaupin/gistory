@@ -22,6 +22,11 @@
     "check": "npm test && npm run lint:docs && npm run lint:language",
     "icons:adopt": "node scripts/adopt-icons.mjs"
   },
+  "devDependencies": {
+    "eyestruct": "1.0.0",
+    "packstruct": "1.0.0",
+    "crashtest": "1.1.0"
+  },
   "engines": {
     "node": ">=20"
   },

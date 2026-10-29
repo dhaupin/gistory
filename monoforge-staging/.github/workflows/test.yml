@@ -1,15 +1,21 @@
 # monoforge's own battery - the tar-move plan's injected change #1, so
 # move day's first standalone push is gated by its own CI, not the borrow.
-# The factory is zero-dep: no install step exists to run.
+# The npm pins (eyestruct 1.0.0, packstruct 1.0.0, crashtest 1.1.0 - EXACT,
+# the packstruct discipline) ride `npm ci` below, so the family-tool
+# resolvers named in gistory#30 resolve from the mount's OWN node_modules:
+# standalone-hermetic, no sibling checkout, no env knobs (the eyestruct@npm
+# swap law).
 #
 # Shape follows the family battery (gistory#14; eyestruct test.yml 91928a7 /
 # cd135a9): npm test + npm run check, where check alone carries the lanes.
 # The packstruct leg bin/forge.mjs lint-packs is deliberately NOT wired into
 # check yet: the factory has no packs/ of its own, and the wrapper answers
-# exit 2 ("missing packstruct / no packs root") until the factory's packs
-# land - that loud refusal IS the readiness probe, not something CI should
-# gate on before the pack day. When packs/ arrives, check gains
-# `node bin/forge.mjs lint-packs --deep` and this comment retires.
+# exit 2 ("no packs root") until the factory's packs land - with packstruct
+# itself now riding npm ci, the missing-tool half of the probe is gone, so
+# the loud refusal IS the readiness probe (purer than it was in the borrow,
+# where the tool absence and the pack absence were indistinguishable). When
+# packs/ arrives, check gains `node bin/forge.mjs lint-packs --deep` and
+# this comment retires.
 name: test
 
 on:
@@ -25,6 +31,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+
+      # Family tools ride npm ci at their EXACT pins (eyestruct 1.0.0,
+      # packstruct 1.0.0, crashtest 1.1.0) - standalone-hermetic.
+      - run: npm ci --no-fund --no-audit
 
       # One verb: factory self-test + docs gates + language gate
       # (package.json check = test + lint:docs + lint:language).

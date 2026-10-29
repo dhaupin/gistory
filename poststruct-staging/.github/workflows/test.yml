@@ -9,9 +9,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 20 }
-      # Hermetic: the shipped lockfile resolves packstruct's exact pin
-      # (1.0.0) - same commit, same findings, the discipline the eyestruct
-      # battery carries (gistory#14; eyestruct test.yml 91928a7 / cd135a9).
+      # Hermetic: the shipped lockfile resolves the full family-tool trio at
+      # EXACT pins (eyestruct 1.0.0, packstruct 1.0.0, crashtest 1.1.0) -
+      # same commit, same findings, the discipline the eyestruct battery
+      # carries (gistory#14; eyestruct test.yml 91928a7 / cd135a9).
       - run: npm ci --no-fund --no-audit
       # The negative test spine: the good fixture must be clean, the bad
       # fixture must produce EXACTLY the expected FAIL ids.
