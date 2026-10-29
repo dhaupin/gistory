@@ -12,6 +12,22 @@ Conventions
 
 ## Now
 
+**Tri-pin block (2026-10-28)**: the three family tools ride BOTH mounts'
+package.jsons - poststruct gains crashtest EXACT 1.1.0 (eyestruct 1.0.0 +
+packstruct 1.0.0 already rode there), monoforge gains the full trio - so
+the resolvers named in gistory#30 walk each mount's OWN node_modules
+(standalone-hermetic, the eyestruct@npm swap law: no sibling checkout, no
+env knobs). The two test.ymls re-say the pins (host lane, workflow files);
+monoforge's battery gains `npm ci`, so the factory stops borrowing a
+sibling's node_modules and its lint-packs readiness probe gets purer (with
+packstruct installed, the missing-tool half resolves; the no-packs refusal
+remains the probe). The LOCKFILES are NEVER hand-carried: they derive on
+the runner here via `npm install --package-lock-only`, gated on all six
+pins (both locks: eyestruct 1.0.0 / packstruct 1.0.0 / crashtest 1.1.0),
+both trees npm-ci proven, and both batteries green before the atomic
+commit lands. Local proof at carrier commit 8df001c*: monoforge npm test
+exit 0, poststruct npm run check exit 0.
+
 - **New-issue sweep: #29/#27/#19 + #28/#26/#18 + gistory#26-wp-static (2026-10-28, in progress).** (1) eyestruct@npm
   pull-in: BOTH pin surfaces move EXACT `0.9.0` -> `1.0.0` (root +
   poststruct-staging package.jsons; the locks re-derived by
