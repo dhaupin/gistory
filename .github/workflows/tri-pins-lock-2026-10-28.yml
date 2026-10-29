@@ -12,12 +12,23 @@
 #           (never graft work-log rows onto a drifted base)
 #   after:  both derived locks pin all three family tools EXACT
 #   after:  npm ci proven for both trees, both batteries green
-#   after:  require('eyestruct').version == 1.0.0
+#   after:  eyestruct's manifest + runtime both carry 1.0.0
 #
 # The lane yml itself is NOT deleted from the runner push: a commit touching
 # .github/workflows needs the workflows scope, which this Contents-token
 # push cannot carry (the move-day law). It is retired through the host lane
 # right after the green run.
+#
+# Resolution note (the first run's receipt): the eyestruct probe must use a
+# manifest read + an in-tree bare require. Node's law: the exports map
+# applies to BARE specifiers only, a relative filesystem path bypasses it,
+# and eyestruct's package.json carries no `main`, so a require of the
+# package root by path fell through to the file-resolution fallback
+# (./index.js, which the package does not ship) and answered
+# MODULE_NOT_FOUND from [eval]. The manifest read (package.json IS a
+# mounted file, no exports involved) + `(cd poststruct-staging && node -e
+# require('eyestruct'))` (a bare specifier from inside the tree, where the
+# resolver walks into node_modules) are the honest probes.
 name: "tri-pins: derived locks + the TASKS rider"
 
 on:
@@ -64,7 +75,8 @@ jobs:
       - name: "Prove the tool + run both batteries"
         run: |
           set -euo pipefail
-          node -e "const e=require('poststruct-staging/node_modules/eyestruct');if(e.version!=='1.0.0'){console.error('eyestruct says '+e.version);process.exit(1)}console.log('eyestruct '+e.version+' live on the derivation')"
+          node -e "const p=require('./poststruct-staging/node_modules/eyestruct/package.json');if(p.version!=='1.0.0'){console.error('eyestruct manifest says '+p.version);process.exit(1)}console.log('eyestruct manifest pinned EXACT 1.0.0 on the derivation')"
+          (cd poststruct-staging && node -e "const e=require('eyestruct');if(e.version!=='1.0.0'){console.error('eyestruct runtime says '+e.version);process.exit(1)}console.log('eyestruct '+e.version+' live on the derivation')")
           npm test --prefix monoforge-staging
           npm run check --prefix poststruct-staging
 
