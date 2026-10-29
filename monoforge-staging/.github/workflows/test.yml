@@ -2,9 +2,8 @@
 # move day's first standalone push is gated by its own CI, not the borrow.
 # The npm pins (eyestruct 1.0.0, packstruct 1.0.0, crashtest 1.1.0 - EXACT,
 # the packstruct discipline) ride `npm ci` below, so the family-tool
-# resolvers named in gistory#30 resolve from the mount's OWN node_modules:
-# standalone-hermetic, no sibling checkout, no env knobs (the eyestruct@npm
-# swap law).
+# resolvers resolve from the mount's OWN node_modules: standalone-hermetic,
+# no sibling checkout, no env knobs (the eyestruct@npm swap law).
 #
 # Shape follows the family battery (gistory#14; eyestruct test.yml 91928a7 /
 # cd135a9): npm test + npm run check, where check alone carries the lanes.
