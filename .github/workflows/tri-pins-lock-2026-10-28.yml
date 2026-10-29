@@ -1,0 +1,86 @@
+# One-shot: the tri-pin adoption's LOCKFILES + the TASKS rider, in one
+# atomic commit. The pins rode the carrier commit 8df001c* by hand (the
+# package.jsons are the contract); the LOCKFILES are NEVER hand-carried -
+# they derive here by `npm install --package-lock-only` for BOTH trees
+# (poststruct-staging + monoforge-staging), gated on all six exact pins
+# (eyestruct 1.0.0 / packstruct 1.0.0 / crashtest 1.1.0 in each lock), and
+# monoforge's battery stops borrowing a sibling's node_modules from this
+# commit on (standalone-hermetic, gistory#30's resolvers law).
+#
+# Gates (any refusal exits before the commit):
+#   before: labs/TASKS.md must still be the pre-landing blob de6d8868*
+#           (never graft work-log rows onto a drifted base)
+#   after:  both derived locks pin all three family tools EXACT
+#   after:  npm ci proven for both trees, both batteries green
+#   after:  require('eyestruct').version == 1.0.0
+#
+# The lane yml itself is NOT deleted from the runner push: a commit touching
+# .github/workflows needs the workflows scope, which this Contents-token
+# push cannot carry (the move-day law). It is retired through the host lane
+# right after the green run.
+name: "tri-pins: derived locks + the TASKS rider"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tri-pins-lock
+  cancel-in-progress: false
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: "Gate the TASKS base (no grafting onto a drifted work log)"
+        run: |
+          set -euo pipefail
+          BEFORE="$(git rev-parse HEAD:labs/TASKS.md)"
+          if [ "$BEFORE" != "de6d8868c080423766cfc30b76e0452ba1e6b411" ]; then
+            echo "labs/TASKS.md base is $BEFORE, expected de6d8868* - refusing to graft the rider onto a drifted base"
+            exit 1
+          fi
+          echo "TASKS base byte-exact"
+
+      - name: Derive the lockfiles + gate all six pins
+        run: |
+          set -euo pipefail
+          npm install --package-lock-only --prefix poststruct-staging --no-audit --no-fund
+          npm install --package-lock-only --prefix monoforge-staging --no-audit --no-fund
+          node -e "const fs=require('fs');for(const p of ['poststruct-staging/package-lock.json','monoforge-staging/package-lock.json']){const lock=JSON.parse(fs.readFileSync(p,'utf8'));const want={eyestruct:'1.0.0',packstruct:'1.0.0',crashtest:'1.1.0'};for(const t in want){const e=lock.packages['node_modules/'+t];if(!e||e.version!==want[t]){console.error(p+': eyestruct/packstruct/crashtest pin failure at '+t+' ('+(e&&e.version)+')');process.exit(1)}}console.log(p+': all three family tools pinned EXACT')}"
+          npm ci --prefix poststruct-staging --no-audit --no-fund --ignore-scripts
+          npm ci --prefix monoforge-staging --no-audit --no-fund --ignore-scripts
+          echo "both trees install clean from the derived locks"
+
+      - name: "Prove the tool + run both batteries"
+        run: |
+          set -euo pipefail
+          node -e "const e=require('poststruct-staging/node_modules/eyestruct');if(e.version!=='1.0.0'){console.error('eyestruct says '+e.version);process.exit(1)}console.log('eyestruct '+e.version+' live on the derivation')"
+          npm test --prefix monoforge-staging
+          npm run check --prefix poststruct-staging
+
+      - name: Append the TASKS rider
+        run: |
+          set -euo pipefail
+          printf %s 'KipUcmktcGluIGJsb2NrICgyMDI2LTEwLTI4KSoqOiB0aGUgdGhyZWUgZmFtaWx5IHRvb2xzIHJpZGUgQk9USCBtb3VudHMnCnBhY2thZ2UuanNvbnMgLSBwb3N0c3RydWN0IGdhaW5zIGNyYXNodGVzdCBFWEFDVCAxLjEuMCAoZXllc3RydWN0IDEuMC4wICsKcGFja3N0cnVjdCAxLjAuMCBhbHJlYWR5IHJvZGUgdGhlcmUpLCBtb25vZm9yZ2UgZ2FpbnMgdGhlIGZ1bGwgdHJpbyAtIHNvCnRoZSByZXNvbHZlcnMgbmFtZWQgaW4gZ2lzdG9yeSMzMCB3YWxrIGVhY2ggbW91bnQncyBPV04gbm9kZV9tb2R1bGVzCihzdGFuZGFsb25lLWhlcm1ldGljLCB0aGUgZXllc3RydWN0QG5wbSBzd2FwIGxhdzogbm8gc2libGluZyBjaGVja291dCwgbm8KZW52IGtub2JzKS4gVGhlIHR3byB0ZXN0LnltbHMgcmUtc2F5IHRoZSBwaW5zIChob3N0IGxhbmUsIHdvcmtmbG93IGZpbGVzKTsKbW9ub2ZvcmdlJ3MgYmF0dGVyeSBnYWlucyBgbnBtIGNpYCwgc28gdGhlIGZhY3Rvcnkgc3RvcHMgYm9ycm93aW5nIGEKc2libGluZydzIG5vZGVfbW9kdWxlcyBhbmQgaXRzIGxpbnQtcGFja3MgcmVhZGluZXNzIHByb2JlIGdldHMgcHVyZXIgKHdpdGgKcGFja3N0cnVjdCBpbnN0YWxsZWQsIHRoZSBtaXNzaW5nLXRvb2wgaGFsZiByZXNvbHZlczsgdGhlIG5vLXBhY2tzIHJlZnVzYWwKcmVtYWlucyB0aGUgcHJvYmUpLiBUaGUgTE9DS0ZJTEVTIGFyZSBORVZFUiBoYW5kLWNhcnJpZWQ6IHRoZXkgZGVyaXZlIG9uCnRoZSBydW5uZXIgaGVyZSB2aWEgYG5wbSBpbnN0YWxsIC0tcGFja2FnZS1sb2NrLW9ubHlgLCBnYXRlZCBvbiBhbGwgc2l4CnBpbnMgKGJvdGggbG9ja3M6IGV5ZXN0cnVjdCAxLjAuMCAvIHBhY2tzdHJ1Y3QgMS4wLjAgLyBjcmFzaHRlc3QgMS4xLjApLApib3RoIHRyZWVzIG5wbS1jaSBwcm92ZW4sIGFuZCBib3RoIGJhdHRlcmllcyBncmVlbiBiZWZvcmUgdGhlIGF0b21pYwpjb21taXQgbGFuZHMuIExvY2FsIHByb29mIGF0IGNhcnJpZXIgY29tbWl0IDhkZjAwMWMqOiBtb25vZm9yZ2UgbnBtIHRlc3QKZXhpdCAwLCBwb3N0c3RydWN0IG5wbSBydW4gY2hlY2sgZXhpdCAwLgo=' | base64 -d > /tmp/tri-rider.md
+          node -e 'const fs=require("fs");const r=fs.readFileSync("/tmp/tri-rider.md","utf8");const p="labs/TASKS.md";let t=fs.readFileSync(p,"utf8");if(t.includes("Tri-pin block")){console.log("rider already present");process.exit(0)}const nl=String.fromCharCode(10);const a="## Now"+nl;if(!t.includes(a))process.exit(4);fs.writeFileSync(p,t.replace(a,a+nl+r));console.log("rider appended to labs/TASKS.md")'
+
+      - name: Atomic commit (locks + rider)
+        run: |
+          set -euo pipefail
+          git config user.name "Codebuff"
+          git config user.email "noreply@codebuff.com"
+          git add package-lock.json poststruct-staging/package-lock.json monoforge-staging/package-lock.json labs/TASKS.md
+          git status --porcelain
+          git commit -m "tri-pins: the derived lockfiles + the TASKS rider (the pins' lane)" -m "The trio rides both mounts at EXACT pins (eyestruct 1.0.0 / packstruct 1.0.0 / crashtest 1.1.0; the package.jsons rode 8df001c* by hand). The lockfiles derive here on the runner - never hand-carried - gated on all six pins, both trees npm-ci proven, both batteries green, and the tri-pin work-log row lands atomically with the locks (base blob de6d8868* gated). monoforge's battery resolves the family from its OWN node_modules from this commit on: standalone-hermetic, no sibling borrow."
+          git push
+          echo "pushed: $(git rev-parse HEAD)"
