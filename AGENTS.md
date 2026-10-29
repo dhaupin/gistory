@@ -2,13 +2,17 @@
 
 This file documents deep mechanics for anyone working on the codebase.
 
+## Family Laws
+
+**The walk-exit rule** (the promotion rule, family law 2026-10-28, eyestruct@70dfbea): a manual walk is not done until nothing it found is uncommissioned. A probe that only ever lived in prose is a one-mortem; the walk's exit criterion is that every finding became permanent in the same session (a battery leg, a pack verdict row, or a named docket row) so future walks only see fresh ground. Walks DISCOVER classes; the battery REMEMBERS them.
+
 ## Sync Architecture
 
 ### The Core Problem
 Browser-based apps can't maintain server state. Every device has the full data locally and pushes to sync. This creates challenges:
 
 1. **Offline editing** - Device makes changes while offline
-2. **Race conditions** - Two devices edit simultaneously 
+2. **Race conditions** - Two devices edit simultaneously
 3. **Data loss** - Without persistence, server deploy drops data
 
 ### How It Works
@@ -56,17 +60,13 @@ if (incomingTs < localTs) return local
 return senderDeviceId > myDeviceId ? incoming : local   // deterministic tie-break
 ```
 
-Messages whose thread is not in the merged thread list are **dropped**. Without
-this, every device that had not yet seen the delete kept re-pushing that
-thread's messages and they accumulated in every later payload forever.
+Messages whose thread is not in the merged thread list are **dropped**. Without this, every device that had not yet seen the delete kept re-pushing that thread's messages and they accumulated in every later payload forever.
 
 Rules:
 1. **Later timestamp wins** (trusts clock)
 2. **Tie-breaker**: lexicographically larger deviceId wins (deterministic)
 
-Deletions are carried as tombstones (`id → deletedAt`) that merge by max
-timestamp; a newer edit resurrects a deleted item. Merge lives in
-`src/sync/merge.ts` and is pure (unit-tested by `bun run sync:smoke`).
+Deletions are carried as tombstones (`id → deletedAt`) that merge by max timestamp; a newer edit resurrects a deleted item. Merge lives in `src/sync/merge.ts` and is pure (unit-tested by `bun run sync:smoke`).
 
 Drawback: Clock skew can cause issues. Future: vector clocks could fix.
 
@@ -122,46 +122,22 @@ POST /sync/attach    { chainId, deviceId, attId, data, writeSecret } → { ok, a
 GET  /sync/attach    ?chain=X&deviceId=Z&id=Y          → { data, size, createdAt }
 ```
 
-`/sync/attach` is the PAYLOAD-EXTERNAL byte channel for message images
-(migrations/0005_attachments.sql). Message metadata rides the sync payload
-and merges by the normal LWW rules; BYTES never do — they ride this route,
-encrypted with the chain key (same `iv.cipher` AES-GCM envelope as push),
-write-auth'd by the chain write secret, and byte-budgeted by
-`attach-chain-bytes` per chain per day, so the echo-loop class that filled
-D1 twice cannot re-run on pixels. The relay stays blind: it stores
-ciphertext, and the client refuses to store a decrypt whose length
-disagrees with the merged `bytes` claim (the size gate). Devices PUT at
-save time and GET whatever referenced ids they lack after any merge
-(`replicateMissingAttachments` in src/lib/attachments.ts); an attachment
-byte row is not pruned by age — the relay cannot see which messages still
-reference it (that lives in encrypted metadata), and growth is bounded by
-the daily byte budget instead.
+`/sync/attach` is the PAYLOAD-EXTERNAL byte channel for message images (migrations/0005_attachments.sql). Message metadata rides the sync payload and merges by the normal LWW rules; BYTES never do — they ride this route, encrypted with the chain key (same `iv.cipher` AES-GCM envelope as push), write-auth'd by the chain write secret, and byte-budgeted by `attach-chain-bytes` per chain per day, so the echo-loop class that filled D1 twice cannot re-run on pixels. The relay stays blind: it stores ciphertext, and the client refuses to store a decrypt whose length disagrees with the merged `bytes` claim (the size gate). Devices PUT at save time and GET whatever referenced ids they lack after any merge (`replicateMissingAttachments` in src/lib/attachments.ts); an attachment byte row is not pruned by age — the relay cannot see which messages still reference it (that lives in encrypted metadata), and growth is bounded by the daily byte budget instead.
 
 `writeSecret` is REQUIRED by `handshake` when that call *creates* the chain — a create without one is refused (400) before any row exists. Later devices learn the secret from the pairing token.
 
-The client never assigns `seq`. It inserts with `INSERT ... SELECT MAX(seq)+1 ... RETURNING seq`
-so sequence numbers are unique per chain even when devices push at the same time.
+The client never assigns `seq`. It inserts with `INSERT ... SELECT MAX(seq)+1 ... RETURNING seq` so sequence numbers are unique per chain even when devices push at the same time.
 
-**Guard responses.** Every route is wrapped in `withBreaker`. Throttles answer
-`429` with a `Retry-After` header and a `retryAfterMs` field in the body; an
-open breaker answers `503` the same way. `SyncError` on the client reads the
-header and backs off accordingly, so a guard response is a pause rather than an
-error the user has to act on.
+**Guard responses.** Every route is wrapped in `withBreaker`. Throttles answer `429` with a `Retry-After` header and a `retryAfterMs` field in the body; an open breaker answers `503` the same way. `SyncError` on the client reads the header and backs off accordingly, so a guard response is a pause rather than an error the user has to act on.
 
-`/sync/status` is throttled on the `pull` budget and requires a valid
-`deviceId`, because it returns the chain's **device list** — ids and names. Left
-open it was an enumeration surface: walk chain ids, harvest who is in each chain.
-The agent therefore sends its own `deviceId` with every status call.
+`/sync/status` is throttled on the `pull` budget and requires a valid `deviceId`, because it returns the chain's **device list** — ids and names. Left open it was an enumeration surface: walk chain ids, harvest who is in each chain. The agent therefore sends its own `deviceId` with every status call.
 
 ## Interesting Patterns
 
 ### 1. In-Memory → D1 Migration
-Earlier versions stored blobs in a `Map` and then KV. Both were replaced: the
-current server is a Pages Function writing to D1 (SQLite), which persists across
-deploys and lets us allocate sequence numbers atomically.
+Earlier versions stored blobs in a `Map` and then KV. Both were replaced: the current server is a Pages Function writing to D1 (SQLite), which persists across deploys and lets us allocate sequence numbers atomically.
 
-Every route depends on the `GISTRY_DB` binding and degrades loudly when it is
-missing (never silently):
+Every route depends on the `GISTRY_DB` binding and degrades loudly when it is missing (never silently):
 ```typescript
 if (!env.GISTRY_DB) return errorResponse('Sync storage is not configured', 500)
 ```
@@ -189,14 +165,9 @@ Cons:
 Future could switch to incremental operations or CRDT.
 
 ### 4. Write auth: a chain needs its write secret, not just its id
-Reading a chain only ever needed the passphrase, so anyone holding a QR could
-already read the blobs (they are ciphertext). *Writing* used to need nothing at
-all, which was the real hole: a chain id plus the ability to encrypt under any
-key was enough to append a blob, and one blob the client cannot decrypt pins its
-watermark below it forever (Gotcha 2).
+Reading a chain only ever needed the passphrase, so anyone holding a QR could already read the blobs (they are ciphertext). *Writing* used to need nothing at all, which was the real hole: a chain id plus the ability to encrypt under any key was enough to append a blob, and one blob the client cannot decrypt pins its watermark below it forever (Gotcha 2).
 
-Each chain now has a random **write secret**, minted by the device that creates
-it and carried to other devices in the pairing token:
+Each chain now has a random **write secret**, minted by the device that creates it and carried to other devices in the pairing token:
 
 ```
 chainId + writeSecret  ──handshake (creating device only)──▶  chains.push_hash
@@ -204,40 +175,19 @@ chainId + writeSecret  ──handshake (creating device only)──▶  chains.p
 push { chainId, deviceId, data, writeSecret }  ──▶  compare, then store
 ```
 
-Deliberately **not** derived from the passphrase. The server stores only
-SHA-256, so it never holds anything derived from the user's passphrase and the
-“blind relay” property survives. The secret is 32 random bytes in base64url
-(43 chars), compared with `constantTimeEqualHex` so a mismatch leaks nothing
-about how much of the digest was right.
+Deliberately **not** derived from the passphrase. The server stores only SHA-256, so it never holds anything derived from the user's passphrase and the “blind relay” property survives. The secret is 32 random bytes in base64url (43 chars), compared with `constantTimeEqualHex` so a mismatch leaks nothing about how much of the digest was right.
 
-`handshake` installs the hash **only when it creates the chain**. Inferring that
-afterwards would let anyone who knew the chainId take an existing chain over by
-handshaking with their own secret, so `chainIsNew` is read *before* `ensureChain`.
+`handshake` installs the hash **only when it creates the chain**. Inferring that afterwards would let anyone who knew the chainId take an existing chain over by handshaking with their own secret, so `chainIsNew` is read *before* `ensureChain`.
 
-Pairing tokens are now `GS1-<chainId>.<writeSecret>`. The dot is unambiguous
-because base64url never contains one. A token without the secret is an older
-code: that device can read but not write, and the UI says so rather than
-failing at the first push.
+Pairing tokens are now `GS1-<chainId>.<writeSecret>`. The dot is unambiguous because base64url never contains one. A token without the secret is an older code: that device can read but not write, and the UI says so rather than failing at the first push.
 
-**Pre-write-auth chains are gone entirely.** For about two hours in production
-a chain could be created without a secret and claimed later via `POST
-/sync/claim` — first-come-wins, which was a real takeover window (a claim
-could never read anyone's data, only deny future writes). Claim is retired:
-`handshake` REQUIRES the secret when the call creates the chain, checked BEFORE
-the chain row exists, so a refused handshake leaves nothing behind and no chain
-can ever come into existence unsecured. Push refuses a chain whose stored hash
-is missing (500 — a storage-integrity violation, never a legacy state), and
-`/sync/claim` answers 404.
+**Pre-write-auth chains are gone entirely.** For about two hours in production a chain could be created without a secret and claimed later via `POST /sync/claim` — first-come-wins, which was a real takeover window (a claim could never read anyone's data, only deny future writes). Claim is retired: `handshake` REQUIRES the secret when the call creates the chain, checked BEFORE the chain row exists, so a refused handshake leaves nothing behind and no chain can ever come into existence unsecured. Push refuses a chain whose stored hash is missing (500 — a storage-integrity violation, never a legacy state), and `/sync/claim` answers 404.
 
 ### 5. Guards: throttle, breaker, and WAF
 
-Three guards, all in `functions/_shared/guards.ts`, wired into all five data
-routes. They are a *backstop* — Cloudflare's edge rate limiting still belongs at
-the edge — but the edge cannot see what the relay can: which chain a caller is
-hammering, and what a valid write secret looks like.
+Three guards, all in `functions/_shared/guards.ts`, wired into all five data routes. They are a *backstop* — Cloudflare's edge rate limiting still belongs at the edge — but the edge cannot see what the relay can: which chain a caller is hammering, and what a valid write secret looks like.
 
-**Throttle (fixed window, in D1).** `migrations/0003_guards.sql` adds
-`rate_limits (key, window_start, count)`. One row per `scope:subject` bucket:
+**Throttle (fixed window, in D1).** `migrations/0003_guards.sql` adds `rate_limits (key, window_start, count)`. One row per `scope:subject` bucket:
 
 | Scope | Subject | Policy | Defends against |
 |-------|---------|--------|-----------------|
@@ -252,136 +202,57 @@ hammering, and what a valid write secret looks like.
 | `write-fail` | chainId | 20/min | guessing a write secret — a MISSING or malformed secret is charged here too, so the cheapest flood (omit the field) is not free |
 | `flood` | connecting IP (CF-Connecting-IP) | 1200/min | an identity-rotating flood: every other bucket is keyed by client-supplied ids, so this is the one bucket a caller cannot walk around. Checked FIRST in `guardRoute`, on every route. The header is set by Cloudflare and stripped if inbound; `X-Forwarded-For` is deliberately ignored. Missing header (tests, `wrangler dev`) skips the bucket |
 
-`push` is sized from the client's own debounce, not from a guess: `SyncQos`
-pushes at most once per 1.5s (~40/min worst case), so 120/min means an ordinary
-client never sees a throttle and a loop hits it within seconds.
+`push` is sized from the client's own debounce, not from a guess: `SyncQos` pushes at most once per 1.5s (~40/min worst case), so 120/min means an ordinary client never sees a throttle and a loop hits it within seconds.
 
 Two decisions worth keeping:
 
-- **A refused request does not advance the counter.** Charging it would make a
-  client that keeps hammering unable to recover until the counter happened to
-  roll over, which reads as a permanent ban and is much harsher than the policy
-  means.
-- **A `write-fail` is a separate budget, not a `push`.** A third party guessing
-  at a chain must not be able to spend the legitimate device's push allowance.
+- **A refused request does not advance the counter.** Charging it would make a client that keeps hammering unable to recover until the counter happened to roll over, which reads as a permanent ban and is much harsher than the policy means.
+- **A `write-fail` is a separate budget, not a `push`.** A third party guessing at a chain must not be able to spend the legitimate device's push allowance.
 
-The counter is written with a **single upsert**, because SELECT-then-UPDATE
-races: two concurrent requests would both read `count=0` and both be admitted.
-The reset rule is a `CASE` on the existing row's `window_start` — same window
-means increment, different means start at 1.
+The counter is written with a **single upsert**, because SELECT-then-UPDATE races: two concurrent requests would both read `count=0` and both be admitted. The reset rule is a `CASE` on the existing row's `window_start` — same window means increment, different means start at 1.
 
-A stored `window_start` **in the future is treated as absent**. These timestamps
-come from whichever PoP served the request, so a device can legitimately see a
-window a few seconds ahead of its own clock; counting that as "inside the window"
-would refuse every request until real time caught up.
+A stored `window_start` **in the future is treated as absent**. These timestamps come from whichever PoP served the request, so a device can legitimately see a window a few seconds ahead of its own clock; counting that as "inside the window" would refuse every request until real time caught up.
 
-All relay responses also carry `Cache-Control: no-store` — responses contain
-chain ids, device names, and sequence numbers; no intermediary has any reason
-to cache them.
+All relay responses also carry `Cache-Control: no-store` — responses contain chain ids, device names, and sequence numbers; no intermediary has any reason to cache them.
 
-Fixed window, not a sliding log: a log grows per request and needs a
-read-modify-write of every recent hit. The known cost is that a caller can send
-`2 × limit` around a boundary — acceptable given the limits sit far above
-legitimate use and far below a flood's cost.
+Fixed window, not a sliding log: a log grows per request and needs a read-modify-write of every recent hit. The known cost is that a caller can send `2 × limit` around a boundary — acceptable given the limits sit far above legitimate use and far below a flood's cost.
 
-**Circuit breaker (in-memory, per-isolate).** After 5 consecutive failures
-(any uncaught throw, or any 5xx the handler produced on purpose) the breaker
-opens for 15s and requests get a fast 503 + `Retry-After` instead of a slow
-pile of timeouts. It protects *this isolate's* connection pool, so module scope
-is the right scope; a new isolate starts closed and just re-discovers the
-outage. Two subtleties, both bug-fixed during this pass:
+**Circuit breaker (in-memory, per-isolate).** After 5 consecutive failures (any uncaught throw, or any 5xx the handler produced on purpose) the breaker opens for 15s and requests get a fast 503 + `Retry-After` instead of a slow pile of timeouts. It protects *this isolate's* connection pool, so module scope is the right scope; a new isolate starts closed and just re-discovers the outage. Two subtleties, both bug-fixed during this pass:
 
-- A failure while open does **not** re-arm the cooldown. If it did, a dead
-  database under continuous traffic would push `openedAt` forever and the
-  breaker would never serve a trial request — it would refuse everything
-  permanently.
-- `advanceBreaker` takes the remaining budget as a parameter rather than
-  tracking a count internally, which keeps it pure and walkable in a test.
+- A failure while open does **not** re-arm the cooldown. If it did, a dead database under continuous traffic would push `openedAt` forever and the breaker would never serve a trial request — it would refuse everything permanently.
+- `advanceBreaker` takes the remaining budget as a parameter rather than tracking a count internally, which keeps it pure and walkable in a test.
 
-`withBreaker` wraps each route so an unexpected D1 throw becomes a breaker
-failure. Without it every route would need its own try/catch purely to feed the
-breaker, and the ones that forgot would starve it exactly when the database was
-down. A missing `GISTRY_DB` binding is deliberately *not* charged to the
-breaker: it is a configuration error that will not fix itself.
+`withBreaker` wraps each route so an unexpected D1 throw becomes a breaker failure. Without it every route would need its own try/catch purely to feed the breaker, and the ones that forgot would starve it exactly when the database was down. A missing `GISTRY_DB` binding is deliberately *not* charged to the breaker: it is a configuration error that will not fix itself.
 
-**WAF (cheap, conservative).** Rejects what is *structurally impossible* for a
-real client, so it cannot produce a false positive that blocks a user's sync:
-non-object bodies, `__proto__`/`constructor`/`prototype` keys, control characters
-in any field, >32 fields, a non-string `data`, and `data` over the size cap.
+**WAF (cheap, conservative).** Rejects what is *structurally impossible* for a real client, so it cannot produce a false positive that blocks a user's sync: non-object bodies, `__proto__`/`constructor`/`prototype` keys, control characters in any field, >32 fields, a non-string `data`, and `data` over the size cap.
 
-This is **not** a SQL-injection defence — every statement is already
-parameterised and no request field is ever concatenated into SQL. It targets the
-two things actually true here: requests that are not the protocol at all, and
-requests big enough to be a DoS. `data` is opaque ciphertext by design and is
-checked for size only.
+This is **not** a SQL-injection defence — every statement is already parameterised and no request field is ever concatenated into SQL. It targets the two things actually true here: requests that are not the protocol at all, and requests big enough to be a DoS. `data` is opaque ciphertext by design and is checked for size only.
 
-**The body cap is enforced twice, and both checks are needed.** `MAX_PAYLOAD_BYTES`
-only bounds the `data` field *after* the body has been parsed, so on its own it
-does nothing about the memory cost of parsing a large body:
+**The body cap is enforced twice, and both checks are needed.** `MAX_PAYLOAD_BYTES` only bounds the `data` field *after* the body has been parsed, so on its own it does nothing about the memory cost of parsing a large body:
 
-- `withBreaker` rejects on the declared `Content-Length` **before** the handler
-  runs — the cheap case, where an oversized body is never buffered at all. It
-  lives in `withBreaker` rather than in each route so a new route cannot forget
-  it, the same reasoning as the breaker.
-- `readJson` checks the real length after reading, for a chunked request that
-  declares no length or lies about it.
+- `withBreaker` rejects on the declared `Content-Length` **before** the handler runs — the cheap case, where an oversized body is never buffered at all. It lives in `withBreaker` rather than in each route so a new route cannot forget it, the same reasoning as the breaker.
+- `readJson` checks the real length after reading, for a chunked request that declares no length or lies about it.
 
-Deleting either one is caught by a mutation test. The chunked test sends *valid*
-JSON padded into `deviceName` rather than truncated `data`, precisely so it
-isolates this cap from `MAX_PAYLOAD_BYTES` — an earlier version used malformed
-JSON and passed even with the cap deleted.
+Deleting either one is caught by a mutation test. The chunked test sends *valid* JSON padded into `deviceName` rather than truncated `data`, precisely so it isolates this cap from `MAX_PAYLOAD_BYTES` — an earlier version used malformed JSON and passed even with the cap deleted.
 
-`pruneLimits` is wired: every 256th admitted request also runs a sampled sweep
-of the `rate_limits` table (`shouldSweepLimits` in `guards.ts`), using the
-`idx_rate_limits_window` index. This is what keeps the table bounded: a bucket
-row is created by the *first* request from a new subject, and per-subject
-limits do not bound how many new subjects arrive — a flood of fresh device ids
-creates one row per request. Refused requests never sweep (maintenance, not
-correctness), and a failed sweep is swallowed. The daily
-`.github/workflows/maintenance.yml` runs the same sweep over the whole table,
-plus blob retention and test-debris cleanup — see scripts/db-maintain.mjs.
+`pruneLimits` is wired: every 256th admitted request also runs a sampled sweep of the `rate_limits` table (`shouldSweepLimits` in `guards.ts`), using the `idx_rate_limits_window` index. This is what keeps the table bounded: a bucket row is created by the *first* request from a new subject, and per-subject limits do not bound how many new subjects arrive — a flood of fresh device ids creates one row per request. Refused requests never sweep (maintenance, not correctness), and a failed sweep is swallowed. The daily `.github/workflows/maintenance.yml` runs the same sweep over the whole table, plus blob retention and test-debris cleanup — see scripts/db-maintain.mjs.
 
 ### 6. Client QoS: debounce, coalesce, back off
 
-`src/sync/qos.ts`. The server guards are the backstop; this is the first line,
-because a client that never gets ahead of itself generates no traffic to reject
-and the user never sees a throttle error.
+`src/sync/qos.ts`. The server guards are the backstop; this is the first line, because a client that never gets ahead of itself generates no traffic to reject and the user never sees a throttle error.
 
-`SyncQos` (a class in a ref, **not** a hook — it owns a timer that must survive
-re-renders) replaces the old bare `setTimeout` effect. Two invariants matter,
-and both are mutation-tested:
+`SyncQos` (a class in a ref, **not** a hook — it owns a timer that must survive re-renders) replaces the old bare `setTimeout` effect. Two invariants matter, and both are mutation-tested:
 
-1. **`onPush` is never called concurrently.** A change arriving during an
-   in-flight push sets `pending` and arms nothing; when that push settles it
-   pushes the newest state once. Without this, N edits during one slow push
-   become N queued pushes carrying snapshots nobody needs.
-2. **A failed push is never dropped.** `pending` is re-set on failure, so the
-   retry always carries the newest state.
+1. **`onPush` is never called concurrently.** A change arriving during an in-flight push sets `pending` and arms nothing; when that push settles it pushes the newest state once. Without this, N edits during one slow push become N queued pushes carrying snapshots nobody needs.
+2. **A failed push is never dropped.** `pending` is re-set on failure, so the retry always carries the newest state.
 
-`syncNow` pushes through `flush()` rather than calling the agent directly, since
-the periodic refresh can fire while a debounced push is in flight.
+`syncNow` pushes through `flush()` rather than calling the agent directly, since the periodic refresh can fire while a debounced push is in flight.
 
-**The push path must never sit behind an optional chain.** `SyncQos` is created
-on demand by `ensureQos()` in `App.tsx`, not in the render body. An earlier
-version built it during render and called `qosRef.current?.flush()`; since
-`handleEnableSync` does `setSyncEnabled(true)` and then `syncNow()` in the same
-task, whether the scheduler existed by the time `syncNow` reached it depended on
-whether React had re-rendered in between. When it lost, the *first* push after
-enabling sync was silently dropped — the one carrying the user's existing
-library to a brand new chain. Nothing caught it: `App.tsx` has no unit test and
-the browser suites run with no `/sync` backend. `sync:smoke` §8g now asserts the
-invariant textually, and both halves of it are mutation-checked.
+**The push path must never sit behind an optional chain.** `SyncQos` is created on demand by `ensureQos()` in `App.tsx`, not in the render body. An earlier version built it during render and called `qosRef.current?.flush()`; since `handleEnableSync` does `setSyncEnabled(true)` and then `syncNow()` in the same task, whether the scheduler existed by the time `syncNow` reached it depended on whether React had re-rendered in between. When it lost, the *first* push after enabling sync was silently dropped — the one carrying the user's existing library to a brand new chain. Nothing caught it: `App.tsx` has no unit test and the browser suites run with no `/sync` backend. `sync:smoke` §8g now asserts the invariant textually, and both halves of it are mutation-checked.
 
-Backoff is `min(base × 2^(attempt-1), max)` plus jitter, and a server
-`Retry-After` overrides the curve — capped by `maxMs`, so a hostile or buggy
-header cannot park a client for an hour. Jitter is not decoration: every device
-in a chain that hit a 429 at the same moment would otherwise retry in lockstep
-and re-trigger it immediately.
+Backoff is `min(base × 2^(attempt-1), max)` plus jitter, and a server `Retry-After` overrides the curve — capped by `maxMs`, so a hostile or buggy header cannot park a client for an hour. Jitter is not decoration: every device in a chain that hit a 429 at the same moment would otherwise retry in lockstep and re-trigger it immediately.
 
-Failures arrive as `SyncError` (`status`, `retryAfterMs`, `.throttled`) rather
-than as prose, so `errorMessage` can tell a *pause* from a *failure*. A 429
-reads as "changes are saved locally and will upload in about 30s", because the
-change is not lost — the scheduler is holding it.
+Failures arrive as `SyncError` (`status`, `retryAfterMs`, `.throttled`) rather than as prose, so `errorMessage` can tell a *pause* from a *failure*. A 429 reads as "changes are saved locally and will upload in about 30s", because the change is not lost — the scheduler is holding it.
 
 ## Gotchas
 
@@ -392,13 +263,9 @@ key = await deriveKey(passphrase, chainId)
 // chainId is shared (via the pairing QR) → all devices in the chain share a key
 ```
 
-Historically this salted with the deviceId, which made every device derive a
-different key and broke sync entirely (each device could only decrypt its own
-blobs). If you ever need per-device keys again, you need a key-wrapping step
-first — do not simply change the salt back.
+Historically this salted with the deviceId, which made every device derive a different key and broke sync entirely (each device could only decrypt its own blobs). If you ever need per-device keys again, you need a key-wrapping step first — do not simply change the salt back.
 
-The deviceId is still used for: identifying the author of a blob (so pulls can
-filter out your own changes) and as the deterministic tie-breaker in merges.
+The deviceId is still used for: identifying the author of a blob (so pulls can filter out your own changes) and as the deterministic tie-breaker in merges.
 
 ### 2. Sequence Watermarks
 Pulls are a single indexed query, not a per-sequence walk:
@@ -410,18 +277,14 @@ ORDER BY seq ASC LIMIT ?
 ```
 
 - `since` is the client's watermark, persisted per chain as `gistory_seq_<chainId>`.
-- Because own blobs are filtered out, the client must be able to jump the
-  watermark to `serverSeq` even though the skipped rows included its own writes.
-  It does that only once a page comes back short (`blobs.length < limit`).
-- A full page (500 by default) means "there is more" — the client loops with
-  `since = last returned seq` until a short page, so gaps are impossible.
-- If a blob fails to decrypt, the watermark stops *before* it so the blob is
-  retried on a later sync rather than silently dropped.
+- Because own blobs are filtered out, the client must be able to jump the watermark to `serverSeq` even though the skipped rows included its own writes. It does that only once a page comes back short (`blobs.length < limit`).
+- A full page (500 by default) means "there is more" — the client loops with `since = last returned seq` until a short page, so gaps are impossible.
+- If a blob fails to decrypt, the watermark stops *before* it so the blob is retried on a later sync rather than silently dropped.
 
 ### 3. Clock Dependency
 Conflict resolution uses timestamps. If devices have wrong clocks:
 - Device A at 10:00 → edits itemX
-- Device B at 09:55 → edits same itemX  
+- Device B at 09:55 → edits same itemX
 - Later: B's clock is wrong, thinks 09:55 < 10:00
 - Resolution: B accepts A's change (correct)
 - Reverse: If A's clock shows 09:55, B's shows 10:00 → A accepts B's (also correct per clocks)
@@ -429,41 +292,17 @@ Conflict resolution uses timestamps. If devices have wrong clocks:
 Winners follow clock. Future: vector clocks or Lamport timestamps can fix.
 
 ### 4. Message edits carry their own `updatedAt`
-Threads and projects have always had `updatedAt`, but `Message` originally only
-had `createdAt`. Since `updateMessage` changed `content` without touching any
-timestamp, two devices holding the same message compared equal times and the
-merge fell back to the deviceId tie-break — so a content edit only won when the
-editor's deviceId happened to sort higher, and could be silently reverted.
-`Message` now has an optional `updatedAt`, `updateMessage` sets it, and
-`mergeMessages` compares `updatedAt ?? createdAt` (for both the tombstone check
-and the win check). The fallback keeps messages saved before this change
-mergeable.
+Threads and projects have always had `updatedAt`, but `Message` originally only had `createdAt`. Since `updateMessage` changed `content` without touching any timestamp, two devices holding the same message compared equal times and the merge fell back to the deviceId tie-break — so a content edit only won when the editor's deviceId happened to sort higher, and could be silently reverted. `Message` now has an optional `updatedAt`, `updateMessage` sets it, and `mergeMessages` compares `updatedAt ?? createdAt` (for both the tombstone check and the win check). The fallback keeps messages saved before this change mergeable.
 
 ### 5. Import merges by id, and never resurrects a tombstone
-`importData` merges threads/projects/messages by id. Messages used to be
-concatenated, so re-importing the same backup duplicated every message; they are
-now folded into an id-keyed map (keeping the most recently edited copy).
-`importData` also accepts the local tombstone registry so importing a backup does
-not resurrect something deleted on this device.
+`importData` merges threads/projects/messages by id. Messages used to be concatenated, so re-importing the same backup duplicated every message; they are now folded into an id-keyed map (keeping the most recently edited copy). `importData` also accepts the local tombstone registry so importing a backup does not resurrect something deleted on this device.
 
 ### 6. Arrangement (pin, drag order, collapse) is generic and synced
-Threads, messages, and projects can all be **pinned**, **reordered by dragging**,
-and **collapsed**. Two different mechanisms back that:
+Threads, messages, and projects can all be **pinned**, **reordered by dragging**, and **collapsed**. Two different mechanisms back that:
 
-**Pinning** is not a separate channel: `togglePinThread`, `togglePinMessage`,
-and `togglePinProject` each flip `pinned`, set or clear `pinnedAt`, and bump
-`updatedAt`. The merge already replaces whole items by LWW on
-`updatedAt ?? createdAt`, so the newest pin state wins on every device with
-**no merge change**. Keep that invariant if you add another pinnable kind; a
-toggle that forgets to bump `updatedAt` looks correct locally and loses the
-merge.
+**Pinning** is not a separate channel: `togglePinThread`, `togglePinMessage`, and `togglePinProject` each flip `pinned`, set or clear `pinnedAt`, and bump `updatedAt`. The merge already replaces whole items by LWW on `updatedAt ?? createdAt`, so the newest pin state wins on every device with **no merge change**. Keep that invariant if you add another pinnable kind; a toggle that forgets to bump `updatedAt` looks correct locally and loses the merge.
 
-**Drag order and collapse** live in `src/sync/view-state.ts` — a `ViewState`
-keyed by item id, shipped inside the normal sync payload as `SyncData.view`.
-Each entry is replaced **as a whole** by LWW on its own `updatedAt`, with the
-same deviceId tie-break as content. It is deliberately *not* on the item
-models: a reorder rewrites one map key, so it can never clobber a concurrent
-rename of that thread.
+**Drag order and collapse** live in `src/sync/view-state.ts` — a `ViewState` keyed by item id, shipped inside the normal sync payload as `SyncData.view`. Each entry is replaced **as a whole** by LWW on its own `updatedAt`, with the same deviceId tie-break as content. It is deliberately *not* on the item models: a reorder rewrites one map key, so it can never clobber a concurrent rename of that thread.
 
 Keys are **namespaced by the surface that owns them**, not all bare item ids:
 
@@ -476,78 +315,31 @@ Keys are **namespaced by the surface that owns them**, not all bare item ids:
 | `project:<projectId>` | sidebar group | `collapsed` |
 | `section:home-projects` | home board | `collapsed` |
 
-A thread is arranged in several places at once, so rank and collapse for the
-same item need different keys. **Anything that reads or prunes these keys must
-use `viewKeyItem(key)`** to get the item id back, not string-match the whole
-key. Three call sites got this wrong in a row: `pruneView` and
-`App.forgetView` (comparing the full key against the alive-id set, so every
-collapsed message and sidebar group was wiped by the next sync) and
-`viewFor` in `store.ts` (so exporting a thread silently dropped its collapsed
-messages).
+A thread is arranged in several places at once, so rank and collapse for the same item need different keys. **Anything that reads or prunes these keys must use `viewKeyItem(key)`** to get the item id back, not string-match the whole key. Three call sites got this wrong in a row: `pruneView` and `App.forgetView` (comparing the full key against the alive-id set, so every collapsed message and sidebar group was wiped by the next sync) and `viewFor` in `store.ts` (so exporting a thread silently dropped its collapsed messages).
 
-Ranks are fractional. The first drag in a group renumbers it (`RANK_STEP` =
-1024); after that a drag writes **only** the moved entry, at the midpoint
-between its new neighbours, and renumbers the whole group again only when the
-gap drops below 1. That is what keeps two devices reordering different rows
-from fighting. `sortPinnedFirst` applies rank **before** pin-first, so once a
-user has arranged a list by hand the active sort control no longer overrides
-them; items with no rank fall through to pin-first, then the sort.
+Ranks are fractional. The first drag in a group renumbers it (`RANK_STEP` = 1024); after that a drag writes **only** the moved entry, at the midpoint between its new neighbours, and renumbers the whole group again only when the gap drops below 1. That is what keeps two devices reordering different rows from fighting. `sortPinnedFirst` applies rank **before** pin-first, so once a user has arranged a list by hand the active sort control no longer overrides them; items with no rank fall through to pin-first, then the sort.
 
-**Reordering under an active search filter** is a different code path: only the
-matching rows are visible, so ranking the visible ids would hand them 1, 2, 3…
-while hidden rows kept their old ranks and the two sets collided. `App.reorder`
-detects this (`allIds.length !== ids.length`) and switches to
-`moveWithinSubset` + `applyFullOrder`, which splices the move into the *full*
-order and renumbers every id, hidden ones included. `SortableProvider` forwards
-`allIds` for this.
+**Reordering under an active search filter** is a different code path: only the matching rows are visible, so ranking the visible ids would hand them 1, 2, 3… while hidden rows kept their old ranks and the two sets collided. `App.reorder` detects this (`allIds.length !== ids.length`) and switches to `moveWithinSubset` + `applyFullOrder`, which splices the move into the *full* order and renumbers every id, hidden ones included. `SortableProvider` forwards `allIds` for this.
 
-`onReorder(ids, from, to)` always means "here is the current order, move
-`from`→`to`" — the consumer performs the move exactly once. `SortableProvider`
-reports indices; it must not pre-apply `moveItem` as well.
+`onReorder(ids, from, to)` always means "here is the current order, move `from`→`to`" — the consumer performs the move exactly once. `SortableProvider` reports indices; it must not pre-apply `moveItem` as well.
 
-Drag handles are pointer-based (`src/ui/sortable.tsx`), not HTML5 drag-and-drop,
-because the native API does not work on touch. ArrowUp/ArrowDown on a focused
-handle reorders one place, so reordering is never pointer-only. Every
-arrangeable surface renders one: home threads/projects, the projects grid,
-thread messages, project detail rows, and sidebar project groups.
+Drag handles are pointer-based (`src/ui/sortable.tsx`), not HTML5 drag-and-drop, because the native API does not work on touch. ArrowUp/ArrowDown on a focused handle reorders one place, so reordering is never pointer-only. Every arrangeable surface renders one: home threads/projects, the projects grid, thread messages, project detail rows, and sidebar project groups.
 
 ### 7. A restored device must be handed its write secret
-`App.tsx` restores the sync agent from localStorage on load. The write secret
-lives **only in agent config** — `SyncAgent` never reads storage itself — so the
-restore path must pass it: `ensureAgent(key, chain, writeSecret)`. An earlier
-version read the secret and then dropped it on the floor; the device passed
-handshake and then got **401 on every push** — reads worked, writes falsely
-demanded re-pairing, and nothing caught it (App.tsx has no unit test, the
-browser suites run with no `/sync` backend). `sync:smoke` §9 asserts the wiring
-textually, same reasoning as §8g. Found by finally wiring ESLint: the unused
-variable WAS the bug.
+`App.tsx` restores the sync agent from localStorage on load. The write secret lives **only in agent config** — `SyncAgent` never reads storage itself — so the restore path must pass it: `ensureAgent(key, chain, writeSecret)`. An earlier version read the secret and then dropped it on the floor; the device passed handshake and then got **401 on every push** — reads worked, writes falsely demanded re-pairing, and nothing caught it (App.tsx has no unit test, the browser suites run with no `/sync` backend). `sync:smoke` §9 asserts the wiring textually, same reasoning as §8g. Found by finally wiring ESLint: the unused variable WAS the bug.
 
 ### 8. Maintenance SQL: seq is only unique per chain, and NULL lies
 Two traps the maintenance script's self-check caught before they reached prod:
 
-- **`WHERE seq IN (...)` spans chains.** "Keep the newest N blobs per chain"
-  computed one chain's victims and then matched them by bare `seq` — deleting
-  those sequence numbers from *every* chain, including the newest blob of a
-  quiet chain. The outer DELETE must match `(chain_id, seq)` as a row value.
-- **`MAX(...) < cutoff` is NULL when there are no rows.** A live-test chain
-  with no blobs (handshake-only debris — a chain-creation flood makes nothing
-  else) survives a `MAX(created_at) < x` guard forever. `COALESCE(MAX(...),
-  chains.created_at)`.
-- **Numeric knobs from a dispatch must be clamped, not defaulted.** `--keep`
-  and `--days` arrive from CLI flags and a workflow_dispatch input, and
-  `Number(-1) || default` is truthy — the default never fires, so a negative
-  `--keep` interpolated `rn > -1` and would have deleted every blob of every
-  chain. `maintenanceSql` clamps both knobs (≥1, fractions floored, 0/NaN →
-  defaults) at the single point `--status`, apply, and `--check` share.
+- **`WHERE seq IN (...)` spans chains.** "Keep the newest N blobs per chain" computed one chain's victims and then matched them by bare `seq` — deleting those sequence numbers from *every* chain, including the newest blob of a quiet chain. The outer DELETE must match `(chain_id, seq)` as a row value.
+- **`MAX(...) < cutoff` is NULL when there are no rows.** A live-test chain with no blobs (handshake-only debris — a chain-creation flood makes nothing else) survives a `MAX(created_at) < x` guard forever. `COALESCE(MAX(...), chains.created_at)`.
+- **Numeric knobs from a dispatch must be clamped, not defaulted.** `--keep` and `--days` arrive from CLI flags and a workflow_dispatch input, and `Number(-1) || default` is truthy — the default never fires, so a negative `--keep` interpolated `rn > -1` and would have deleted every blob of every chain. `maintenanceSql` clamps both knobs (≥1, fractions floored, 0/NaN → defaults) at the single point `--status`, apply, and `--check` share.
 
-`bun run db:maintain:check` pins all three against a real SQLite fixture; run it
-whenever the maintenance SQL changes.
+`bun run db:maintain:check` pins all three against a real SQLite fixture; run it whenever the maintenance SQL changes.
 
 ## Background Sync (Web Push — rollback steps 1–5 shipped, labs/prd-sync.md)
 
-A successful push wakes the chain's OTHER subscribed devices via a silent
-VAPID-signed `aes128gcm` ping (RFC 8291; payload `{chainId, n}` — opaque by
-design). The pipeline:
+A successful push wakes the chain's OTHER subscribed devices via a silent VAPID-signed `aes128gcm` ping (RFC 8291; payload `{chainId, n}` — opaque by design). The pipeline:
 
 ```
 push stores blob ─▶ sendFanOut (functions/_shared/push-fanout.ts)
@@ -572,57 +364,17 @@ sw: if an APP page is open (#/ hash — a lander client cannot carry it) →
 
 Rules worth keeping:
 
-- **One writer per store, per moment.** If the SW pulled–merged while a page
-was open, the page's next local save would overwrite the SW's merge with its
-stale snapshot and bounce the same blobs around the chain — the redirect
-(`/clients.matchAll`, app-hash pages only + an in-flight gate so two pings
-cannot race two wake rounds) strikes the double-writer at the root. A frozen
-background tab drops the immediate pull; its unfreeze visibility handler
-catches up, so correctness is paced, never lost.
-- **Config that can never work is OFF, not half-on.** `vapidFromEnv` refuses
-a subject outside RFC 8292 §5.1 (`mailto:`/`https:`) — push services 401 every
-wake it appears in, reading as "subscribed but never woken".
-- **The badge (optional, step 6) computes its count in the SW, never the
-wake.** The relay is blind to chain data, so "N new messages" is a snapshot
-diff in `newMessageCount` and shows only via an opt-in shared pref
-(`gistory_notify_wake`, read by both page and worker), gated on the
-closed-tab path (an open page is redirected and needs no popup).
-`notificationclick` focuses or opens the app. `tag: 'gistory'` keeps
-successive wakes replacing, not stacking.
-- **Wake outcomes are tail-visible.** `pruned`/`failed`/budget-skip always
-log (`[wake] …`, hostname-only — the endpoint path carries a subscription
-token); a full round summary logs when `DEBUG_WAKE=1` is on the Pages
-project. Client-side `gistory_draft_*` rows of deleted threads are swept on
-boot, on local delete, and after every merge-with-changes (`sweepDrafts`).
+- **One writer per store, per moment.** If the SW pulled–merged while a page was open, the page's next local save would overwrite the SW's merge with its stale snapshot and bounce the same blobs around the chain — the redirect (`/clients.matchAll`, app-hash pages only + an in-flight gate so two pings cannot race two wake rounds) strikes the double-writer at the root. A frozen background tab drops the immediate pull; its unfreeze visibility handler catches up, so correctness is paced, never lost.
+- **Config that can never work is OFF, not half-on.** `vapidFromEnv` refuses a subject outside RFC 8292 §5.1 (`mailto:`/`https:`) — push services 401 every wake it appears in, reading as "subscribed but never woken".
+- **The badge (optional, step 6) computes its count in the SW, never the wake.** The relay is blind to chain data, so "N new messages" is a snapshot diff in `newMessageCount` and shows only via an opt-in shared pref (`gistory_notify_wake`, read by both page and worker), gated on the closed-tab path (an open page is redirected and needs no popup). `notificationclick` focuses or opens the app. `tag: 'gistory'` keeps successive wakes replacing, not stacking.
+- **Wake outcomes are tail-visible.** `pruned`/`failed`/budget-skip always log (`[wake] …`, hostname-only — the endpoint path carries a subscription token); a full round summary logs when `DEBUG_WAKE=1` is on the Pages project. Client-side `gistory_draft_*` rows of deleted threads are swept on boot, on local delete, and after every merge-with-changes (`sweepDrafts`).
 
-- **The ping is pacing, not truth.** Watermarks + catch-up-on-open are the
-correctness net; every other path already works without it. The fan budget
-sits above an ordinary client's debounce-driven push rate, so a well
-device never sees a skip.
-- **Liveness is a positive signal, not an absence of failures.** Failed
-wakes do NOT age a row (their staleness is what the sweep acts on, and
-counting them would prune a working-but-slow device); a wake the push
-service ACCEPTED stamps `last_seen`, and the maintenance sweep
-(`db-maintain.mjs` rule 5, `--subs-days`, default 30) drops only rows with
-no confirmed stamp. A sweep-stranded device self-heals: every app open
-re-posts its stored subscription (`src/sync/bg-sync.ts
-revalidateWakeTarget`, an idempotent upsert, reuses the browser's own
-subscription — no permission prompt). That re-POST is also what refreshes
-keys after a browser renews its subscription.
-- **Edit `src/sw/sw.ts`, never its bundles.** `dist/sw.js` is build output,
-`public/sw.js` the dev-time passive placeholder. The wake path deliberately
-shares the page's agent crypto + merge + `src/sync/idb.ts` — divergent
-copies are how wakes silently corrupt a chain.
-- **`userVisibleOnly: true` is a Chrome hard requirement** for
-`pushManager.subscribe` even though deliveries are fully silent here (a
-capability flag, not a promise to notify). Do not drop it.
-- The relay stays blind end to end: the wake payload carries no chain data
-and is itself encrypted per endpoint, so even FCM sees only ciphertext.
-- Wake behavioral tests need REAL P-256 key material. Shape-only fakes like
-`'b'.repeat(87)` pass the relay's regexes but are not EC points, so
-`encryptWake` fails them and the "target unreachable" swallow makes the
-test return silently instead of proving anything. §11's behavioral rows
-generate real pairs.
+- **The ping is pacing, not truth.** Watermarks + catch-up-on-open are the correctness net; every other path already works without it. The fan budget sits above an ordinary client's debounce-driven push rate, so a well device never sees a skip.
+- **Liveness is a positive signal, not an absence of failures.** Failed wakes do NOT age a row (their staleness is what the sweep acts on, and counting them would prune a working-but-slow device); a wake the push service ACCEPTED stamps `last_seen`, and the maintenance sweep (`db-maintain.mjs` rule 5, `--subs-days`, default 30) drops only rows with no confirmed stamp. A sweep-stranded device self-heals: every app open re-posts its stored subscription (`src/sync/bg-sync.ts revalidateWakeTarget`, an idempotent upsert, reuses the browser's own subscription — no permission prompt). That re-POST is also what refreshes keys after a browser renews its subscription.
+- **Edit `src/sw/sw.ts`, never its bundles.** `dist/sw.js` is build output, `public/sw.js` the dev-time passive placeholder. The wake path deliberately shares the page's agent crypto + merge + `src/sync/idb.ts` — divergent copies are how wakes silently corrupt a chain.
+- **`userVisibleOnly: true` is a Chrome hard requirement** for `pushManager.subscribe` even though deliveries are fully silent here (a capability flag, not a promise to notify). Do not drop it.
+- The relay stays blind end to end: the wake payload carries no chain data and is itself encrypted per endpoint, so even FCM sees only ciphertext.
+- Wake behavioral tests need REAL P-256 key material. Shape-only fakes like `'b'.repeat(87)` pass the relay's regexes but are not EC points, so `encryptWake` fails them and the "target unreachable" swallow makes the test return silently instead of proving anything. §11's behavioral rows generate real pairs.
 
 ## Files Quick Ref
 
@@ -679,136 +431,48 @@ generate real pairs.
 
 ## Testing Notes
 
-- **Typecheck: `bun run typecheck`.** Two passes, deliberately:
-  `tsc -b` for `src/`, then `tsc -p tsconfig.functions.json` for the Pages
-  Functions.
-  `functions/` is **not** in the root `include`. The app has always run
-  `strict: false`, and under `strict: false` `strictNullChecks` is off, which
-  means discriminated unions (`{ ok: true } | { ok: false }`) can no longer be
-  narrowed on their discriminant. `guards.ts` narrows on exactly that, so
-  compiling the server in the root config would demand `as` casts all over it
-  and throw away the very checking this is for. The relay is five routes plus
-  two shared modules where a type error is a 500 for every user, so it gets the
-  stricter pass instead of the looser one. If you add a guard helper that
-  returns a discriminated union, it will typecheck in `tsconfig.functions.json`
-  and *fail* in the root config — that asymmetry is intended.
-- `tests/` and `scripts/`: `tests/` is now covered by `tsconfig.test.json`
-  (strict, `@types/bun` added as a devDependency for `bun:sqlite`). It must be
-  strict for the same reason as `functions/`: the smoke test imports the Pages
-  Functions, and under `strict: false` their discriminated-union guards would
-  report errors the Functions pass does not. `scripts/*.mjs` is still
-  unchecked — plain JS with `allowJs` off.
-- **Lint: `bun run lint`.** ESLint sat in devDependencies with no config for
-  ages — `eslint.config.js` is the wiring. High-value rules only (unused vars,
-  react-hooks, no-undef); three `react-refresh` warnings on `view-state.tsx`
-  are the intentional provider+hooks export pattern and do not gate. `no-undef`
-  browser globals are granted to the harness files because their
-  `page.evaluate` callbacks run in the page, not Node.
-- **CI:** `.github/workflows/ci.yml` runs `npm ci`, the three-pass
-  `bun run typecheck`, `bun run lint` (ESLint subset + English-only prose gate
-  + docs consistency), `bun run sync:smoke`, `bun run db:migrate:check`,
-  `bun run db:maintain:check`, `bun run crashtest:run` (the adversarial
-  campaign — fails on a new EXPLOITED or a regression of a REFUSED row),
-  `npm run lint:packs` (packstruct --deep manifest/entry/id-census over
-  `packs/`), and `npx prestruct build` (the full prerender
-  pipeline) on push and PR. It deliberately does **not** run the browser
-  suites: they need a Chromium download and a dev server, which is slow and
-  flaky in CI. Run
-  `bun run test:ui` and `bun run ui:audit` locally before pushing a UI change —
-  they are the only suite that exercises rendering.
-  Note CI installs with `npm ci` because `package-lock.json` is the tracked
-  lockfile; `bun.lock` is untracked, so do not switch CI to bun install without
-  committing one in the same change.
-- **Migrations from CI:** `.github/workflows/migrate.yml` applies
-  `scripts/db-migrate.mjs --remote` — via the Actions "Run workflow" button
-  (works from the GitHub mobile app, dry run by default) or automatically on a
-  push to `main` touching `migrations/`. Needs the secrets
-  `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`.
-  It re-runs the whole verify suite in its own `verify` job first — a job cannot
-  `needs:` a job in another workflow file — and runs behind a `production`
-  environment where required reviewers can be added. That env is the intended
-  safety valve for an irreversible, forward-only schema change.
-- Sync smoke test: `bun run sync:smoke` (real agent crypto + real merge + real
-  Pages Functions on in-memory SQLite — no account needed)
+- **Typecheck: `bun run typecheck`.** Two passes, deliberately: `tsc -b` for `src/`, then `tsc -p tsconfig.functions.json` for the Pages Functions. `functions/` is **not** in the root `include`. The app has always run `strict: false`, and under `strict: false` `strictNullChecks` is off, which means discriminated unions (`{ ok: true } | { ok: false }`) can no longer be narrowed on their discriminant. `guards.ts` narrows on exactly that, so compiling the server in the root config would demand `as` casts all over it and throw away the very checking this is for. The relay is five routes plus two shared modules where a type error is a 500 for every user, so it gets the stricter pass instead of the looser one. If you add a guard helper that returns a discriminated union, it will typecheck in `tsconfig.functions.json` and *fail* in the root config — that asymmetry is intended.
+- `tests/` and `scripts/`: `tests/` is now covered by `tsconfig.test.json` (strict, `@types/bun` added as a devDependency for `bun:sqlite`). It must be strict for the same reason as `functions/`: the smoke test imports the Pages Functions, and under `strict: false` their discriminated-union guards would report errors the Functions pass does not. `scripts/*.mjs` is still unchecked — plain JS with `allowJs` off.
+- **Lint: `bun run lint`.** ESLint sat in devDependencies with no config for ages — `eslint.config.js` is the wiring. High-value rules only (unused vars, react-hooks, no-undef); three `react-refresh` warnings on `view-state.tsx` are the intentional provider+hooks export pattern and do not gate. `no-undef` browser globals are granted to the harness files because their `page.evaluate` callbacks run in the page, not Node.
+- **CI:** `.github/workflows/ci.yml` runs `npm ci`, the three-pass `bun run typecheck`, `bun run lint` (ESLint subset + English-only prose gate + docs consistency), `bun run sync:smoke`, `bun run db:migrate:check`, `bun run db:maintain:check`, `bun run crashtest:run` (the adversarial campaign — fails on a new EXPLOITED or a regression of a REFUSED row), `npm run lint:packs` (packstruct --deep manifest/entry/id-census over `packs/`), and `npx prestruct build` (the full prerender pipeline) on push and PR. It deliberately does **not** run the browser suites: they need a Chromium download and a dev server, which is slow and flaky in CI. Run `bun run test:ui` and `bun run ui:audit` locally before pushing a UI change — they are the only suite that exercises rendering. Note CI installs with `npm ci` because `package-lock.json` is the tracked lockfile; `bun.lock` is untracked, so do not switch CI to bun install without committing one in the same change.
+- **Migrations from CI:** `.github/workflows/migrate.yml` applies `scripts/db-migrate.mjs --remote` — via the Actions "Run workflow" button (works from the GitHub mobile app, dry run by default) or automatically on a push to `main` touching `migrations/`. Needs the secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`. It re-runs the whole verify suite in its own `verify` job first — a job cannot `needs:` a job in another workflow file — and runs behind a `production` environment where required reviewers can be added. That env is the intended safety valve for an irreversible, forward-only schema change.
+- Sync smoke test: `bun run sync:smoke` (real agent crypto + real merge + real Pages Functions on in-memory SQLite — no account needed)
 - Full stack locally: `bun run db:migrate:local` then `npx wrangler pages dev dist`
-- Deploy: Cloudflare Pages Git integration; `/sync` binding is configured in the
-  Pages dashboard (Settings -> Bindings -> D1 database -> `GISTRY_DB`), never in git
+- Deploy: Cloudflare Pages Git integration; `/sync` binding is configured in the Pages dashboard (Settings -> Bindings -> D1 database -> `GISTRY_DB`), never in git
 - Tail logs: `npx wrangler pages deployment tail`
 - Frontend: vite builds to `dist/`; Pages serves it alongside `functions/`
 
 ### The browser harness
 
-The UI scripts are dev-only tooling and are deliberately kept out of the build.
-`.puppeteerrc.cjs` sets `skipDownload: true`, so `npm install` — which the
-Cloudflare Pages build also runs — never pulls Chromium. Fetch a browser once
-per machine with `bun run ui:browsers` (it re-enables the download for its own
-child process via `PUPPETEER_SKIP_DOWNLOAD=false`).
+The UI scripts are dev-only tooling and are deliberately kept out of the build. `.puppeteerrc.cjs` sets `skipDownload: true`, so `npm install` — which the Cloudflare Pages build also runs — never pulls Chromium. Fetch a browser once per machine with `bun run ui:browsers` (it re-enables the download for its own child process via `PUPPETEER_SKIP_DOWNLOAD=false`).
 
-- `bun run ui:audit` — walks every route in both themes on desktop + mobile and
-  reports console/page errors, horizontal overflow, off-viewport elements,
-  WCAG-AA contrast failures, text under 12px, targets under 32px, controls with
-  no accessible name, unlabeled inputs, clipped text, duplicate ids, and
-  blank/crashed pages. Screenshots go to `.ui-audit/` (gitignored). Exits
-  non-zero on findings so it can gate a change; `--soft` overrides.
-- `bun run test:ui` — runs every `tests/ui/*.mjs` suite: interaction flows
-  (create/edit/delete/search/rename), board-level rename/delete + confirmation
-  dialogs + textbox guards (`usability.mjs`), live-fire drag ordering + synced
-  collapse (`sortable.mjs`), the export→import round trip through real
-  downloads, and snapshot control metrics.
-- **Each suite gets its own browser context.** Pages sharing a context share
-  localStorage, so a suite that drags rows or collapses a group would otherwise
-  leak state into the next one. `openPage` in `scripts/lib/browser.mjs` creates a
-  fresh context per page and disposes it with the page.
-- Both resolve the preview origin automatically (an explicit URL wins, then
-  `PREVIEW_URL`, then a probe of ports 5173–5180) and warn when more than one
-  dev server is answering.
+- `bun run ui:audit` — walks every route in both themes on desktop + mobile and reports console/page errors, horizontal overflow, off-viewport elements, WCAG-AA contrast failures, text under 12px, targets under 32px, controls with no accessible name, unlabeled inputs, clipped text, duplicate ids, and blank/crashed pages. Screenshots go to `.ui-audit/` (gitignored). Exits non-zero on findings so it can gate a change; `--soft` overrides.
+- `bun run test:ui` — runs every `tests/ui/*.mjs` suite: interaction flows (create/edit/delete/search/rename), board-level rename/delete + confirmation dialogs + textbox guards (`usability.mjs`), live-fire drag ordering + synced collapse (`sortable.mjs`), the export→import round trip through real downloads, and snapshot control metrics.
+- **Each suite gets its own browser context.** Pages sharing a context share localStorage, so a suite that drags rows or collapses a group would otherwise leak state into the next one. `openPage` in `scripts/lib/browser.mjs` creates a fresh context per page and disposes it with the page.
+- Both resolve the preview origin automatically (an explicit URL wins, then `PREVIEW_URL`, then a probe of ports 5173–5180) and warn when more than one dev server is answering.
 
-**Gotcha:** a stale dev server is the fastest way to get a misleading audit. If
-an edit does not show up, verify what the server actually serves before trusting
-the results:
+**Gotcha:** a stale dev server is the fastest way to get a misleading audit. If an edit does not show up, verify what the server actually serves before trusting the results:
 
 ```bash
 curl -s http://localhost:5173/src/components/BurgerMenu.tsx | grep -c aria-label
 ```
 
-If that disagrees with the file on disk, restart the managed preview; a plain
-`?t=<ts>` URL always re-transforms, so comparing the two isolates the cause.
+If that disagrees with the file on disk, restart the managed preview; a plain `?t=<ts>` URL always re-transforms, so comparing the two isolates the cause.
 
 ## Releasing gistory-sync
 
-The package version is the release: `package.json` version + a
-`CHANGELOG.md` section (Keep a Changelog) ride in the SAME commit, then
-`npm version patch|minor|major && git push --follow-tags` fires both tag
-workflows. Rules worth keeping:
+The package version is the release: `package.json` version + a `CHANGELOG.md` section (Keep a Changelog) ride in the SAME commit, then `npm version patch|minor|major && git push --follow-tags` fires both tag workflows. Rules worth keeping:
 
-- **The manual bootstrap is one-time and already the model.** npm Trusted
-  Publishing (OIDC) cannot create a brand-new package, so 0.9.0's first
-  `npm publish` runs from a dev machine after the full gate; then the
-  Trusted Publisher entry (repo dhaupin/gistory, workflow publish.yml) takes
-  over. Never publish from `main`.
-- **Both workflows gate, smoke, and attach.** `publish.yml` gates on
-  typecheck + lint + `build:lib` (the same `prepublishOnly` battery, made
-  visible in CI logs), idempotently skips when the registry already has the
-  version, then installs the registry artifact into a scratch project and
-  loads the entry point. `release.yml` packs the tarball, gates on the
-  artifact's own install-and-load battery (the prestruct v1.0.0/v1.1.0
-  lesson: a tarball that installs but does not load must never carry a
-  release), asserts both `dist/lib/index.mjs` and `dist/lib/index.d.ts`
-  exist inside the installed tarball, and attaches it to the GitHub release.
-- **House rule stays:** synced fields keep old payloads mergeable —
-  optional-field additions must merge so devices on older package versions
-  stay in one chain (see CHANGELOG preamble + `src/index.ts` header).
-- **README is the package landing.** Consumer-facing docs live on the docs
-  site; repo setup lives in `DEPLOY.md`. Anything npm-consumer-visible
-  (exports, engines, security one-breath) belongs in README; anything
-  contribution-visible (battery, runbooks, mechanics) belongs in
-  `AGENTS.md`/`DEPLOY.md`.
+- **The manual bootstrap is one-time and already the model.** npm Trusted Publishing (OIDC) cannot create a brand-new package, so 0.9.0's first `npm publish` runs from a dev machine after the full gate; then the Trusted Publisher entry (repo dhaupin/gistory, workflow publish.yml) takes over. Never publish from `main`.
+- **Both workflows gate, smoke, and attach.** `publish.yml` gates on typecheck + lint + `build:lib` (the same `prepublishOnly` battery, made visible in CI logs), idempotently skips when the registry already has the version, then installs the registry artifact into a scratch project and loads the entry point. `release.yml` packs the tarball, gates on the artifact's own install-and-load battery (the prestruct v1.0.0/v1.1.0 lesson: a tarball that installs but does not load must never carry a release), asserts both `dist/lib/index.mjs` and `dist/lib/index.d.ts` exist inside the installed tarball, and attaches it to the GitHub release.
+- **House rule stays:** synced fields keep old payloads mergeable — optional-field additions must merge so devices on older package versions stay in one chain (see CHANGELOG preamble + `src/index.ts` header).
+- **README is the package landing.** Consumer-facing docs live on the docs site; repo setup lives in `DEPLOY.md`. Anything npm-consumer-visible (exports, engines, security one-breath) belongs in README; anything contribution-visible (battery, runbooks, mechanics) belongs in `AGENTS.md`/`DEPLOY.md`.
 
 ## Future Improvements
 
 Seen from working on this:
 1. **Vector clocks** - Replace timestamp-only conflict
 2. **Incremental ops** - Instead of full state push
-3. **CRDT** - For automatic conflict-free merges  
+3. **CRDT** - For automatic conflict-free merges
 4. **History** - Undo/redo from old states
 5. **Offline queue** - Better offline handling

@@ -12,6 +12,8 @@ Conventions
 
 ## Now
 
+**Day-2 rider (2026-10-29)**: gistory#24 and #25 close: the root AGENTS.md gains the Family Laws section (the walk-exit rule lands in the root keeper, the mounts already carried it) and submits mechanically to scripts/unwrap-prose.cjs (813 -> 473 lines, 691 -> 351 non-blank); both mounts package.jsons gain prepublishOnly = npm run check (poststruct#20 / monoforge#13, both batteries green before the commit); the tri-pins lane retires after its green run 40796286437 (locks + tri-pin rider landed at dbc97dc).
+
 **Tri-pin block (2026-10-28)**: the three family tools ride BOTH mounts'
 package.jsons - poststruct gains crashtest EXACT 1.1.0 (eyestruct 1.0.0 +
 packstruct 1.0.0 already rode there), monoforge gains the full trio - so
