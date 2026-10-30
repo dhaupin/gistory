@@ -10,6 +10,16 @@ versions converge in one chain.
 
 ## [Unreleased]
 
+### Added
+
+- The supporting trio lands on both surfaces: the landing site gains
+  `/why` (the problem: good prompts are written once and lost), `/what`
+  (what Gistory is, as its parts: library, templates, organization,
+  sync), and `/about` (who builds it, the struct family, the license) -
+  wired through `ssr.config.js` + `src/AppLayout.tsx`, linked from the
+  lander nav. The docs tree gains `docs/why.md`, `docs/what.md`, and
+  `docs/about.md`, reachable from a new docs nav "About" section.
+
 ### Changed
 
 - `Message` edits carry their own timestamp: merge compares

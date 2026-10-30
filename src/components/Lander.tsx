@@ -162,6 +162,9 @@ export default function Lander() {
       <header className="lander-nav">
         <span className="lander-brand">Gistory</span>
         <nav className="lander-nav-links">
+          <a href="/why" className="lander-link">Why</a>
+          <a href="/what" className="lander-link">What it is</a>
+          <a href="/about" className="lander-link">About</a>
           <a href="/terms" className="lander-link">Terms</a>
           <a href="/privacy" className="lander-link">Privacy</a>
           <a href="#/" className="btn btn-primary btn-small lander-cta">

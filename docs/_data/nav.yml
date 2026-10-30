@@ -3,6 +3,15 @@
 # page's frontmatter permalink - scripts/check-docs.mjs holds this file
 # honest in CI (every nav URL must be a page's permalink and vice versa).
 
+- title: About
+  items:
+    - title: Why Gistory
+      url: /gistory/why
+    - title: What Gistory is
+      url: /gistory/what
+    - title: About the project
+      url: /gistory/about
+
 - title: Start
   items:
     - title: Home
