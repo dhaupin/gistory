@@ -12,6 +12,19 @@ versions converge in one chain.
 
 ### Added
 
+- The staging integration branch is now a permanent CI surface (gistory#30):
+  `ci.yml` runs on push to `staging` as well as `main`, `docs.yml` watches
+  both but its deploy job is gated to `main` (`if: github.ref ==
+  'refs/heads/main'`) so a green build on staging never publishes the live
+  docs site, and a new `staging-ff-sync.yml` fast-forwards `staging` to
+  `main` after every promotion (non-destructive refspec; a divergence fails
+  the job instead of rewriting history). The remaining write-side workflows
+  (`migrate.yml`, `stone-ferry.yml`, `mono-web-emit.yml`, `staging-tars.yml`,
+  `monoforge-ferry.yml`, `mount-stone-mirror.yml`, `tasks-insert.yml`) keep
+  their `main`-only triggers deliberately: widening them would let a
+  staging-era commit reach D1 or a live surface before promotion, which is
+  the trap the issue named.
+
 - The supporting trio lands on both surfaces: the landing site gains
   `/why` (the problem: good prompts are written once and lost), `/what`
   (what Gistory is, as its parts: library, templates, organization,

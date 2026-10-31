@@ -13,7 +13,7 @@ name: Deploy docs
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
     paths:
       - 'docs/**'
       - 'scripts/check-docs.mjs'
@@ -90,6 +90,10 @@ jobs:
           path: docs/_site
 
   deploy:
+    # The staging integration branch is a permanent CI surface (gistory#30),
+    # so the deploy job is gated to main - a green build on staging must
+    # never publish the live docs site.
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:
