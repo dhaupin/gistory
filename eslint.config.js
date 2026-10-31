@@ -40,6 +40,14 @@ export default tseslint.config(
       // Crashtest build output (generated before every run by
       // scripts/build-crashtest.mjs) — lint the entry + fixture, not the bundle.
       'crashtest/handlers.mjs',
+      // Vendored family scripts, copied byte-as-is from the eyestruct copy
+      // source (the sweep-repair commits landed them verbatim). They are kept
+      // byte-identical on purpose so a diff against upstream stays meaningful;
+      // they are plain CJS node tools, not this repo's TS/React code, and
+      // linting them here would force edits that break the byte-identity the
+      // copy contract depends on (require() is the CJS idiom; the sanitizer
+      // regexes match control characters deliberately).
+      'scripts/unwrap-prose.cjs', 'scripts/ship-from-download.cjs',
     ],
   },
   js.configs.recommended,

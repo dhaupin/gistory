@@ -24,6 +24,15 @@ versions converge in one chain.
   their `main`-only triggers deliberately: widening them would let a
   staging-era commit reach D1 or a live surface before promotion, which is
   the trap the issue named.
+- **The lint lane goes green (gistory#30).** The vendored family scripts
+  (`scripts/unwrap-prose.cjs`, `scripts/ship-from-download.cjs`) are copied
+  byte-as-is from the eyestruct copy source, but the flat ESLint config was
+  still grading them as this repo's TS/React code - 9 errors (CJS `require`,
+  the sanitizer's deliberate control-character regexes, dead buffer vars) had
+  left `staging`'s CI red on the Lint step, which undercuts the point of a
+  permanent CI surface. They are ignored now (the copy contract needs the
+  bytes identical, so editing them is not an option); the lane reports
+  0 errors, 5 advisory warnings.
 
 - The supporting trio lands on both surfaces: the landing site gains
   `/why` (the problem: good prompts are written once and lost), `/what`
