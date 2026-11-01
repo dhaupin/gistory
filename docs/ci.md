@@ -43,7 +43,7 @@ run them locally before pushing a UI change (see contributing).
 ## The docs lane (`.github/workflows/docs.yml`)
 
 ruby/jekyll build > `lint:docs` > freestruct `--strict` (post-render SEO
-layer, pinned `freestruct@1.1.0` in the ferry) > pagefind indexed LAST over
+layer, pinned `freestruct@1.2.0` in the ferry) > pagefind indexed LAST over
 the final injected output > GitHub Pages. The lane fails closed: a broken
 internal link or a head-hygiene miss refuses the publish instead of shipping
 it.

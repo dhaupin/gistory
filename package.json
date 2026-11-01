@@ -54,11 +54,11 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
     "eyestruct": "1.0.0",
-    "freestruct": "^1.1.0",
+    "freestruct": "^1.2.0",
     "globals": "^15.14.0",
     "lucide-react": "^1.17.0",
     "packstruct": "1.0.0",
-    "prestruct": "^1.1.0",
+    "prestruct": "^1.2.0",
     "puppeteer": "^25.12.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
@@ -106,5 +106,11 @@
     "prepublishOnly": "npm run typecheck && npm run lint && npm run build:lib",
     "preview": "vite preview",
     "icons:adopt": "node scripts/adopt-icons.mjs"
+  },
+  "overrides": {
+    "prestruct": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
   }
 }

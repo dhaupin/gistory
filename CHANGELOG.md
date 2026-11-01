@@ -10,6 +10,18 @@ versions converge in one chain.
 
 ## [Unreleased]
 
+### Fixed
+
+- The docs lane goes green again: `docs.yml`'s `build` job had failed on
+  every push since 2026-10-27 because the ferry pinned `freestruct@1.1.0`,
+  whose `--strict` internal-link checker resolved a root-absolute nav href
+  (`/gistory/why`) against the output root instead of stripping the
+  configured `basePath`, so every nav link on the baseurl'd docs site read
+  as broken and `--strict` exited 1. freestruct 1.2.0 lands the fix (the
+  checker now strips the exact configured `basePath` before resolving;
+  freestruct#32). The pin rides to `^1.2.0` and the `docs/ci.md` ferry claim
+  tracks it.
+
 ### Added
 
 - The staging integration branch is now a permanent CI surface (gistory#30):
@@ -43,6 +55,24 @@ versions converge in one chain.
   `docs/about.md`, reachable from a new docs nav "About" section.
 
 ### Changed
+
+- **The rig rides prestruct `^1.2.0`** (was `^1.1.0`), taking the
+  react-router 7 prerender seam fix (prestruct#68). The root app pins
+  react-router-dom 7 (`^7.18.4`, real ESM) and sets
+  `ssr.noExternal: ['react-router-dom', 'react-router']` - exactly the shape
+  that hit the two-instance seam (the engine's `StaticRouter` and the app's
+  router loading as separate module instances, each with its own React
+  contexts). 1.2.0 loads `StaticRouter` through the app's own Vite SSR
+  registry, so the two now share one instance; `ssr.noExternal` is kept
+  (still required to keep the app's `react-router-dom` in Vite's SSR module
+  graph). The root app runs React 19, and 1.2.0 deliberately bounds its
+  react peer to `>=18 <19` (prestruct#58 ask 1; the react-19 lane is
+  prestruct 1.3.0), so a targeted `overrides` entry
+  (`prestruct.react: "$react"`) lets the proven-good React 19 tree satisfy
+  the peer while the ceiling stays honest. The lock is edited in place
+  (fetch-don't-transport; the registry-derived form churns 400+ unrelated
+  optional/peer lines under a newer npm). Build re-verified end to end with
+  the prerender cache cleared: `Done. 6/6 pages rendered`, audit 0 failures.
 
 - `Message` edits carry their own timestamp: merge compares
   `updatedAt ?? createdAt` for both the tombstone check and the win
