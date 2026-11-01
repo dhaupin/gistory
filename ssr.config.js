@@ -72,6 +72,36 @@ export default {
       },
     },
     {
+      path: '/why',
+      priority: '0.5',
+      changefreq: 'monthly',
+      meta: {
+        title: 'Why Gistory | Prompts are reusable assets',
+        description:
+          'Good prompts are written once and lost in chat histories and notes. Why Gistory keeps them as a searchable library with {{variable}} templates and end-to-end encrypted sync.',
+      },
+    },
+    {
+      path: '/what',
+      priority: '0.5',
+      changefreq: 'monthly',
+      meta: {
+        title: 'What Gistory is | A personal prompt manager',
+        description:
+          'What Gistory is, as its parts: a browser-based prompt library, {{variable}} templates that fill in on copy, tags and projects, and end-to-end encrypted multi-device sync.',
+      },
+    },
+    {
+      path: '/about',
+      priority: '0.3',
+      changefreq: 'yearly',
+      meta: {
+        title: 'About Gistory | Built by Creadev.org',
+        description:
+          'Who builds Gistory, the struct family it belongs to, and the MIT license and provenance terms. Built in the open by Creadev.org and AI agents.',
+      },
+    },
+    {
       path: '/terms',
       priority: '0.3',
       changefreq: 'yearly',

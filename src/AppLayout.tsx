@@ -21,6 +21,9 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import Lander from './components/Lander'
+import WhyPage from './components/WhyPage'
+import WhatPage from './components/WhatPage'
+import AboutPage from './components/AboutPage'
 import TermsPage from './components/TermsPage'
 import PrivacyPage from './components/PrivacyPage'
 import App from './App'
@@ -66,6 +69,9 @@ function RouteSwitch() {
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Lander />} />
+        <Route path="/why" element={<WhyPage />} />
+        <Route path="/what" element={<WhatPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         {/* Unmatched paths are served by dist/404.html from Cloudflare Pages;
