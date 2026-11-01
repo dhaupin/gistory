@@ -10,6 +10,18 @@ versions converge in one chain.
 
 ## [Unreleased]
 
+### Fixed
+
+- The docs lane goes green again: `docs.yml`'s `build` job had failed on
+  every push since 2026-10-27 because the ferry pinned `freestruct@1.1.0`,
+  whose `--strict` internal-link checker resolved a root-absolute nav href
+  (`/gistory/why`) against the output root instead of stripping the
+  configured `basePath`, so every nav link on the baseurl'd docs site read
+  as broken and `--strict` exited 1. freestruct 1.2.0 lands the fix (the
+  checker now strips the exact configured `basePath` before resolving;
+  freestruct#32). The pin rides to `^1.2.0` and the `docs/ci.md` ferry claim
+  tracks it.
+
 ### Added
 
 - The staging integration branch is now a permanent CI surface (gistory#30):
