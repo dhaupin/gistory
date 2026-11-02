@@ -10,6 +10,18 @@ versions converge in one chain.
 
 ## [Unreleased]
 
+### Added
+
+- **An offline test for the vendored phone publish lane
+  (`scripts/ship-from-download.cjs`).** The lane itself was already committed
+  byte-identical from the family copy source; it had no test here. This adds
+  `test/ship-from-download.test.cjs` (temp dirs + an injected runner, no
+  network) and runs it in CI, proving the lane assembles + refuses correctly
+  and that the publish token never lands in a staged file, in argv, or in the
+  log. The wrong-folder-zip case (`NOT_A_PACKAGE_TREE`, the Android
+  `<repo>-main/<repo>-main` extraction shape) is one of the named refusals it
+  covers.
+
 ### Changed
 
 - **Changelog + release-notes standardized to the family shape.** `CHANGELOG.md`
