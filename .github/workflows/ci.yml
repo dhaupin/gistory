@@ -83,6 +83,15 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      # The phone publish lane (scripts/ship-from-download.cjs) is vendored
+      # byte-identical from the family copy source (see the eslint ignores in
+      # eslint.config.js). This offline unit test proves the lane assembles +
+      # refuses correctly, and that the publish token never lands in a staged
+      # file, in argv, or in the log. Pure temp-dir + injected-runner, no
+      # network - so it runs on every push, not only on release days.
+      - name: Ship lane test (phone publish runner)
+        run: node --test test/ship-from-download.test.cjs
+
       # The real Pages Functions against real SQLite — no Cloudflare account and
       # no network needed. This is what catches a broken guard or merge rule.
       - name: Sync smoke test
