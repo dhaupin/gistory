@@ -116,6 +116,8 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 22 }
       # BLOCK_VERSION/TAG arrive through env from the publish job's outputs
       # - the same no-inline-interpolation rule the gate obeys. notes.md
       # lives in RUNNER_TEMP: never a silent overwrite of a repo file that
@@ -136,6 +138,18 @@ jobs:
           else
             gh release create "$TAG" --title "gistory-sync $BLOCK_VERSION" --notes-file "$RUNNER_TEMP/notes.md"
           fi
+      - name: attach the served tarball to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BLOCK_VERSION: ${{ needs.publish.outputs.version }}
+          BLOCK_TAG: ${{ needs.publish.outputs.tag }}
+        run: |
+          set -e
+          # The EXACT tarball the registry serves for this version - the
+          # artifact npm received, not a re-pack of the checkout, so the
+          # release asset and the npm artifact can never drift.
+          npm pack "gistory-sync@$BLOCK_VERSION" --pack-destination "$RUNNER_TEMP" > /dev/null
+          gh release upload "$BLOCK_TAG" "$RUNNER_TEMP/gistory-sync-$BLOCK_VERSION.tgz" --clobber
 
   # No `needs` on release here by design under the if: the verify leg runs
   # after release on a real cut, but ALSO stands alone in verify-only mode
@@ -171,4 +185,4 @@ jobs:
           EXPECTED_EXPORTS="$(node -p "Object.keys(require('./package.json').exports).join(',')")"
           GS_PROBE="const m=require('gistory-sync');for(const n of ['SyncAgent','mergePayload','mergeRegistry','SyncQos','pruneView','emptyVariables'])if(!(n in m))process.exit(1)"
           node scripts/verify-release.cjs --npm --version "$V" --exports "$EXPECTED_EXPORTS" --probe "$GS_PROBE"
-          node scripts/verify-release.cjs --gh --tag "v$V"
+          node scripts/verify-release.cjs --gh --tag "v$V" --asset "gistory-sync-$V.tgz"
