@@ -12,6 +12,23 @@ Conventions
 
 ## Now
 
+**Forge-role decouple (2026-11-02)**: gistory stops being the factory. The
+staging mounts (`monoforge-staging/` 119 files, `poststruct-staging/` 110
+files) and the family registry (`mounts/`, incl. the 12 snapshot tars under
+`mounts/public/{monoforge,poststruct}/boot/tars/`) are deleted - both repos
+graduated to their own CI and are the source of truth. The forge-role
+workflows retire (`monoforge-ferry`, `staging-tars`, `mount-stone-mirror`,
+`mono-web-emit`, `mono-rig-emit`, `doctor-fix-emit`, `identity-emit`), plus
+the dead tar scripts (`make-staging-tars.sh`, `verify-staging-tars.sh`) and
+the family-stone cutter (`cut-stones.py` - its magpie pair already rides
+upstream in `dhaupin/eyestruct horcrux/`; the committed stones stay as
+delivered lineage, raster-gated). CI is decoupled: the `staging-hosts` job
+and the `poststruct-staging` install step leave `ci.yml`, the poststruct
+TEXT/TEXT-REF legs leave `framework-gate.mjs`, and `stone-ferry.yml` re-cuts
+gistory's OWN stone only. The eyestruct self-audit legs (EYES-ART, EYES-MEM),
+`birth-gate.mjs`, and every other gistory self-CI lane stay. The factory role
+moves to **railyard**; the forge machinery is otherwise left in place for now.
+
 **Day-2 rider (2026-10-29)**: gistory#24 and #25 close: the root AGENTS.md gains the Family Laws section (the walk-exit rule lands in the root keeper, the mounts already carried it) and submits mechanically to scripts/unwrap-prose.cjs (813 -> 473 lines, 691 -> 351 non-blank); both mounts package.jsons gain prepublishOnly = npm run check (poststruct#20 / monoforge#13, both batteries green before the commit); the tri-pins lane retires after its green run 40796286437 (locks + tri-pin rider landed at dbc97dc).
 
 **Tri-pin block (2026-10-28)**: the three family tools ride BOTH mounts'

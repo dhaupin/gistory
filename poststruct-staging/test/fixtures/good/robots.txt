@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://poststruct.dev/sitemap.xml

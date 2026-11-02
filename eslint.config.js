@@ -31,12 +31,6 @@ export default tseslint.config(
       // Scratch dirs (ferry transports, staging archives, lock staging) never
       // reach main - gitignore already keeps them out of the tree CI sees.
       '.cut-tmp/**',
-      // The struct-family staging clones live in this repo during the
-      // ecosystem build-out, but they are INDEPENDENT repos with their own
-      // conventions (plain CJS/ESM node, their own lint lanes). Gistory's
-      // ESLint passes are TS/React-shaped and would drown their whole trees
-      // in no-undef/no-require noise they neither need nor read.
-      'poststruct-staging/**', 'monoforge-staging/**',
       // Crashtest build output (generated before every run by
       // scripts/build-crashtest.mjs) — lint the entry + fixture, not the bundle.
       'crashtest/handlers.mjs',

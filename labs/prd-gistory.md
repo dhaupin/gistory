@@ -1,16 +1,16 @@
 # PRD: gistory (the prompt keeper, and the prototype factory)
 
-**Status:** v0.2 - current (2026-10-29) · Owner: dhaupin
-**Role:** product + prototype factory. The product is the privacy-first prompt keeper app. The factory role here is a **prototype**: gistory proved the staging-tree plus ferry pattern, and **railyard is the real factory taking over** (govstruct case study 16.6).
+**Status:** v0.3 - current (2026-11-02) · Owner: dhaupin
+**Role:** the privacy-first prompt keeper app. gistory's **prototype-factory role retired 2026-11-02**: it proved the staging-tree plus ferry pattern, all three mounts graduated to their own repos, and **railyard** carries the factory from here (govstruct case study 16.6).
 **Package:** the app is `gistory.creadev.org` (private, not an npm package); the reusable engine ships as **`gistory-sync` @ 0.9.0** (node >=18) - repo 0.9.0, npm not yet published.
 **Core law:** the relay stays blind. No plaintext ever leaves a device, and no accounts exist.
 **Family:** the five arms are **govstruct** (govern), **packstruct** (spec),
 **crashtest** (attack), **eyestruct** (watch), **poststruct** (audit). The forges
 are **monoforge** (the repo stamp) and **coreforge** (the site rig); **railyard**
-is the composer. gistory is both a **product** governed by the suite and the
-**prototype factory** (govstruct PRD 3.1): it holds the staging trees and ferries
+is the composer. gistory is a **product** governed by the suite; it was also the
+**prototype factory** (govstruct PRD 3.1) - it held the staging trees and ferried
 proven blocks to standalone repos, proving the pattern that **railyard** (the
-real factory) now takes over. The interop law: no host imports a sibling to
+real factory) took over 2026-11-02. The interop law: no host imports a sibling to
 check a sibling; it invokes the sibling's public CLI.
 
 ---
@@ -27,21 +27,18 @@ device.
 
 ## 2. The two faces of this repo
 
-gistory is unusual in the family: one repo carries both a product and the
-factory.
+gistory carries a product and its reusable engine.
 
 | face | what it is | where |
 |---|---|---|
 | **product** | the prompt keeper app: React 19 + Vite 6 client, Cloudflare Pages Functions relay, D1 store | `src/`, `functions/`, `schema.sql`, `migrations/` |
 | **engine** | the reusable sync library shipped to npm as `gistory-sync` | `src/sync/*` built by `build:lib` |
-| **prototype factory** | the staging trees plus the ferry that lands proven blocks into standalone repos - the pattern railyard takes over | `mounts/`, `labs/tar-move-plan.md`, the ferry scripts |
 
-The factory role is govstruct's to define (PRD 3.1, case study 16.6): gistory
-holds `poststruct-staging/` and `monoforge-staging/`, and the ferry scripts land
-their payloads in the standalone repos. This is the **prototype**: gistory built
-and proved the factory pattern, and **railyard is the real factory taking over**
-(govstruct 16.6) - the mount registry and the composer role move to railyard,
-and gistory's factory entry retires when the move lands.
+The **prototype-factory** face retired 2026-11-02 (govstruct PRD 3.1, case study
+16.6): gistory built and proved the staging-tree + ferry pattern, all three
+mounts (eyestruct, poststruct, monoforge) graduated to their own repos, and
+**railyard** carries the factory from here. The mount registry, the ferry
+scripts, and the staging trees are gone from this repo.
 
 ## 3. Who it is for
 
@@ -185,9 +182,6 @@ Relay (Cloudflare Pages Functions -> D1)
   functions/sync/{handshake,push,pull,status,subscribe}.ts   the five routes
   functions/_shared/{sync.ts,guards.ts,push-fanout.ts}       shared plumbing
   schema.sql (fresh build) + migrations/ (append-only history)
-Factory
-  mounts/state.json      the mount registry (tier, tree, repo, boot contents)
-  mounts/{public,private,local}/   per-tier mount dirs with boot/ carry space
 Ops
   scripts/db-migrate.mjs, db-maintain.mjs, ui-audit.mjs, vapid-keygen.mjs
   .github/workflows/{ci,migrate,maintenance}.yml
@@ -197,31 +191,16 @@ Nothing else runs the product. Pages Functions are same-origin beside `dist/`
 (`VITE_SYNC_URL` exists only for running the bare Vite dev server against a
 deployed relay).
 
-## 10. The factory (mounts plus the ferry)
+## 10. The factory role (retired 2026-11-02)
 
-gistory is the family's **prototype factory**: it proved the pattern, and
-railyard is the real factory taking over (govstruct 16.6). Its `mounts/`
-registry mirrors
-vant's `/models` rigging:
-
-```
-mounts/
-  public/<mount>/     # payload ships upstream (dhaupin/<mount>)
-  private/<mount>/    # shared inside the ecosystem (install-visible, not public)
-  local/<mount>/      # never pushes anywhere
-  state.json          # the registry: tier, tree, repo, boot contents per mount
-```
-
-Each mount's `boot/` is carry space, not content: `boot/tars/` (reproducible
-snapshot tars plus lock archives), `boot/handoff/` (transport payloads), and
-`boot/stone/` (the mount's own stones). The staging trees stay where they are;
-`mounts/` holds payloads only. Move day untars `boot/tars/<mount>-staging-*.tar.gz`
-into the standalone repos per `labs/tar-move-plan.md`.
-
-The ferry is path-blind: the make and verify scripts resolve each mount's boot
-through `boot_tars()`, and the snapshot-filename chain is byte-deterministic.
-The tier spec is filed to vant and packstruct, so the models/mounts/packs rigs
-all speak public/private/local the same way.
+gistory was the family's **prototype factory**: it proved the staging-tree plus
+ferry pattern (the `mounts/` registry mirroring vant's `/models` rigging, the
+deterministic snapshot tars, the sha-gated ferries). That role retired
+2026-11-02 - all three mounts graduated to their own repos and each owns its
+tree and CI now, and **railyard** carries the factory (govstruct 16.6). The
+registry, the ferry scripts (`make-staging-tars.sh`, `verify-staging-tars.sh`),
+and the staging trees are gone from this repo; `labs/tar-move-plan.md` stays as
+the historical move-day record.
 
 ## 11. Verification (what every change trips through)
 
