@@ -153,6 +153,12 @@ test('.npmrc content pattern: ${NPM_TOKEN} placeholder, not secret', () => {
   }
   assert.ok(captured && captured.includes(`\${${TOKEN_ENV}}`), 'the .npmrc carries the env placeholder')
   assert.ok(captured && !captured.includes(GOOD_ENV[TOKEN_ENV]), 'the raw token never hits the staged file')
+  // One line, and never the deprecated `always-auth`: npm >=9 warns on it
+  // ("Unknown project config"), and that warning reaches the child processes
+  // the gate spawns - on some npm builds it corrupts `npm pack --dry-run
+  // --json` output and fails an otherwise clean gate.
+  assert.ok(!/always-auth/i.test(captured), 'the staged .npmrc must not carry the deprecated always-auth line')
+  assert.equal(captured.trim().split('\n').length, 1, 'the staged .npmrc is exactly one line')
   fs.rmSync(base, { recursive: true, force: true })
 })
 
