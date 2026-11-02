@@ -12,6 +12,16 @@ versions converge in one chain.
 
 ### Changed
 
+- The publish lane adopts the family release ladder (eyestruct@4e2b552): one
+  `publish.yml` with three jobs — `publish` (0.x refused, tag==version gate,
+  `npm publish --provenance`) → `release` (the GH release body extracted from
+  the changelog via `scripts/release-notes.cjs`, refused if empty) → `verify`
+  (`scripts/verify-release.cjs` re-asserts the served tarball's sha512 against
+  the registry integrity, provenance presence, the full pack ladder, and the
+  release object's target commit). The separate `release.yml` folds into the
+  ladder's `release` job. The pack ladder also runs offline every push
+  (`test/release-verify.test.cjs`, wired into `prepublishOnly` as
+  `release:verify`).
 - gistory is no longer the family's factory (forge-role decouple). The
   staging mounts (`monoforge-staging/`, `poststruct-staging/`) and the family
   registry (`mounts/`, incl. the snapshot tars) are removed — poststruct and

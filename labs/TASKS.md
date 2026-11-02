@@ -12,6 +12,17 @@ Conventions
 
 ## Now
 
+**Publish-lane parity (2026-11-02)**: gistory's publish lane joins the family
+release ladder (eyestruct@4e2b552). One `publish.yml` with three jobs -
+`publish` (0.x refused, tag==version gate, `npm publish --provenance`) ->
+`release` (the GH release body extracted from the changelog via
+`scripts/release-notes.cjs`, refused if empty) -> `verify`
+(`scripts/verify-release.cjs`: served-tarball sha512 == registry integrity,
+provenance present, the full pack ladder, the release object's target commit).
+The separate `release.yml` folds into the ladder's `release` job. The pack
+ladder runs offline every push (`test/release-verify.test.cjs`, wired into
+`prepublishOnly` as `release:verify`).
+
 **Forge-role decouple (2026-11-02)**: gistory stops being the factory. The
 staging mounts (`monoforge-staging/` 119 files, `poststruct-staging/` 110
 files) and the family registry (`mounts/`, incl. the 12 snapshot tars under
