@@ -50,9 +50,10 @@ it.
 
 ## The mounts' CI battery (family shape)
 
-The staging mounts riding this repo pass through gistory ferries for their
-CI receipts; the mounts spec (gistory#14) keeps four independent legs a
-mount's own `test.yml` composes when its rig lands:
+The staging mounts no longer ride this repo — poststruct, monoforge, and
+eyestruct each graduated to their own repo and CI (2026-10-27/11-02). The
+mounts spec (gistory#14) survives as the shape a mount's own `test.yml`
+composes:
 
 1. `npm ci` (hermetic, exact-pinned devDeps)
 2. `npm test` (node:test spine)

@@ -10,6 +10,22 @@ versions converge in one chain.
 
 ## [Unreleased]
 
+### Changed
+
+- gistory is no longer the family's factory (forge-role decouple). The
+  staging mounts (`monoforge-staging/`, `poststruct-staging/`) and the family
+  registry (`mounts/`, incl. the snapshot tars) are removed — poststruct and
+  monoforge graduated to their own repos and are the source of truth, each
+  with its own CI. The forge-role workflows retire (`monoforge-ferry`,
+  `staging-tars`, `mount-stone-mirror`, `mono-web-emit`, `mono-rig-emit`,
+  `doctor-fix-emit`, `identity-emit`) along with the dead tar scripts and the
+  family-stone cutter. `ci.yml` drops the `staging-hosts` job and the
+  `poststruct-staging` install step; `framework-gate.mjs` drops the poststruct
+  TEXT/TEXT-REF legs; `stone-ferry.yml` now re-cuts gistory's own stone only.
+  Every gistory self-CI lane (the verify job, docs, crashtest, migrate, the
+  eyestruct EYES-ART/EYES-MEM legs, `birth-gate.mjs`) stays. The factory role
+  moves to railyard; the other forge machinery is left in place for now.
+
 ### Fixed
 
 - The docs lane goes green again: `docs.yml`'s `build` job had failed on

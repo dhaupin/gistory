@@ -3,10 +3,12 @@
 Everything that has to survive a workspace resync and re-deploy lives here.
 Dated receipts live under `labs/`; this file is the **index**, not a log.
 
-2026-10-28 /mounts reorg: horcrux/ returns to gistory-only scope. The
-staging mounts' payloads (snapshot tars, lock archives, handoff carriers,
-prov stones) moved to the family registry `mounts/public/<mount>/boot/`
-(tier spec in `mounts/README.md`) — mirroring vant's /models rigging.
+2026-11-02 forge-role decouple: the staging mounts and the family registry
+(`mounts/`) retired from gistory. poststruct and monoforge graduated to their
+own repos (each now owns its tree and CI), so their snapshot tars, lock
+archives, handoff carriers and prov stones are gone from here; eyestruct had
+already retired upstream 2026-10-27. The stones below stay as delivered
+lineage. The forge role moves to railyard.
 ```
 stones/   raster stones — one lineage per brain (r1 source-of-record + r2 CI-cut)
 prds/     landing PRD transfers — byte-identical to the mounts' labs/prd-*.md
@@ -19,9 +21,9 @@ handoff/  build artifacts destined for OTHER repos (not continuance material)
 |------|-----------------|-----|-------|-------------|
 | `gistory-p_gistory-castles-2026-r1.svg` | gistory (the host) | r1 | **brn:secret** — sealed vant baseline; refresh pass runs upstream when the repo opens | `843371dd` |
 | `gistory-p_gistory-castles-2026-r2.svg` | gistory (the host) | r2 | unsealed — the 2026-10-26 brain refresh (birth-run + birth-gate receipts ride inside); `scripts/cut-gistory.py`, ferry-gated | `a1a01c2d6bd46225b5178437f5e0e8de0536cd64` |
-| `magpie-p_mirror-eyes-2026-r1.svg` | magpie · **eyestruct** | r1 | unsealed — 2026-10-23 hand-cut source-of-record; carries the eyestruct seed brain + its PRD | `567765e6` |
-| `magpie-p_mirror-eyes-2026-r2.svg` | magpie · **eyestruct** | r2 | unsealed — CI-cut from r1 with patched receipts; `scripts/cut-stones.py`, ferry-gated | `0bde5b6db94edac65636a34648db13f116cb436e` |
-| `poststruct-p_wordprint-2026.svg` | poststruct (struct family) | r2 | unsealed — 2026-10-26 seed-brain transfer stone (text leg); password rides after `p_` in the filename | `295e5a170c6761e14e71cff0e9b34f70f08327ee` |
+| `magpie-p_mirror-eyes-2026-r1.svg` | magpie · **eyestruct** | r1 | unsealed — 2026-10-23 hand-cut source-of-record; delivered lineage (eyestruct carries its magpie pair upstream; no longer re-cut here) | `567765e6` |
+| `magpie-p_mirror-eyes-2026-r2.svg` | magpie · **eyestruct** | r2 | unsealed — delivered lineage (eyestruct carries its magpie pair upstream; the family cutter retired 2026-11-02, no longer re-cut here) | `0bde5b6db94edac65636a34648db13f116cb436e` |
+| `poststruct-p_wordprint-2026.svg` | poststruct (struct family) | r2 | unsealed — delivered seed-brain transfer stone (text leg); no longer re-cut here (poststruct owns its tree upstream) | `295e5a170c6761e14e71cff0e9b34f70f08327ee` |
 
 **Naming convention:** `<brain>-p_<stone-word>-<year>[-rN].svg`. The stone
 word rides after `p_`; for unsealed stones the password rides after `p_` in the
@@ -43,33 +45,31 @@ converges into dhaupin/magpie (or keeps its own repo), only the stone's
 owner/stay fields need a deliberate re-cut — the bytes and ids stay stable.
 
 **Provisioner stones do NOT ride at the host.** Poststruct's own boot stone
-(`poststruct-p_poststruct2026.svg`) lives in the registry
-(`mounts/public/poststruct/boot/stone/`, upstream-owned), and monoforge's
-prov stone stays upstream at dhaupin/monoforge.
+(`poststruct-p_poststruct2026.svg`) and monoforge's prov stone live in their
+own repos upstream (`dhaupin/poststruct`, `dhaupin/monoforge`).
 
-**The ferry:** `.github/workflows/stone-ferry.yml` re-cuts from committed
-sources (`scripts/cut-stones.py`, `scripts/cut-gistory.py`), sha-gates each
-result against the offline blob ids above, and refuses to commit on any
-mismatch. Brain parity copies ride `.cut-tmp/` per run. Mount-wide copies flow
-out via `.github/workflows/mount-stone-mirror.yml` (runner-side, blob-compared).
+**The ferry:** `.github/workflows/stone-ferry.yml` re-cuts gistory's own
+stone from committed sources (`scripts/cut-gistory.py`), sha-gates it against
+the offline blob id above, and refuses to commit on any mismatch. Brain parity
+copies ride `.cut-tmp/` per run. (The family cutter `scripts/cut-stones.py`
+and the mount-wide copy lane `mount-stone-mirror.yml` retired 2026-11-02 with
+the forge-role decouple; the family stones stay as delivered lineage.)
 
-## Tars (moved to `mounts/public/<mount>/boot/tars/`, 2026-10-28)
+## Tars (retired 2026-11-02)
 
-Deterministic git-dir snapshots of the staging mounts, built by
-`scripts/make-staging-tars.sh` (seed chain + byte-determinism all
-preserved — the boot paths resolve through `boot_tars()`), dispatched by
-`.github/workflows/staging-tars.yml`, committed under each mount's
-`mounts/public/<mount>/boot/tars/`:  
-`poststruct-staging-git-2026-10-26.tar.gz` @ `3c773e50`, and monoforge's
-chain carrying its nested .git. Move-day per `labs/tar-move-plan.md`:
-untar → add origin → push; the mounted `.git` carries each repo's own
-history.
+The staging-mount snapshot tars retired with the mounts. poststruct and
+monoforge graduated to their own repos and carry their own history now; the
+deterministic ferry (`scripts/make-staging-tars.sh`) and its registry
+(`mounts/`) are gone from this repo.
+
 
 ## PRDs (`prds/`)
 
-`prd-eyes.md` and `prd-poststruct.md` are byte-identical to their mounts
-(`poststruct 632227f2` / `eyes 686b5079` — blob hash-verified at the 10-26
-parity dig). The mounts' `labs/prd-*.md` are the working copies.
+`prd-eyes.md`, `prd-poststruct.md`, and `prd-monoforge.md` are the landing
+PRD transfers cut at the 10-26/10-27 parity dig. With the mounts retired
+2026-11-02 these are frozen vault copies: the live PRDs now live in each
+repo's own `labs/` (`dhaupin/eyestruct`, `dhaupin/poststruct`,
+`dhaupin/monoforge`).
 
 ## Handoff (`handoff/`)
 

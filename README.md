@@ -44,13 +44,14 @@ service worker run, shipped as one ESM bundle with TypeScript declarations:
 + D1). They live in [the repo](https://github.com/dhaupin/gistory) and deploy
 from it — the package needs nothing they carry.
 
-### The staging mounts in this repo
+### The staging mounts have moved home
 
-`eyestruct`, `poststruct`, and `monoforge` are being ferried into their own
-standalone repos from **staging trees that live here** (`*-staging/`), because
-this repo's CI is the battery each project must pass before move day. Until a
-target repo goes online, its `*-staging` tree is that family's source of truth;
-this file describes the gistory-sync package, not those trees.
+`eyestruct`, `poststruct`, and `monoforge` each graduated to their own
+standalone repos (`dhaupin/eyestruct`, `dhaupin/poststruct`,
+`dhaupin/monoforge`), and each now owns its tree and CI. gistory no longer
+hosts staging trees or ferries the family: this repo's CI runs against
+gistory itself. The forge role — birthing and staging family repos — moves
+to railyard; the family-wide factory is no longer planned here.
 
 ## Install
 
