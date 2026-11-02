@@ -137,3 +137,20 @@ test('the registry visibility check waits out propagation lag (the 1.2.0 cut bug
   assert.equal(r.status, 0, `registryHasVersion misjudged visibility: ${r.stderr}`);
   assert.ok(r.stdout.includes('ok'), 'registryHasVersion never ran');
 });
+
+test('release-notes reads Keep-a-Changelog sections and refuses an absent version', () => {
+  // The family changelog is Keep-a-Changelog: a `## [Unreleased]` block over
+  // `## [version] - date` sections. The extractor that feeds the GH release
+  // body must read that shape and refuse a version with no section by name.
+  const notes = path.join(root, 'scripts', 'release-notes.cjs')
+  const changelog = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
+  assert.ok(/^## \[Unreleased\]$/m.test(changelog), 'CHANGELOG.md must carry a "## [Unreleased]" section')
+  const missing = spawnSync('node', [notes, '9.9.9'], { cwd: root, encoding: 'utf8' })
+  assert.equal(missing.status, 1, 'release-notes must refuse a version with no changelog section')
+  assert.ok(missing.stderr.includes('no "## [9.9.9]" section'), `the refusal names the miss: ${missing.stderr}`)
+  if (new RegExp(`^## \\[${pkg.version.replace(/\./g, '\\.')}\\]`, 'm').test(changelog)) {
+    const r = spawnSync('node', [notes, pkg.version], { cwd: root, encoding: 'utf8' })
+    assert.equal(r.status, 0, `release-notes refused the current version: ${r.stderr}`)
+    assert.ok(r.stdout.trim().length > 0, 'release-notes produced an empty section')
+  }
+});
