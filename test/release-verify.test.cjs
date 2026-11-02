@@ -145,6 +145,10 @@ test('release-notes reads Keep-a-Changelog sections and refuses an absent versio
   const notes = path.join(root, 'scripts', 'release-notes.cjs')
   const changelog = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
   assert.ok(/^## \[Unreleased\]$/m.test(changelog), 'CHANGELOG.md must carry a "## [Unreleased]" section')
+  // An entry above the first "## " heading is unshipped (it lives outside every
+  // section): the intro may hold prose, never a "### " subsection.
+  const beforeUnreleased = changelog.slice(0, changelog.search(/^## \[Unreleased\]$/m))
+  assert.ok(!/^### /m.test(beforeUnreleased), 'no changelog subsection may sit above the "## [Unreleased]" heading')
   const missing = spawnSync('node', [notes, '9.9.9'], { cwd: root, encoding: 'utf8' })
   assert.equal(missing.status, 1, 'release-notes must refuse a version with no changelog section')
   assert.ok(missing.stderr.includes('no "## [9.9.9]" section'), `the refusal names the miss: ${missing.stderr}`)
