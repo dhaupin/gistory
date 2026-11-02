@@ -123,7 +123,16 @@ function releaseTargetMatches(target, commit) {
 }
 
 function sh(cmd, args, opts) {
-  return spawnSync(cmd, args, { encoding: 'utf8', ...opts })
+  // A real `npm publish` never carries npm_config_dry_run, but `npm publish
+  // --dry-run` (the phone lane's rehearsal) exports npm_config_dry_run=true
+  // into the lifecycle env; a nested `npm pack` then writes no tarball and a
+  // nested `npm install` installs nothing, so the ladder fails for a reason
+  // that has nothing to do with the tree. Strip it - the one intentional
+  // dry-run here (the `npm pack --dry-run --json` expected-set probe) passes
+  // the flag on argv, not through the env.
+  const env = { ...process.env }
+  delete env.npm_config_dry_run
+  return spawnSync(cmd, args, { encoding: 'utf8', env, ...opts })
 }
 
 function readCheckout() {
@@ -175,11 +184,15 @@ function packLadder(tgz, expectedVersion, cfg) {
   if (bad.length) fail(`FORBIDDEN contents in the tarball: ${bad.join('; ')}`)
   say(`[verify-release] PASS forbidden scan (${names.length} entries, 0 forbidden)`)
 
-  // 3. expected set from the same tree, same algorithm.
-  const packRun = sh('npm', ['pack', '--dry-run', '--json'], { cwd: REPO_ROOT })
+  // 3. expected set from the same tree, same algorithm. --loglevel=error keeps
+  // npm's own warnings off this pipe, and the parse starts at the first '['
+  // so a stray line npm emits before the JSON array (a deprecation warning, a
+  // config notice) can never turn a clean tree into a false capability
+  // failure - the exact failure a deprecated .npmrc line caused on the phone.
+  const packRun = sh('npm', ['pack', '--dry-run', '--json', '--loglevel=error'], { cwd: REPO_ROOT })
   let expected = null
   try {
-    const packJson = JSON.parse(packRun.stdout)
+    const packJson = JSON.parse(packRun.stdout.slice(packRun.stdout.indexOf('[')))
     expected = (Array.isArray(packJson) ? packJson[0] : packJson).files.map((f) => f.path)
   } catch {
     cap(`npm pack --dry-run --json failed: ${packRun.stderr.trim()}`)
