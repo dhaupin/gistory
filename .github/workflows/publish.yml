@@ -148,7 +148,14 @@ jobs:
           # The EXACT tarball the registry serves for this version - the
           # artifact npm received, not a re-pack of the checkout, so the
           # release asset and the npm artifact can never drift.
-          npm pack "gistory-sync@$BLOCK_VERSION" --pack-destination "$RUNNER_TEMP" > /dev/null
+          # The registry read replica can lag the publish by seconds; poll
+          # (bounded) instead of racing it (the crashtest 1.2.0 cut read
+          # ETARGET: no matching version right after publish).
+          for i in $(seq 1 24); do
+            if npm pack "gistory-sync@$BLOCK_VERSION" --pack-destination "$RUNNER_TEMP" > /dev/null 2>&1; then break; fi
+            if [ "$i" = "24" ]; then echo "the registry never served gistory-sync@$BLOCK_VERSION (24 attempts)"; exit 1; fi
+            echo "waiting for gistory-sync@$BLOCK_VERSION on the registry (attempt $i/24)"; sleep 5
+          done
           gh release upload "$BLOCK_TAG" "$RUNNER_TEMP/gistory-sync-$BLOCK_VERSION.tgz" --clobber
 
   # No `needs` on release here by design under the if: the verify leg runs
