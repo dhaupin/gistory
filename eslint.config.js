@@ -152,5 +152,12 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.node },
     },
+    rules: {
+      // CommonJS files use require() by definition; the TS preset's
+      // no-require-imports rule is a TS/ESM concern and false-positives on
+      // the .cjs node tools (release-notes.cjs, verify-release.cjs, the
+      // ship/unwrap helpers) that live here on purpose.
+      '@typescript-eslint/no-require-imports': 'off',
+    },
   },
 )

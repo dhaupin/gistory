@@ -1,100 +1,188 @@
-# publish.yml — npm Trusted Publishing (OIDC), tag-driven only.
+name: publish
+# The repo-cut release ladder (eyestruct's proven shape, adopted for
+# gistory - eyestruct@4e2b552 .github/workflows/publish.yml): a tag drives
+# the whole ladder end-to-end, and nothing is earned by a green publish step
+# alone. The gap eyestruct's 1.0.0 cut proved: publish CAN go green while
+# the registry result is wrong, because nothing asserted the tarball between
+# proof-of-publish and proof-of-work.
 #
-# Mirrors the runbook proven on dhaupin/prestruct (its publish.yml says it
-# mirrors the crashtest one in turn): releases publish on version tags ONLY,
-# never from main. No NPM_TOKEN secret is stored anywhere — the npm
-# registry verifies this run's OIDC identity against the Trusted Publisher
-# entry configured on npmjs.com, and the run generates its own provenance
-# attestation automatically.
+#   1. publish  - npm trusted publishing (OIDC): NO NPM_TOKEN secret exists
+#                 (the family law). The job's id-token proves the tarball
+#                 came from THIS tree; npm >= 11.5.1 floor installed
+#                 in-lane. The battery rides automatically: npm publish
+#                 runs prepublishOnly (typecheck + lint + build:lib +
+#                 release:verify) - a red battery cannot mint a tarball.
+#                 Gate: 0.x refused (the family release ladder: 0.x is the
+#                 manual ship lane), and on a tag push the tag must equal
+#                 the packaged version.
+#   2. release  - the GH release object is cut from the pushed tag. Its
+#                 notes are EXTRACTED from the changelog's own [version]
+#                 section (scripts/release-notes.cjs) - a release body that
+#                 disagrees with the changelog is drift, and an empty
+#                 extraction refuses the cut. Idempotent.
+#   3. verify   - the post-publish truth (scripts/verify-release.cjs):
+#                 --npm registry latest == this tree's version, the served
+#                 tarball's sha512 == the registry integrity metadata,
+#                 provenance present, then the full pack ladder on the
+#                 served tarball; --gh the release object exists, targets
+#                 the tag's commit, and its source tarball diffs clean
+#                 against `git archive` of that commit.
+#
+# This lane folds the former release.yml in: gistory's GitHub release used to
+# be minted by a separate workflow with a hand-written body. The ladder's
+# release job replaces it, so the release body and the CHANGELOG can never
+# disagree.
 #
 # DORMANT until the first manual publish: OIDC cannot create a brand-new
-# package (npm/cli#8544), so claim the name once from a dev machine:
+# package (npm/cli#8544), so claim gistory-sync once from a dev machine
+# (DEPLOY.md, "0.9.x is manual"):
 #
 #   1. npm run typecheck && npm run lint && npm run build:lib   # the gate
-#   2. npm publish            # one-time manual bootstrap — claims gistory-sync
+#   2. npm publish            # one-time manual bootstrap - claims gistory-sync
 #   3. npmjs.com -> gistory-sync -> Settings -> Trusted Publisher:
 #      repo dhaupin/gistory, workflow publish.yml
-#   4. from then on: npm version patch|minor|major && git push --follow-tags
-#      — this workflow fires on the tag, gates, and publishes
+#   4. from then on: npm version minor|major && git push --follow-tags
 #
-# Rules (same as prestruct's):
-#   - Only publish from version tags, never from main directly.
-#   - The `files` field keeps the tarball to dist/lib/ + LICENSE + README.
-
-name: npm publish
-
+# verify-only dispatch mode: no publish, no release minting - the verify job
+# re-runs the trust ladder against what is ALREADY published and released.
 on:
   push:
-    tags: ["v*"]
+    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'publish = registry cut | verify-only = re-run the trust ladder against what is already served'
+        required: false
+        default: 'publish'
+        type: choice
+        options: ['publish', 'verify-only']
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 # Nothing at publish time executes a browser: no UI suite, no headless
-# Chromium (skipping its install-time fetch chain matters — npm ci would
+# Chromium (skipping its install-time fetch chain matters - npm ci would
 # otherwise pull it for the puppeteer devDependency).
 env:
   PUPPETEER_SKIP_DOWNLOAD: '1'
 
 jobs:
   publish:
+    if: github.event_name == 'push' || inputs.mode != 'verify-only'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gate.outputs.version }}
+      tag: ${{ steps.gate.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 22 }
+      - name: npm floor for trusted publishing (11.5.1+)
+        run: npm install -g npm@^11
+      - id: gate
+        name: the gate - 0.x refused, tag == packaged version
+        # Every github context value reaches this script through env, never
+        # inline interpolation - an expression-injected tag name is the
+        # classic Actions injection class, and ref_name is
+        # attacker-adjacent input however much we trust the collaborators.
+        env:
+          TAG_REF: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -e
+          V="$(node -p "require('./package.json').version")"
+          case "$V" in
+            0.*) echo "publish gate: refusing $V - the OIDC lane serves 1.0.0+ only (the family release ladder: 0.x is the manual ship lane)"; exit 1 ;;
+          esac
+          REF="$TAG_REF"
+          EVENT="$EVENT_NAME"
+          if [ "$EVENT" = "push" ]; then
+            if [ "$REF" != "v$V" ]; then
+              echo "publish gate: refusing - tag $REF does not equal the packaged version v$V (a tag that lies about its version never cuts)"; exit 1
+            fi
+          fi
+          TAG="v$V"
+          echo "publish gate: $TAG passes the 0.x refusal and the tag==version gate"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - run: npm ci --no-fund --no-audit
+      - run: npm publish --provenance
+
+  release:
+    needs: publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      # Trusted publishing needs node >= 22.14 / npm >= 11.5.1 (per npm docs
-      # docs.npmjs.com/trusted-publishers).
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
-
-      - name: Install
-        run: npm ci --no-audit --no-fund
-
-      # The same gate prepublishOnly would have run — done here explicitly so
-      # the CI log shows which stage refused, not just "npm publish failed".
-      - name: Gate (typecheck + lint + lib build)
-        run: npm run typecheck && npm run lint && npm run build:lib
-
-      # Idempotent: if the registry already has this exact version — e.g. the
-      # release was re-fired after fixing a later workflow — skip the publish
-      # instead of failing red on "cannot publish over the previously
-      # published version". Version drift between package.json and the
-      # registry still publishes normally.
-      - name: Publish (skip if the registry already has this version)
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 22 }
+      # BLOCK_VERSION/TAG arrive through env from the publish job's outputs
+      # - the same no-inline-interpolation rule the gate obeys. notes.md
+      # lives in RUNNER_TEMP: never a silent overwrite of a repo file that
+      # happens to carry the name.
+      - name: extract the release notes from the changelog (refuses empty)
+        env:
+          BLOCK_VERSION: ${{ needs.publish.outputs.version }}
+        run: node scripts/release-notes.cjs "$BLOCK_VERSION" > "$RUNNER_TEMP/notes.md"
+      - name: cut the GH release from the tag (idempotent)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BLOCK_VERSION: ${{ needs.publish.outputs.version }}
+          BLOCK_TAG: ${{ needs.publish.outputs.tag }}
         run: |
-          LOCAL=$(node -p "require('./package.json').version")
-          REMOTE=$(npm view gistory-sync@$LOCAL version 2>/dev/null || true)
-          if [ "$REMOTE" = "$LOCAL" ]; then
-            echo "gistory-sync@$LOCAL already on the registry -- skipping publish"
+          TAG="$BLOCK_TAG"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "release $TAG already exists - not re-minting; the verify job judges its truth"
           else
-            npm publish
+            gh release create "$TAG" --title "gistory-sync $BLOCK_VERSION" --notes-file "$RUNNER_TEMP/notes.md"
           fi
-
-      # Proof the shipped tarball works AS INSTALLED, not as checked out:
-      # pull the just-published version from the registry into a scratch
-      # project and load the real entry point. Skips cleanly when this run
-      # skipped the publish (version already on the registry before the fix,
-      # or a re-run).
-      - name: Smoke the registry artifact
+      - name: attach the served tarball to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BLOCK_VERSION: ${{ needs.publish.outputs.version }}
+          BLOCK_TAG: ${{ needs.publish.outputs.tag }}
         run: |
-          LOCAL=$(node -p "require('./package.json').version")
-          if ! npm view gistory-sync@$LOCAL version >/dev/null 2>&1; then
-            echo "nothing published this run -- nothing to smoke"
-            exit 0
-          fi
-          rm -rf /tmp/gs-smoke && mkdir -p /tmp/gs-smoke
-          cd /tmp/gs-smoke
-          npm init -y >/dev/null
-          npm install gistory-sync@$LOCAL --no-audit --no-fund
-          GSYNC_VERSION=$LOCAL node --input-type=module -e "
-            const m = await import('gistory-sync')
-            const need = ['SyncAgent', 'mergePayload', 'mergeRegistry', 'SyncQos', 'pruneView', 'emptyVariables']
-            const missing = need.filter((n) => !(n in m))
-            if (missing.length) { console.error('missing exports:', missing); process.exit(1) }
-            console.log('registry artifact smoke OK: gistory-sync@' + process.env.GSYNC_VERSION + ' (' + need.length + ' key exports load)')
-          "
+          set -e
+          # The EXACT tarball the registry serves for this version - the
+          # artifact npm received, not a re-pack of the checkout, so the
+          # release asset and the npm artifact can never drift.
+          npm pack "gistory-sync@$BLOCK_VERSION" --pack-destination "$RUNNER_TEMP" > /dev/null
+          gh release upload "$BLOCK_TAG" "$RUNNER_TEMP/gistory-sync-$BLOCK_VERSION.tgz" --clobber
+
+  # No `needs` on release here by design under the if: the verify leg runs
+  # after release on a real cut, but ALSO stands alone in verify-only mode
+  # (publish skipped, release skipped, the ladder judged against what is
+  # already served and released).
+  verify:
+    needs: publish
+    if: >-
+      always() &&
+      (needs.publish.result == 'success' ||
+       (needs.publish.result == 'skipped' && inputs.mode == 'verify-only'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 22 }
+      # dist/lib is BUILT, not committed (gistory .gitignore), so the pack
+      # ladder's expected-set comparison needs the built tree - the same
+      # tree npm publish minted. prepublishOnly builds it at publish time;
+      # the verify leg re-derives it here.
+      - run: npm ci --no-fund --no-audit
+      - run: npm run build:lib
+      - name: the post-publish trust ladder (npm + GH release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -e
+          V="$(node -p "require('./package.json').version")"
+          EXPECTED_EXPORTS="$(node -p "Object.keys(require('./package.json').exports).join(',')")"
+          GS_PROBE="const m=require('gistory-sync');for(const n of ['SyncAgent','mergePayload','mergeRegistry','SyncQos','pruneView','emptyVariables'])if(!(n in m))process.exit(1)"
+          node scripts/verify-release.cjs --npm --version "$V" --exports "$EXPECTED_EXPORTS" --probe "$GS_PROBE"
+          node scripts/verify-release.cjs --gh --tag "v$V" --asset "gistory-sync-$V.tgz"
