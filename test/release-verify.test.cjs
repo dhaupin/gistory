@@ -168,12 +168,14 @@ test('release-notes reads Keep-a-Changelog sections and refuses an absent versio
   }
 });
 
-// The phone's npm prints a deprecation/config warning on stdout before the
-// JSON for `npm pack --dry-run --json` (a deprecated .npmrc line did exactly
-// this). The ladder must survive that: it slices from the first '[' and asks
-// npm for --loglevel=error. This shim reproduces the noisy-npm phone and
-// proves a stray warning can never turn a clean tree into a cap(2) failure.
-test('the pack probe survives a warning line before the JSON (the noisy-npm phone)', () => {
+// Some npm builds (the phone's) answer `npm pack --dry-run --json` with an
+// empty stdout - no JSON at all - and print a config warning besides. The
+// ladder must not read that as a capability failure: it derives the expected
+// set from a REAL `npm pack` (which the served-tarball forbidden scan already
+// proved works on this build) instead of parsing the --json probe. This shim
+// reproduces the phone and proves a broken --json probe cannot fail a clean
+// tree.
+test('the pack ladder survives a phone npm whose --dry-run --json probe is empty', () => {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'release-verify-noisy-'))
   buildLib()
   const tgz = packTree(work)
@@ -183,12 +185,11 @@ test('the pack probe survives a warning line before the JSON (the noisy-npm phon
   const shim = path.join(bin, 'npm')
   fs.writeFileSync(shim, [
     '#!/bin/sh',
-    'if [ "$1" = "pack" ]; then',
-    `  out=$(${realNpm} "$@" 2>/dev/null)`,
-    '  echo "npm warn Unknown project config \\"always-auth\\". This will stop working in the next major version of npm."',
-    '  echo "$out"',
-    '  exit 0',
-    'fi',
+    'case " $* " in',
+    '  *" --dry-run "*)',
+    '    echo "npm warn Unknown project config \\"always-auth\\". This will stop working in the next major version of npm."',
+    '    exit 0 ;;',
+    'esac',
     `exec ${realNpm} "$@"`,
     '',
   ].join('\n'))
@@ -200,8 +201,8 @@ test('the pack probe survives a warning line before the JSON (the noisy-npm phon
     env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
   })
   const out = `${r.stdout}\n${r.stderr}`
-  assert.ok(out.includes('PASS served set == npm pack of this tree'), `the noisy npm broke the pack probe:\n${out}`)
-  assert.ok(!out.includes('npm pack --dry-run --json failed'), 'a stray warning must not be read as a pack failure')
+  assert.ok(out.includes('PASS served set == npm pack of this tree'), `the empty --json probe broke the pack ladder:\n${out}`)
+  assert.ok(!out.includes('npm pack --dry-run --json failed'), 'an empty --json probe must not be read as a pack failure')
   fs.rmSync(work, { recursive: true, force: true })
 });
 

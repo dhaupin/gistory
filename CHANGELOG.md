@@ -12,14 +12,18 @@ versions converge in one chain.
 
 ### Fixed
 
-- **The phone publish lane no longer stages a deprecated `always-auth` `.npmrc`
+- **The expected-set probe no longer parses `npm pack --dry-run --json`.** The
+  phone's npm answers that probe with empty stdout even under `--loglevel=error`,
+  so the ladder's `JSON.parse` failed and read as a capability failure on a clean
+  tree (the `always-auth` warning was a red herring on stderr). The ladder now
+  derives the expected set from a REAL `npm pack` of the checkout, listed by the
+  same `tarList` the served tarball already goes through - the code path the
+  forbidden scan proved works on the phone.
+
+- **The staged publish `.npmrc` no longer writes the deprecated `always-auth`
   line.** npm >=9 warns `Unknown project config "always-auth"` on it, and that
-  warning reaches the child processes the `prepublishOnly` gate spawns - on some
-  npm builds it corrupts `npm pack --dry-run --json` output, turning a clean tree
-  into a false capability failure. The staged file is now exactly one line (the
-  `${NPM_TOKEN}` expansion), and the release ladder's pack probe passes
-  `--loglevel=error` and slices the JSON from the first `[`, so a stray warning
-  can never again read as a pack failure.
+  warning reaches the child processes the `prepublishOnly` gate spawns. The
+  staged file is now exactly one line (the `${NPM_TOKEN}` expansion).
 
 ### Added
 
