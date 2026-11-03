@@ -12,6 +12,20 @@ Conventions
 
 ## Now
 
+**Relay security: device membership gated on the write secret (2026-11-02)**:
+the crashtest campaign's own ledger (56 REFUSED / 6 BOUNDED / 0 EXPLOITED)
+was the map — three of the six accepted risks shared one root cause, that
+device *membership* was keyed only on the public chain id. `handshake` now
+registers a device row (and returns the roster) only when the request presents
+the chain's correct write secret; `/sync/status` reveals the roster only to a
+registered member. A secretless handshake stays a 200 read-only join (no row,
+no roster), so an older token keeps reading. `phantom-device-rows`,
+`member-rename-nuisance`, and `status-nonmember-read` flip BOUNDED → REFUSED
+(ledger now 59 REFUSED / 3 BOUNDED / 0 EXPLOITED, baseline 0 new / 0
+regressed); the three closed bounds are deleted from `crashtest.config.js`,
+not reworded. Both directions pinned in `sync:smoke` §16. Gate:
+`sync:smoke` 425/425, `crashtest:run`, `lint`, `typecheck` all green.
+
 **Publish-lane parity (2026-11-02)**: gistory's publish lane joins the family
 release ladder (eyestruct@4e2b552). One `publish.yml` with three jobs -
 `publish` (0.x refused, tag==version gate, `npm publish --provenance`) ->

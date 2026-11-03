@@ -130,7 +130,9 @@ The client never assigns `seq`. It inserts with `INSERT ... SELECT MAX(seq)+1 ..
 
 **Guard responses.** Every route is wrapped in `withBreaker`. Throttles answer `429` with a `Retry-After` header and a `retryAfterMs` field in the body; an open breaker answers `503` the same way. `SyncError` on the client reads the header and backs off accordingly, so a guard response is a pause rather than an error the user has to act on.
 
-`/sync/status` is throttled on the `pull` budget and requires a valid `deviceId`, because it returns the chain's **device list** — ids and names. Left open it was an enumeration surface: walk chain ids, harvest who is in each chain. The agent therefore sends its own `deviceId` with every status call.
+`/sync/status` is throttled on the `pull` budget and requires a valid `deviceId`, because it returns the chain's **device list** — ids and names. Left open it was an enumeration surface: walk chain ids, harvest who is in each chain. The agent therefore sends its own `deviceId` with every status call. The roster is now shown **only to a member** — a caller whose `deviceId` registered with the chain's write secret (see §4). A non-member's status still answers the head and version, but its `devices` array is empty, so knowing a (public) chain id no longer harvests the names.
+
+**Device membership is the write secret.** The chain id is public by design (it is the PBKDF2 salt and rides the pairing token), so `handshake` registers a device row — and returns the roster — only when the request presents the chain's correct write secret; a secretless (or wrong-secret) handshake still answers `200` with head/version/writeAuth so a read-only device keeps reading, but it neither joins the roster nor sees it. This closes the crashtest `phantom-device-rows`, `member-rename-nuisance`, and `status-nonmember-read` accepted risks (all three now read REFUSED; pinned both ways in `tests/sync-smoke.ts` §16).
 
 ## Interesting Patterns
 
@@ -183,6 +185,8 @@ Pairing tokens are now `GS1-<chainId>.<writeSecret>`. The dot is unambiguous bec
 
 **Pre-write-auth chains are gone entirely.** For about two hours in production a chain could be created without a secret and claimed later via `POST /sync/claim` — first-come-wins, which was a real takeover window (a claim could never read anyone's data, only deny future writes). Claim is retired: `handshake` REQUIRES the secret when the call creates the chain, checked BEFORE the chain row exists, so a refused handshake leaves nothing behind and no chain can ever come into existence unsecured. Push refuses a chain whose stored hash is missing (500 — a storage-integrity violation, never a legacy state), and `/sync/claim` answers 404.
 
+**Membership rides the same secret.** The write secret gates not just writes but *membership*: `handshake` registers a device row and returns the roster only when the presented secret matches the chain's stored hash, and `/sync/status` shows the roster only to a registered member. The chain id is public, so keying the device table on it alone let anyone who knew a chain id inject device rows, rename any device, and read the member list; those three crashtest bounds (`phantom-device-rows`, `member-rename-nuisance`, `status-nonmember-read`) are now refusals. A secretless handshake is still a valid read-only join (200, no row, no roster) so an older token keeps reading.
+
 ### 5. Guards: throttle, breaker, and WAF
 
 Three guards, all in `functions/_shared/guards.ts`, wired into all five data routes. They are a *backstop* — Cloudflare's edge rate limiting still belongs at the edge — but the edge cannot see what the relay can: which chain a caller is hammering, and what a valid write secret looks like.
@@ -194,7 +198,7 @@ Three guards, all in `functions/_shared/guards.ts`, wired into all five data rou
 | `push` | deviceId | 120/min | one runaway client |
 | `push-chain` | chainId | 600/min | a chain being filled with junk blobs |
 | `push-chain-bytes` | chainId | 96MB/day | a full-state ECHO loop — requests that look ordinary on every per-minute counter while filling the database (2026-10-25: 1220 × ~415KB snapshots hit the 500MB ceiling overnight). Charged after write auth, only for admitted writes; per-chain on purpose because the ping-pong shape has TWO devices each spending ~50% |
-| `pull` | deviceId | 240/min | a pull loop starving pushes of D1 time, and `status`, which leaks the device list |
+| `pull` | deviceId | 240/min | a pull loop starving pushes of D1 time, and `status`, which draws the same budget before revealing the member roster |
 | `handshake` | deviceId | 20/min | walking chain ids to enumerate chains |
 | `attach` | deviceId | 120/min | one device PUTting/GETting attachment bytes (a save is ≤6 PUTs; a replication pass is one GET per missing id) |
 | `attach-chain` | chainId | 600/min | a chain's devices filling the shared attachment table |
@@ -396,7 +400,7 @@ Rules worth keeping:
 | `labs/prd-sync.md` | Background Sync (Web Push) product spec — problem, shape, ship state, deviations |
 | `functions/sync/push.ts` | Accept encrypted blobs → D1, assign seq |
 | `functions/sync/pull.ts` | Return filtered blobs ← D1 |
-| `functions/sync/status.ts` | Chain health checkpoint (throttled — it leaks the device list) |
+| `functions/sync/status.ts` | Chain health checkpoint (throttled; roster shown to members only) |
 | `functions/sync/subscribe.ts` | Wake-target CRUD: GET state, POST upsert-by-endpoint, DELETE by endpoint+deviceId |
 | `functions/_shared/push-fanout.ts` | VAPID ES256 signing + RFC 8291 `aes128gcm` wake encryption + `sendFanOut` (budget, pruning, last_seen stamps) |
 | `functions/_shared/sync.ts` | D1 helpers/validation shared by the routes |
@@ -407,7 +411,7 @@ Rules worth keeping:
 | `scripts/db-maintain.mjs` | D1 maintenance: prune rate_limits, blob retention, live-test cleanup, stale devices, stale wake targets (`--subs-days`); `--check` self-verifies the SQL on in-memory SQLite |
 | `tests/sync-smoke.ts` | End-to-end smoke test (bun + in-memory SQLite) |
 | `packs/public/sync-relay-shapes/` | Crashtest pack: 13 chain-relay attacks (takeover, races, oracles, floods, watermark pin, WAF probes); vocabulary injected from `moduleCtx`. Spec-linted by `packstruct@1.0.0` (EXACT pin — `packstruct lint packs --deep`, the family lane) |
-| `crashtest.config.js` | Crashtest run root — native env.d1 FakeD1 plan + the pack's vocabulary, incl. the six accepted-risk bounds (a bound gone false is a CI finding) |
+| `crashtest.config.js` | Crashtest run root — native env.d1 FakeD1 plan + the pack's vocabulary, incl. the accepted-risk bounds (a bound gone false is a CI finding) |
 | `crashtest/` | Handlers bundle entry (`handlers-entry.ts` → `handlers.mjs`, built before every run). The hand-built `node:sqlite` D1 fixture was retired on crashtest v1.1.0 — FakeD1 v0.2/v0.3 covers every statement the relay runs; oracles read the same binding via a first-request capture |
 | `labs/crashledger.json` | Committed crashtest baseline — CI fails on a new EXPLOITED or a regression; adopt new bounds by re-running |
 | `scripts/ui-audit.mjs` | Headless UI audit: every route x 2 themes x 2 viewports |

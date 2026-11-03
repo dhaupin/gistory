@@ -10,6 +10,21 @@ versions converge in one chain.
 
 ## [Unreleased]
 
+### Security
+
+- **Device membership is now gated on the chain write secret.** The chain id is
+  public by design (it is the PBKDF2 salt and rides the pairing token), so
+  keying the device roster on it alone let anyone who knew a chain id inject
+  device rows, rename any member, and read the member list. `handshake` now
+  registers a device row — and returns the roster — only when the request
+  presents the chain's correct write secret, and `/sync/status` reveals the
+  roster only to a registered member. A secretless (or wrong-secret) handshake
+  still answers `200` with head/version/writeAuth, so a read-only device keeps
+  reading; it just neither joins the roster nor sees it. This retires three
+  crashtest accepted risks — `phantom-device-rows`, `member-rename-nuisance`,
+  and `status-nonmember-read` now read REFUSED (ledger: 56 REFUSED / 6 BOUNDED
+  → 59 REFUSED / 3 BOUNDED, 0 EXPLOITED).
+
 ### Fixed
 
 - **The expected-set probe no longer parses `npm pack --dry-run --json`.** The

@@ -6,7 +6,7 @@
 
 ## Findings
 
-### 🛡 REFUSED (56)
+### 🛡 REFUSED (59)
 - auth/identity-spoof-headers: route "admin" not declared on this target - spoof matrix skipped (declare it for coverage)
 - auth/secret-watermark: no fake secrets planted in env - declare CRASHTEST_SECRET to arm this probe
 - auth/privilege-escalation: route "device" not declared on this target - escalation skipped (declare it for coverage)
@@ -52,7 +52,10 @@
 - sync-relay-shapes/takeover-by-own-secret: joining handshake 200 did not replace the stored secret; attacker write 403
 - sync-relay-shapes/create-race-second-writer: loser write 403, winner 200 — the first creator kept the chain
 - sync-relay-shapes/secret-format-variants: no case/format variant (4 tried) was accepted
+- sync-relay-shapes/member-rename-nuisance: rename did not land (handshake 200, row {"id":"shape-renamed-victim","name":"Renamed Target"})
 - sync-relay-shapes/spoofed-device-write: push 403 and the victim's blob count stayed 0
+- sync-relay-shapes/status-nonmember-read: status 200 exposed no device list to a non-member
+- sync-relay-shapes/phantom-device-rows: of 5 join attempts, only 0 rows materialized
 - sync-relay-shapes/waf-body-shapes: 4 hostile body shapes rejected, none authenticated
 - sync-relay-shapes/parser-query-shapes: hostile since/limit clamped (3 probes) and the overlong deviceName stored at 64 chars
 - sync-relay-shapes/guard-header-hygiene: a shaped 429 carries Cache-Control: no-store
@@ -66,16 +69,13 @@
 
 ### ⚡ EXPLOITED (0)
 
-### 🔒 BOUNDED (6)
+### 🔒 BOUNDED (3)
 - sync-relay-shapes/existence-oracle: known chain 200 vs unknown 400 — the difference reads as an oracle - owner: gistory relay (dhaupin), bound: handshake status codes distinguish existing vs unknown chain ids; chain ids are uuid-strength (~122 bits) and the per-IP flood bucket caps probes at 1200/min
-- sync-relay-shapes/member-rename-nuisance: "Renamed Target" is now "PWNED-DEVICE"; names are display-level, pushes and data were never touched - owner: gistory relay (dhaupin), bound: a member holding any secret can rewrite another device display name via handshake; names are metadata only — pushes, blobs, and data are never touched
-- sync-relay-shapes/status-nonmember-read: a valid-shape (non-member) deviceId read the chain's device names - owner: gistory relay (dhaupin), bound: /sync/status returns member names to any valid-shaped deviceId; names are the only readable content, blobs are ciphertext, and status draws from the same per-device pull budget that rate-limits it
 - sync-relay-shapes/chain-rows-farm: 25 permanent chain rows from one prober; storage growth is bounded only by the relay's edge rate policy - owner: gistory relay (dhaupin), bound: fresh chain ids create permanent rows (~1200/min per IP behind the edge flood bucket, per-device handshake bucket 20/min); real chains are never deleted, so the cap is edge rate policy, not row hygiene
-- sync-relay-shapes/phantom-device-rows: 5 phantom device rows joined a chain they hold no secret for; the device list is a metadata surface - owner: gistory relay (dhaupin), bound: anyone who knows a chain id can add device rows to it; the device list is capped at 50 in responses and maintenance prunes rows idle for 90 days
 - sync-relay-shapes/watermark-pin: poison ciphertext (wrong-for-the-chain passphrase) relayed through a valid write secret (200) - owner: gistory relay (dhaupin), bound: the relay cannot validate ciphertext (it is blind by design), so a valid-secret blobs hold the victim watermark — the client-side consequence is a watermark that holds before the poison blob and RETRIES on the next sync, never skips; pinned behaviorally in tests/sync-smoke.ts
 
 ## Cost economics
-- total: 2010 backend ops across 1040 in-process requests from 62 attacks
+- total: 1950 backend ops across 1040 in-process requests from 62 attacks
   - auth/identity-spoof-headers: 0 ops / 0 requests
   - auth/secret-watermark: 0 ops / 0 requests
   - auth/privilege-escalation: 0 ops / 0 requests
@@ -118,15 +118,15 @@
   - session/logout-invalidates: 0 ops / 0 requests
   - state/enumeration-oracle: 0 ops / 0 requests
   - state/id-collision-alias: 0 ops / 0 requests
-  - sync-relay-shapes/takeover-by-own-secret: 55 ops / 3 requests
-  - sync-relay-shapes/create-race-second-writer: 77 ops / 7 requests
+  - sync-relay-shapes/takeover-by-own-secret: 50 ops / 3 requests
+  - sync-relay-shapes/create-race-second-writer: 72 ops / 7 requests
   - sync-relay-shapes/secret-format-variants: 86 ops / 12 requests
-  - sync-relay-shapes/existence-oracle: 45 ops / 15 requests
-  - sync-relay-shapes/member-rename-nuisance: 41 ops / 17 requests
+  - sync-relay-shapes/existence-oracle: 40 ops / 15 requests
+  - sync-relay-shapes/member-rename-nuisance: 37 ops / 17 requests
   - sync-relay-shapes/spoofed-device-write: 39 ops / 19 requests
-  - sync-relay-shapes/status-nonmember-read: 33 ops / 21 requests
+  - sync-relay-shapes/status-nonmember-read: 32 ops / 21 requests
   - sync-relay-shapes/chain-rows-farm: 529 ops / 46 requests
-  - sync-relay-shapes/phantom-device-rows: 130 ops / 52 requests
+  - sync-relay-shapes/phantom-device-rows: 90 ops / 52 requests
   - sync-relay-shapes/waf-body-shapes: 32 ops / 57 requests
   - sync-relay-shapes/parser-query-shapes: 73 ops / 62 requests
   - sync-relay-shapes/watermark-pin: 60 ops / 65 requests

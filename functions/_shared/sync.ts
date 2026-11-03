@@ -277,6 +277,27 @@ export async function registerDevice(
     .run()
 }
 
+/**
+ * True when `deviceId` has a registered row in this chain.
+ *
+ * Membership is the roster-read capability: a device is a member once it has
+ * registered WITH the chain's write secret (see handshake), so this is the
+ * gate `/sync/status` uses to decide whether to reveal the device list. A
+ * caller that never registered (or registered without the secret, which no
+ * longer creates a row) is not a member and sees no names.
+ */
+export async function deviceIsMember(
+  db: D1Database,
+  chainId: string,
+  deviceId: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT 1 AS ok FROM devices WHERE chain_id = ? AND id = ? LIMIT 1')
+    .bind(chainId, deviceId)
+    .first<{ ok: number }>()
+  return row != null
+}
+
 export async function touchDevice(
   db: D1Database,
   chainId: string,
