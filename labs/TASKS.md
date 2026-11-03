@@ -12,6 +12,16 @@ Conventions
 
 ## Now
 
+**v1.0.0 release prep (2026-11-03)**: the engine moves 0.9.0 -> 1.0.0 ahead of
+its first OIDC publish. `packs/` now rides the published tarball (`package.json`
+`files`, poststruct#79), so the `sync-relay-shapes` pack the crashtest gate arms
+by an exact npm pin is actually delivered. The `## [1.0.0] - 2026-11-03`
+changelog section lands for the release job's `scripts/release-notes.cjs`; a new
+`test/distribution.test.cjs` refuses a `files` list that would silently
+un-deliver the packs, and a root `test` script runs the `*.test.cjs` battery
+(release-verify + distribution + ship lane) from `prepublishOnly`. The
+release-verify ladder permits `packs/` by name in the forbidden scan.
+
 **Relay security: device membership gated on the write secret (2026-11-02)**:
 the crashtest campaign's own ledger (56 REFUSED / 6 BOUNDED / 0 EXPLOITED)
 was the map — three of the six accepted risks shared one root cause, that
