@@ -8,6 +8,7 @@ import {
   errorResponse,
   ensureChain,
   chainIsNew,
+  constantTimeEqualHex,
   getChainPushHash,
   getChainVersion,
   hashWriteSecret,
@@ -75,9 +76,6 @@ export const onRequestPost = withBreaker(async (db, context) => {
     await setChainPushHash(db, chainId, await hashWriteSecret(secret))
   }
 
-  await registerDevice(db, chainId, deviceId, deviceName, clientIp(context.request))
-  breakerRecord('success')
-
   // Report the chain's ACTUAL write-auth state, after any secret this call
   // installed. An earlier version returned `!isNew`, which was backwards on
   // both ends: a brand-new chain that just had its secret set answered
@@ -85,13 +83,34 @@ export const onRequestPost = withBreaker(async (db, context) => {
   // in the client read the field, which is why it survived — but any future
   // reader would have been misinformed exactly when it matters (deciding
   // whether to pair with or claim this chain).
-  const secured = (await getChainPushHash(db, chainId)) != null
+  const storedHash = await getChainPushHash(db, chainId)
+  const secured = storedHash != null
+
+  // Membership is the write secret, the same capability that gates writes.
+  // The chain id is public by design (it is the PBKDF2 salt and rides the
+  // pairing token), so keying the device ROSTER on it alone let anyone who
+  // knew a chain id inject device rows, rename any device, and read the
+  // member list — the crashtest `phantom-device-rows` / `member-rename-
+  // nuisance` / `status-nonmember-read` bounds. A handshake that presents the
+  // chain's correct secret registers (or refreshes) this device and is a
+  // member; one that does not still answers 200 with head/version/writeAuth
+  // so a read-only legacy device keeps reading, but it neither joins the
+  // roster nor sees it.
+  const isMember =
+    secured &&
+    isValidWriteSecret(secret) &&
+    constantTimeEqualHex(await hashWriteSecret(secret), storedHash!)
+
+  if (isMember) {
+    await registerDevice(db, chainId, deviceId, deviceName, clientIp(context.request))
+  }
+  breakerRecord('success')
 
   return json({
     chainId,
     serverSeq: await serverSeq(db, chainId),
     version: await getChainVersion(db, chainId),
-    devices: await listDevices(db, chainId),
+    devices: isMember ? await listDevices(db, chainId) : [],
     writeAuth: secured,
   })
 })

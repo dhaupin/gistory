@@ -26,9 +26,12 @@
 // there is deliberately no per-request reset. Determinism: fixed ids
 // everywhere (the handlers never re-roll them), fixed passphrases, fixed seed.
 //
-// The six bounded attacks carry gistory's documented accepted risks here —
-// the same lines the relay's own red-team log labels — so a bound that stops
-// being true in code reads as a finding in CI, not as a stale doc.
+// The bounded attacks carry gistory's documented accepted risks here — the
+// same lines the relay's own red-team log labels — so a bound that stops
+// being true in code reads as a finding in CI, not as a stale doc. Three of
+// the original six (phantom-device-rows, member-rename-nuisance,
+// status-nonmember-read) retired once membership became write-secret-gated;
+// see the bounds block below.
 
 import {
   handshakeHandler,
@@ -189,28 +192,21 @@ export default {
       // handshake throttle dry before reading its shaped response.
       limits: { handshake: POLICIES.handshake.limit },
 
-      // The six accepted risks (owner + bound REQUIRED for BOUNDED). A risk
-      // that stops holding in code turns into an EXPLOITED finding in CI.
+      // The accepted risks (owner + bound REQUIRED for BOUNDED). A risk that
+      // stops holding in code turns into an EXPLOITED finding in CI — which is
+      // exactly what retired the three membership bounds below: the relay now
+      // gates the device roster on the chain write secret, so
+      // phantom-device-rows, member-rename-nuisance, and status-nonmember-read
+      // are REFUSED (see tests/sync-smoke.ts section 16). A bound with no
+      // remaining weakness would be a lie, so it is deleted, not reworded.
       bounds: {
         'existence-oracle': {
           owner: 'gistory relay (dhaupin)',
           bound: 'handshake status codes distinguish existing vs unknown chain ids; chain ids are uuid-strength (~122 bits) and the per-IP flood bucket caps probes at 1200/min',
         },
-        'member-rename-nuisance': {
-          owner: 'gistory relay (dhaupin)',
-          bound: 'a member holding any secret can rewrite another device display name via handshake; names are metadata only — pushes, blobs, and data are never touched',
-        },
-        'status-nonmember-read': {
-          owner: 'gistory relay (dhaupin)',
-          bound: '/sync/status returns member names to any valid-shaped deviceId; names are the only readable content, blobs are ciphertext, and status draws from the same per-device pull budget that rate-limits it',
-        },
         'chain-rows-farm': {
           owner: 'gistory relay (dhaupin)',
           bound: 'fresh chain ids create permanent rows (~1200/min per IP behind the edge flood bucket, per-device handshake bucket 20/min); real chains are never deleted, so the cap is edge rate policy, not row hygiene',
-        },
-        'phantom-device-rows': {
-          owner: 'gistory relay (dhaupin)',
-          bound: 'anyone who knows a chain id can add device rows to it; the device list is capped at 50 in responses and maintenance prunes rows idle for 90 days',
         },
         'watermark-pin': {
           owner: 'gistory relay (dhaupin)',

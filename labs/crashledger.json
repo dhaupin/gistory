@@ -235,10 +235,8 @@
     },
     {
       "id": "sync-relay-shapes/member-rename-nuisance",
-      "verdict": "BOUNDED",
-      "detail": "\"Renamed Target\" is now \"PWNED-DEVICE\"; names are display-level, pushes and data were never touched",
-      "owner": "gistory relay (dhaupin)",
-      "bound": "a member holding any secret can rewrite another device display name via handshake; names are metadata only — pushes, blobs, and data are never touched"
+      "verdict": "REFUSED",
+      "detail": "rename did not land (handshake 200, row {\"id\":\"shape-renamed-victim\",\"name\":\"Renamed Target\"})"
     },
     {
       "id": "sync-relay-shapes/spoofed-device-write",
@@ -247,10 +245,8 @@
     },
     {
       "id": "sync-relay-shapes/status-nonmember-read",
-      "verdict": "BOUNDED",
-      "detail": "a valid-shape (non-member) deviceId read the chain's device names",
-      "owner": "gistory relay (dhaupin)",
-      "bound": "/sync/status returns member names to any valid-shaped deviceId; names are the only readable content, blobs are ciphertext, and status draws from the same per-device pull budget that rate-limits it"
+      "verdict": "REFUSED",
+      "detail": "status 200 exposed no device list to a non-member"
     },
     {
       "id": "sync-relay-shapes/chain-rows-farm",
@@ -261,10 +257,8 @@
     },
     {
       "id": "sync-relay-shapes/phantom-device-rows",
-      "verdict": "BOUNDED",
-      "detail": "5 phantom device rows joined a chain they hold no secret for; the device list is a metadata surface",
-      "owner": "gistory relay (dhaupin)",
-      "bound": "anyone who knows a chain id can add device rows to it; the device list is capped at 50 in responses and maintenance prunes rows idle for 90 days"
+      "verdict": "REFUSED",
+      "detail": "of 5 join attempts, only 0 rows materialized"
     },
     {
       "id": "sync-relay-shapes/waf-body-shapes",
@@ -333,28 +327,10 @@
       "detail": "known chain 200 vs unknown 400 — the difference reads as an oracle"
     },
     {
-      "id": "sync-relay-shapes/member-rename-nuisance",
-      "owner": "gistory relay (dhaupin)",
-      "bound": "a member holding any secret can rewrite another device display name via handshake; names are metadata only — pushes, blobs, and data are never touched",
-      "detail": "\"Renamed Target\" is now \"PWNED-DEVICE\"; names are display-level, pushes and data were never touched"
-    },
-    {
-      "id": "sync-relay-shapes/status-nonmember-read",
-      "owner": "gistory relay (dhaupin)",
-      "bound": "/sync/status returns member names to any valid-shaped deviceId; names are the only readable content, blobs are ciphertext, and status draws from the same per-device pull budget that rate-limits it",
-      "detail": "a valid-shape (non-member) deviceId read the chain's device names"
-    },
-    {
       "id": "sync-relay-shapes/chain-rows-farm",
       "owner": "gistory relay (dhaupin)",
       "bound": "fresh chain ids create permanent rows (~1200/min per IP behind the edge flood bucket, per-device handshake bucket 20/min); real chains are never deleted, so the cap is edge rate policy, not row hygiene",
       "detail": "25 permanent chain rows from one prober; storage growth is bounded only by the relay's edge rate policy"
-    },
-    {
-      "id": "sync-relay-shapes/phantom-device-rows",
-      "owner": "gistory relay (dhaupin)",
-      "bound": "anyone who knows a chain id can add device rows to it; the device list is capped at 50 in responses and maintenance prunes rows idle for 90 days",
-      "detail": "5 phantom device rows joined a chain they hold no secret for; the device list is a metadata surface"
     },
     {
       "id": "sync-relay-shapes/watermark-pin",
@@ -409,7 +385,10 @@
     "sync-relay-shapes/takeover-by-own-secret",
     "sync-relay-shapes/create-race-second-writer",
     "sync-relay-shapes/secret-format-variants",
+    "sync-relay-shapes/member-rename-nuisance",
     "sync-relay-shapes/spoofed-device-write",
+    "sync-relay-shapes/status-nonmember-read",
+    "sync-relay-shapes/phantom-device-rows",
     "sync-relay-shapes/waf-body-shapes",
     "sync-relay-shapes/parser-query-shapes",
     "sync-relay-shapes/guard-header-hygiene",

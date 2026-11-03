@@ -1003,7 +1003,7 @@ const ipHandshake = await handshakePost({
   request: new Request('https://local.test/sync/handshake', {
     method: 'POST',
     headers: { 'CF-Connecting-IP': '203.0.113.7' },
-    body: JSON.stringify({ chainId: CHAIN_A, deviceId: agentB.getDeviceId(), deviceName: 'Device B' }),
+    body: JSON.stringify({ chainId: CHAIN_A, deviceId: agentB.getDeviceId(), deviceName: 'Device B', writeSecret: SECRET_A }),
   }),
   env,
 })
@@ -1023,7 +1023,7 @@ const junkHandshake = await handshakePost({
   request: new Request('https://local.test/sync/handshake', {
     method: 'POST',
     headers: { 'CF-Connecting-IP': 'not an ip; drop table' },
-    body: JSON.stringify({ chainId: CHAIN_A, deviceId: agentB.getDeviceId(), deviceName: 'Device B' }),
+    body: JSON.stringify({ chainId: CHAIN_A, deviceId: agentB.getDeviceId(), deviceName: 'Device B', writeSecret: SECRET_A }),
   }),
   env,
 })
@@ -1064,14 +1064,17 @@ const reHandshake = await handshakePost({
       chainId: CHAIN_A,
       deviceId: agentA.getDeviceId(),
       deviceName: 'Device A (renamed)',
+      writeSecret: SECRET_A,
     }),
   }),
   env,
 })
 const reBody: any = await reHandshake.json()
-// Chain A legitimately has 3 devices by now (A, B, and the wrong-passphrase C).
-// The invariant we care about is that re-registering an existing device updates
-// its row instead of inserting a duplicate.
+// Chain A legitimately has two registered members (A and B). Device C reads
+// with the wrong passphrase and NO write secret, so it is a reader, not a
+// member — it never joins the roster. The invariant we care about is that
+// re-registering an existing device updates its row instead of inserting a
+// duplicate.
 const reIds = new Set(reBody.devices.map((d: any) => d.id))
 check('re-handshaking adds no duplicate device rows', reIds.size === reBody.devices.length, `${reIds.size} ids vs ${reBody.devices.length} rows`)
 check(
@@ -3273,6 +3276,115 @@ const restoredCount = await restoreBackupAttachments(
 )
 check('restore parses the good row, skips cap/shape/corrupt rows', restoredCount === 1 && restoreStore.rows.has('att_smoke_s1'))
 check('the oversized row never entered the local byte store (4MB cap holds on import)', !restoreStore.rows.has('att_big'))
+
+
+// --- 16. Device membership is the write secret ------------------------------
+//
+// The chain id is public by design, so membership — registering a device row,
+// renaming a device, reading the roster — is gated on the chain's write
+// secret, the same capability that gates writes. This is what turns the
+// crashtest `phantom-device-rows`, `member-rename-nuisance`, and
+// `status-nonmember-read` accepted risks into refusals. Both directions are
+// pinned here: a secretless handshake must NOT join or see the roster, and a
+// secret-bearing one must.
+
+section('16. Device membership — the roster is gated on the write secret')
+
+const CHAIN_M = 'chain-membership-01'
+const SECRET_M = newWriteSecret()
+const OTHER_SECRET_M = newWriteSecret()
+
+// The creating device presents the secret: it registers and sees the roster.
+const createM = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: CHAIN_M, deviceId: 'member-owner', deviceName: 'Owner', writeSecret: SECRET_M }),
+  }),
+  env,
+})
+const createMBody: any = await createM.json()
+check('the creating handshake registers the device and sees the roster', createMBody.devices?.length === 1, JSON.stringify(createMBody.devices))
+
+// A secretless handshake on an existing chain still answers 200 (so a
+// read-only legacy device keeps reading) but must NOT join the roster.
+const joinNoSecret = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: CHAIN_M, deviceId: 'phantom-device', deviceName: 'Phantom' }),
+  }),
+  env,
+})
+const joinNoSecretBody: any = await joinNoSecret.json()
+check('a secretless handshake on an existing chain still answers 200', joinNoSecret.status === 200, String(joinNoSecret.status))
+check('a secretless handshake sees no roster', Array.isArray(joinNoSecretBody.devices) && joinNoSecretBody.devices.length === 0, JSON.stringify(joinNoSecretBody.devices))
+const phantomRow = sqlite.query('SELECT id FROM devices WHERE chain_id = ? AND id = ?').get(CHAIN_M, 'phantom-device')
+check('a secretless handshake registers no device row', !phantomRow)
+
+// A wrong secret is refused a row too — the attacker who knows only the
+// (public) chain id cannot inject device rows.
+const joinWrongSecret = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: CHAIN_M, deviceId: 'wrong-secret-device', deviceName: 'Wrong', writeSecret: OTHER_SECRET_M }),
+  }),
+  env,
+})
+const joinWrongBody: any = await joinWrongSecret.json()
+check('a wrong-secret handshake sees no roster', Array.isArray(joinWrongBody.devices) && joinWrongBody.devices.length === 0, JSON.stringify(joinWrongBody.devices))
+check('a wrong-secret handshake registers no device row', !sqlite.query('SELECT id FROM devices WHERE chain_id = ? AND id = ?').get(CHAIN_M, 'wrong-secret-device'))
+
+// A device holding the secret joins and sees the roster (the honest path).
+const joinWithSecret = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: CHAIN_M, deviceId: 'paired-device', deviceName: 'Paired', writeSecret: SECRET_M }),
+  }),
+  env,
+})
+const joinWithSecretBody: any = await joinWithSecret.json()
+check('a secret-bearing handshake joins the roster', joinWithSecretBody.devices?.length === 2, JSON.stringify(joinWithSecretBody.devices))
+check('a secret-bearing handshake registers the device row', !!sqlite.query('SELECT id FROM devices WHERE chain_id = ? AND id = ?').get(CHAIN_M, 'paired-device'))
+
+// A member cannot be renamed by an outsider: the rename needs the secret, and
+// a wrong-secret handshake never touches the row.
+const renameAttempt = await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: CHAIN_M, deviceId: 'member-owner', deviceName: 'PWNED-DEVICE', writeSecret: OTHER_SECRET_M }),
+  }),
+  env,
+})
+const ownerRow = sqlite.query('SELECT name FROM devices WHERE chain_id = ? AND id = ?').get(CHAIN_M, 'member-owner') as { name: string }
+check('an outsider cannot rename a member (no write secret)', ownerRow?.name === 'Owner', JSON.stringify(ownerRow))
+check('the failed rename is an honest 200 that changed nothing', renameAttempt.status === 200, String(renameAttempt.status))
+
+// A member CAN rename itself with the secret (the honest path still works).
+await handshakePost({
+  request: new Request('https://local.test/sync/handshake', {
+    method: 'POST',
+    body: JSON.stringify({ chainId: CHAIN_M, deviceId: 'member-owner', deviceName: 'Owner (renamed)', writeSecret: SECRET_M }),
+  }),
+  env,
+})
+const renamedRow = sqlite.query('SELECT name FROM devices WHERE chain_id = ? AND id = ?').get(CHAIN_M, 'member-owner') as { name: string }
+check('a member with the secret can rename itself', renamedRow?.name === 'Owner (renamed)', JSON.stringify(renamedRow))
+
+// /sync/status reveals the roster only to a member. An outsider that never
+// registered (valid shape, no row) sees no names; a member sees them.
+const statusOutsider = await statusGet({
+  request: new Request(`https://local.test/sync/status?chain=${CHAIN_M}&deviceId=status-outsider`),
+  env,
+})
+const statusOutsiderBody: any = await statusOutsider.json()
+check('a non-member /sync/status reveals no device names', statusOutsiderBody.devices?.length === 0, JSON.stringify(statusOutsiderBody.devices))
+check('a non-member /sync/status still reports the chain head', statusOutsiderBody.serverSeq === 0, String(statusOutsiderBody.serverSeq))
+
+const statusMember = await statusGet({
+  request: new Request(`https://local.test/sync/status?chain=${CHAIN_M}&deviceId=member-owner`),
+  env,
+})
+const statusMemberBody: any = await statusMember.json()
+check('a member /sync/status reveals the roster', statusMemberBody.devices?.length === 2, JSON.stringify(statusMemberBody.devices))
 
 
 // --- summary -----------------------------------------------------------------

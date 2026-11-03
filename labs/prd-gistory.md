@@ -163,6 +163,13 @@ at all. Anyone holding a pairing code can read a chain's ciphertext (useless
 without the passphrase) and write to it with the secret in the token - treat
 tokens like passwords.
 
+**Membership is the write secret.** The chain id is public, so the device
+roster is gated on the write secret: `handshake` registers a device and returns
+the member list only when the presented secret matches, and `/sync/status`
+reveals the roster only to a registered member. Knowing a chain id is not enough
+to inject a device row, rename a member, or harvest names; a secretless
+handshake is a read-only join (200, no row, no roster).
+
 **The one guaranteed loss:** a forgotten passphrase means the data is gone.
 There is no recovery, no reset, no server-side escrow. This is marketed as a
 feature and documented in the README.

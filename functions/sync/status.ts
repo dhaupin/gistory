@@ -2,6 +2,7 @@
 
 import {
   chainExists,
+  deviceIsMember,
   errorResponse,
   getChainVersion,
   isValidChainId,
@@ -36,10 +37,18 @@ export const onRequestGet = withBreaker(async (db, context) => {
 
   if (!(await chainExists(db, chainId))) return errorResponse('Unknown sync chain', 404)
 
+  // The device roster is a membership surface, so it is shown only to a
+  // member — a caller whose own deviceId registered WITH the chain's write
+  // secret. The chain id is public by design, so without this a valid-shaped
+  // outsider deviceId could harvest every member's name (the crashtest
+  // `status-nonmember-read` bound). Head and version still answer for any
+  // caller; only the names are gated.
+  const isMember = await deviceIsMember(db, chainId, deviceId)
+
   return json({
     chainId,
     serverSeq: await serverSeq(db, chainId),
     version: await getChainVersion(db, chainId),
-    devices: await listDevices(db, chainId),
+    devices: isMember ? await listDevices(db, chainId) : [],
   })
 })
