@@ -18,6 +18,9 @@
 //   makeUndecryptablePushBody ({ chainId, deviceId, writeSecret }) → body
 //                     (cipher text the chain's PASSPHRASE key cannot read:
 //                      the poison-blob scenario)
+//   makeSubscribeBody ({ chainId, deviceId, endpoint }) → body
+//                     (the wake-target subscribe shape; the egress allow-list
+//                      attack supplies the endpoint host it wants tested)
 //   makePullUrl     ({ chainId, deviceId, since? })  → '  path?query' style URI
 //   makeStatusUrl   ({ chainId, deviceId })          → same syntax family
 //   hashOf          (chainId) → stored write-secret digest | null
@@ -43,7 +46,8 @@ const PKG = 'packs/public/sync-relay-shapes'
 /** The moduleCtx keys this pack refuses to run without. */
 const REQUIRED_KEYS = [
   'routes', 'makeCreateBody', 'makePushBody', 'makeUndecryptablePushBody',
-  'makePullUrl', 'makeStatusUrl', 'hashMatches', 'counts', 'limits', 'bounds',
+  'makeSubscribeBody', 'makePullUrl', 'makeStatusUrl', 'hashMatches', 'counts',
+  'limits', 'bounds',
 ]
 
 function take(ctx, key) {
@@ -466,6 +470,38 @@ export default {
         return verdictFor(ctx, 'watermark-pin', {
           detail: `poison ciphertext (wrong-for-the-chain passphrase) relayed through a valid write secret (${poison.status})`,
         })
+      },
+    },
+
+    {
+      name: 'subscribe-egress-allowlist',
+      async run(harness, ctx) {
+        const routes = take(ctx, 'routes')
+        const makeCreate = take(ctx, 'makeCreateBody')
+        const makeSubscribe = take(ctx, 'makeSubscribeBody')
+        const counts = take(ctx, 'counts')
+        const chainId = 'relay-shape-egress-01'
+        const secret = newSecret()
+        const created = await post(harness, routes.handshake, await makeCreate({ chainId, deviceId: 'shape-egress-owner', writeSecret: secret }))
+        precondition(created.status === 200, 'subscribe-egress-allowlist', `chain create answered ${created.status}`)
+
+        // The attack: subscribe a wake target whose endpoint is an
+        // attacker-named host. Subscribe needs no write secret, so a relay
+        // that stores it will later make its wake fan-out POST there (SSRF,
+        // dhaupin/gistory#55). A relay with an egress allow-list refuses it.
+        const attackerEndpoint = 'https://attacker.example/collect'
+        const offHost = await post(harness, routes.subscribe, await makeSubscribe({ chainId, deviceId: 'shape-egress-owner', endpoint: attackerEndpoint }))
+        const storedOffHost = await oracleCount(counts.endpointStored, attackerEndpoint)
+
+        // The control: a REAL push-service host must still be accepted — the
+        // rule refuses the attacker's host, not subscriptions themselves.
+        const goodEndpoint = 'https://fcm.googleapis.com/fcm/send/shape-egress-1'
+        const onHost = await post(harness, routes.subscribe, await makeSubscribe({ chainId, deviceId: 'shape-egress-owner', endpoint: goodEndpoint }))
+
+        if (offHost.status !== 200 && !storedOffHost && onHost.status === 200) {
+          return { verdict: 'REFUSED', detail: `off-host subscribe ${offHost.status} (row stored=${storedOffHost}); a push-service host is accepted (${onHost.status})`, attack: 'subscribe-egress-allowlist' }
+        }
+        return { verdict: 'EXPLOITED', detail: `off-host subscribe ${offHost.status}, row stored=${storedOffHost}, push-service host ${onHost.status} — the relay would POST to an attacker-named host`, attack: 'subscribe-egress-allowlist' }
       },
     },
 

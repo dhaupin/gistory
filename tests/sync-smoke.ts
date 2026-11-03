@@ -2670,6 +2670,41 @@ const badEndpoint = await fetch('https://local.test/sync/subscribe', {
 })
 check('a plaintext endpoint is refused', badEndpoint.status === 400, String(badEndpoint.status))
 
+// Egress allow-list (dhaupin/gistory#55): subscribe requires no write secret,
+// so an endpoint is only as safe as its host. An https URL on a NON-push host
+// would make the relay's wake fan-out POST to an attacker-named host — refused
+// at subscribe time, and (for a row written before this rule) skipped at
+// fan-out. A real push-service host is accepted.
+const offHost = await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_A, deviceId: 'subscriber-01',
+    endpoint: 'https://attacker.example/collect', keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+check('an https endpoint on a non-push host is refused (the SSRF allow-list)', offHost.status === 400, String(offHost.status))
+const offHostRow = (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint = ?').bind('https://attacker.example/collect').first()) as { n: number } | null
+check('the off-host endpoint is never stored', Number(offHostRow?.n) === 0, String(offHostRow?.n))
+const suffixTrick = await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_A, deviceId: 'subscriber-01',
+    endpoint: 'https://evilfcm.googleapis.com/fcm/send/x', keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+check('a look-alike host is refused (suffix match is dot-anchored)', suffixTrick.status === 400, String(suffixTrick.status))
+const allowedSub = await fetch('https://local.test/sync/subscribe', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chainId: CHAIN_A, deviceId: 'subscriber-01',
+    endpoint: 'https://updates.push.services.mozilla.com/pushdb/ok-1', keys: { p256dh: KEY_P, auth: KEY_A },
+  }),
+})
+check('a real push-service host is accepted', allowedSub.status === 200, String(allowedSub.status))
+
 const badKey = await fetch('https://local.test/sync/subscribe', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -2938,6 +2973,27 @@ check('a successful wake re-stamps the row (the liveness signal)',
 const beforeOff = fcmCalls.length
 await sendFanOut(fanDb, CHAIN_A, 'wake-dev-1', 1, { GISTRY_DB: d1 })
 check('an env without VAPID keys sends no wakes at all', fcmCalls.length - beforeOff === 0)
+
+// Egress re-check at fan-out (dhaupin/gistory#55): a row written BEFORE the
+// allow-list (or by a bug) must not make the relay POST to an arbitrary host.
+// Insert one directly (bypassing subscribe's check) and prove the wake skips
+// the fetch, prunes the row, and says so on the tail. CHAIN_B is used because
+// the budget section above already spent CHAIN_A's fan bucket.
+await d1.prepare(
+  `INSERT INTO push_subscriptions (chain_id, device_id, endpoint, p256dh, auth, created_at, last_seen)
+   VALUES (?, ?, ?, ?, ?, ?, ?)`,
+).bind(CHAIN_B, 'egress-dev-9', 'https://attacker.example/collect', fanPub, fanAuth, Date.now(), Date.now()).run()
+const beforeEgress = fcmCalls.length
+const egressLogLines: string[] = []
+console.log = (...args: unknown[]) => { egressLogLines.push(args.map(String).join(' ')) }
+await sendFanOut(fanDb, CHAIN_B, 'egress-sender', 1, FAN_ENV)
+console.log = realLog
+check('a disallowed-host row triggers NO outbound fetch', fcmCalls.length - beforeEgress === 0, String(fcmCalls.length - beforeEgress))
+check('the disallowed-host row is pruned at fan-out',
+  (await d1.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint = ?').bind('https://attacker.example/collect').first() as { n: number } | null)?.n === 0)
+check('the egress refusal is visible on the tail, named by host',
+  egressLogLines.some((line) => line.includes('[wake] blocked') && line.includes('attacker.example')),
+  egressLogLines.join(' | ') || 'no log captured')
 
 globalThis.fetch = realFetch
 

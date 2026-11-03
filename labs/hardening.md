@@ -6,7 +6,7 @@
 
 ## Findings
 
-### 🛡 REFUSED (59)
+### 🛡 REFUSED (60)
 - auth/identity-spoof-headers: route "admin" not declared on this target - spoof matrix skipped (declare it for coverage)
 - auth/secret-watermark: no fake secrets planted in env - declare CRASHTEST_SECRET to arm this probe
 - auth/privilege-escalation: route "device" not declared on this target - escalation skipped (declare it for coverage)
@@ -37,8 +37,8 @@
 - memory/identity-merge-collision: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
 - memory/resolution-order-stability: vocabulary knob(s) "writeRoute", "readRoute" not declared on this target - memory skipped (export moduleCtx['memory'].writeRoute/readRoute for coverage)
 - memory/delete-is-loud: vocabulary knob(s) "writeRoute", "readRoute", "deleteRoute" not declared on this target - delete skip (export moduleCtx['memory'].writeRoute/readRoute/deleteRoute for coverage)
-- proto-hygiene/head-get-parity: 6 route(s): HEAD mirrors GET (no throws, no status drift beyond honest 405) + 6 info note(s)
-- proto-hygiene/request-shape-flood: 6 route(s) x 18 bare shapes (query chaos, path shapes, header casings) all landed 4xx-or-cleaner with case-parity intact
+- proto-hygiene/head-get-parity: 7 route(s): HEAD mirrors GET (no throws, no status drift beyond honest 405) + 7 info note(s)
+- proto-hygiene/request-shape-flood: 7 route(s) x 18 bare shapes (query chaos, path shapes, header casings) all landed 4xx-or-cleaner with case-parity intact
 - race/double-submit-idempotency: route "charge" not declared on this target - race skipped (declare it for coverage)
 - race/concurrent-write-lost-update: route "profile" not declared on this target - race skipped (declare it for coverage)
 - recursion/deep-nest-stack-overflow: deep-nested body (12000 levels) answered honestly on "enroll" (400) - a depth guard or flat processing refused it
@@ -58,6 +58,7 @@
 - sync-relay-shapes/phantom-device-rows: of 5 join attempts, only 0 rows materialized
 - sync-relay-shapes/waf-body-shapes: 4 hostile body shapes rejected, none authenticated
 - sync-relay-shapes/parser-query-shapes: hostile since/limit clamped (3 probes) and the overlong deviceName stored at 64 chars
+- sync-relay-shapes/subscribe-egress-allowlist: off-host subscribe 400 (row stored=false); a push-service host is accepted (200)
 - sync-relay-shapes/guard-header-hygiene: a shaped 429 carries Cache-Control: no-store
 - taxonomy/abuse-not-5xx: 10 abuse shapes answered honestly on "enroll" (statuses: 400)
 - taxonomy/errors-stay-impersonal: 10 abuse shapes answered impersonally on "enroll" - no canary echo, no stack frames
@@ -75,7 +76,7 @@
 - sync-relay-shapes/watermark-pin: poison ciphertext (wrong-for-the-chain passphrase) relayed through a valid write secret (200) - owner: gistory relay (dhaupin), bound: the relay cannot validate ciphertext (it is blind by design), so a valid-secret blobs hold the victim watermark — the client-side consequence is a watermark that holds before the poison blob and RETRIES on the next sync, never skips; pinned behaviorally in tests/sync-smoke.ts
 
 ## Cost economics
-- total: 1950 backend ops across 1040 in-process requests from 62 attacks
+- total: 2003 backend ops across 1133 in-process requests from 63 attacks
   - auth/identity-spoof-headers: 0 ops / 0 requests
   - auth/secret-watermark: 0 ops / 0 requests
   - auth/privilege-escalation: 0 ops / 0 requests
@@ -106,8 +107,8 @@
   - memory/identity-merge-collision: 0 ops / 0 requests
   - memory/resolution-order-stability: 0 ops / 0 requests
   - memory/delete-is-loud: 0 ops / 0 requests
-  - proto-hygiene/head-get-parity: 12 ops / 12 requests
-  - proto-hygiene/request-shape-flood: 108 ops / 120 requests
+  - proto-hygiene/head-get-parity: 14 ops / 14 requests
+  - proto-hygiene/request-shape-flood: 126 ops / 140 requests
   - race/double-submit-idempotency: 0 ops / 0 requests
   - race/concurrent-write-lost-update: 0 ops / 0 requests
   - recursion/deep-nest-stack-overflow: 1 ops / 1 requests
@@ -130,7 +131,8 @@
   - sync-relay-shapes/waf-body-shapes: 32 ops / 57 requests
   - sync-relay-shapes/parser-query-shapes: 73 ops / 62 requests
   - sync-relay-shapes/watermark-pin: 60 ops / 65 requests
-  - sync-relay-shapes/guard-header-hygiene: 442 ops / 86 requests
+  - sync-relay-shapes/subscribe-egress-allowlist: 33 ops / 68 requests
+  - sync-relay-shapes/guard-header-hygiene: 442 ops / 89 requests
   - taxonomy/abuse-not-5xx: 10 ops / 10 requests
   - taxonomy/errors-stay-impersonal: 10 ops / 20 requests
   - upload/filename-traversal-family: 0 ops / 0 requests

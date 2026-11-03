@@ -148,6 +148,13 @@ new chain must MOVE, not multiply.
   the DoS worst case is spammy wakes on a device the attacker knows the
   chain id of, bounded by the per-chain fan-out budget below. Guarded:
   `handshake`-scope throttle per deviceId.
+  **Egress rule (dhaupin/gistory#55):** `endpoint` must be an https URL on
+  an allowed push-service host (`isAllowedPushEndpoint`: `fcm.googleapis.com`,
+  `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`).
+  A bare "https URL" check let a secretless caller aim the relay's wake
+  fan-out at an arbitrary host — an SSRF primitive. The host allow-list is
+  enforced at subscribe time AND re-checked in `wakeOne` before every fetch,
+  so a row written before the rule (or by a bug) is pruned, never dialed.
 - `DELETE /sync/subscribe` (POST `/sync/unsubscribe` for simplicity with
   our CORS setup) — body `{ endpoint, deviceId }` for unlinking.
 - Existing routes unchanged in contract; only `push.ts` gains the fan-out

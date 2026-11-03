@@ -19,6 +19,41 @@
 import type { D1Database } from './sync'
 import { POLICIES, consumeLimit } from './guards'
 
+// --- Egress policy: which hosts a wake may ever target ------------------------
+//
+// A wake is the relay making an OUTBOUND HTTPS POST to a stored `endpoint`,
+// and that endpoint arrives from `POST /sync/subscribe` — a route that
+// deliberately requires no write secret. Validating it as "an https URL"
+// alone let a caller point the relay's egress at an arbitrary host (an SSRF
+// primitive; see dhaupin/gistory#55). The fix is an allow-list of the push
+// services a REAL subscription is minted on (the hosts the PRD names),
+// enforced at subscribe time AND re-checked before every wake, so a row
+// written before the rule cannot fire either.
+//
+// The match is suffix-anchored on a dot boundary: `fcm.googleapis.com` and
+// any `*.fcm.googleapis.com`, never `evilfcm.googleapis.com`.
+export const PUSH_HOST_SUFFIXES = [
+  'fcm.googleapis.com', // Chrome / Chromium (Firebase Cloud Messaging)
+  'push.services.mozilla.com', // Firefox (autopush)
+  'updates.push.services.mozilla.com', // Firefox (autopush, newer shard)
+  'push.apple.com', // Safari / WebKit
+  'notify.windows.com', // Edge (Windows Notification Service)
+]
+
+/** True when `endpoint` is an https URL on an allowed push-service host. */
+export function isAllowedPushEndpoint(endpoint: unknown): endpoint is string {
+  if (typeof endpoint !== 'string') return false
+  let url: URL
+  try {
+    url = new URL(endpoint)
+  } catch {
+    return false
+  }
+  if (url.protocol !== 'https:') return false
+  const host = url.hostname.toLowerCase()
+  return PUSH_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith('.' + suffix))
+}
+
 // --- Web Push wire format (RFC 8292: VAPID) ----------------------------------
 
 export interface VapidConfig {
@@ -238,7 +273,12 @@ async function wakeOne(
   row: SubscriptionRow,
   count: number,
   config: VapidConfig,
-): Promise<'sent' | 'pruned' | 'failed'> {
+): Promise<'sent' | 'pruned' | 'failed' | 'blocked'> {
+  // Egress re-check (dhaupin/gistory#55): a row stored before the allow-list
+  // (or written by a bug) must not make the relay POST to an arbitrary host.
+  // Distinct from a 410 'pruned' so the tail says WHY the target died, and
+  // pruned like one so a disallowed row cannot retry forever.
+  if (!isAllowedPushEndpoint(row.endpoint)) return 'blocked'
   // A wedged push-service connection must not hold the wake round (and the
   // isolate's open fetch) open for minutes: every wake is bounded at 30s and
   // an aborted send is just 'failed' — the row is left for its next wake.
@@ -315,7 +355,10 @@ export async function sendFanOut(
     // gone (site data purged, worker replaced). Failed rows stay for now — the
     // maintenance sweep drops targets that stay silent forever.
     const pruned = results.filter((_, i) => outcomes[i] === 'pruned')
-    for (const row of pruned) {
+    // An egress-blocked row is pruned too (a row on a non-push host can never
+    // be a real wake target), but logged distinctly so the refusal is visible.
+    const blocked = results.filter((_, i) => outcomes[i] === 'blocked')
+    for (const row of [...pruned, ...blocked]) {
       try {
         await db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(row.endpoint).run()
       } catch {
@@ -360,6 +403,9 @@ export async function sendFanOut(
     for (const row of pruned) {
       console.log(`[wake] pruned (push service says gone): ${maskEndpoint(row.endpoint)} chain=${chainId}`)
     }
+    for (const row of blocked) {
+      console.log(`[wake] blocked (egress allow-list): ${maskEndpoint(row.endpoint)} chain=${chainId}`)
+    }
     const failedRows = results.filter((_, i) => outcomes[i] === 'failed')
     for (const row of failedRows) {
       console.log(`[wake] failed (non-2xx / abort / network): ${maskEndpoint(row.endpoint)} chain=${chainId}`)
@@ -367,7 +413,7 @@ export async function sendFanOut(
     if ((env as { DEBUG_WAKE?: unknown })?.DEBUG_WAKE === '1') {
       const sent = outcomes.filter((o) => o === 'sent').length
       console.log(
-        `[wake] round: sent=${sent} pruned=${pruned.length} failed=${failedRows.length} chain=${chainId} sender=${senderDeviceId}`,
+        `[wake] round: sent=${sent} pruned=${pruned.length} blocked=${blocked.length} failed=${failedRows.length} chain=${chainId} sender=${senderDeviceId}`,
       )
     }
   } catch {

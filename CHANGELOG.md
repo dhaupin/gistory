@@ -12,6 +12,20 @@ versions converge in one chain.
 
 ### Security
 
+- **Wake-target subscribe now enforces a push-service egress allow-list
+  (SSRF, dhaupin/gistory#55).** `POST /sync/subscribe` requires no write secret
+  by design, and it validated `endpoint` only as "an https URL" — so a caller
+  could point the relay's wake fan-out at any host, and the relay would later
+  `fetch` it with a VAPID-signed POST. `endpoint` must now be an https URL on
+  an allowed push-service host (`isAllowedPushEndpoint`: `fcm.googleapis.com`,
+  `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`),
+  refused at subscribe time and re-checked in `wakeOne` before every fetch —
+  so a row written before the rule (or by a bug) is pruned, never dialed. The
+  refusal is a distinct `[wake] blocked (egress allow-list)` tail line. New
+  crashtest probe `sync-relay-shapes/subscribe-egress-allowlist` pins it
+  (REFUSED), and `sync:smoke` §10/§11 cover both the subscribe-time refusal and
+  the fan-out re-check.
+
 - **Device membership is now gated on the chain write secret.** The chain id is
   public by design (it is the PBKDF2 salt and rides the pairing token), so
   keying the device roster on it alone let anyone who knew a chain id inject
