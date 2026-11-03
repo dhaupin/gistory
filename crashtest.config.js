@@ -38,6 +38,7 @@ import {
   pushHandler,
   pullHandler,
   statusHandler,
+  subscribeHandler,
   deriveKey,
   encryptPayload,
   newWriteSecret,
@@ -54,6 +55,10 @@ const tables = {
   devices: { rows: [], uniques: { pk: ['chain_id', 'id'] } },
   blobs: { rows: [], uniques: { pk: ['chain_id', 'seq'] } },
   rate_limits: { rows: [], uniques: { pk: ['key'] } },
+  // Wake targets (subscribe route). Keyed by endpoint, the push service's
+  // handle — see migrations. The egress allow-list attack (dhaupin/gistory#55)
+  // reads whether an off-host row was stored at all.
+  push_subscriptions: { rows: [], uniques: { pk: ['endpoint'] } },
 }
 
 // The chain key material belongs to the "honest device" speaking for the
@@ -102,6 +107,7 @@ export default {
     push: (ctx) => pushHandler(captureD1(ctx)),
     pull: (ctx) => pullHandler(captureD1(ctx)),
     status: (ctx) => statusHandler(captureD1(ctx)),
+    subscribe: (ctx) => subscribeHandler(captureD1(ctx)),
   },
 
   // Scenario-vocabulary coverage (2026-10-25, the honest-skips became real
@@ -140,7 +146,7 @@ export default {
 
   moduleCtx: {
     'sync-relay-shapes': {
-      routes: { handshake: 'handshake', push: 'push', pull: 'pull', status: 'status' },
+      routes: { handshake: 'handshake', push: 'push', pull: 'pull', status: 'status', subscribe: 'subscribe' },
 
       // Body factories: gistory's wire shapes. `data` is opaque ciphertext at
       // the relay, so the factories do not invent one — they encrypt a small
@@ -157,6 +163,13 @@ export default {
       async makeUndecryptablePushBody({ chainId, deviceId, writeSecret = newWriteSecret() }) {
         const payload = await encryptPayload({ evil: true }, await deriveKey('attacker passphrase here', chainId))
         return { chainId, deviceId, data: payload, writeSecret }
+      },
+
+      // A subscribe body: an endpoint on a named host + shape-valid key
+      // material. The egress allow-list attack supplies its own host, so this
+      // factory takes the endpoint it is told to use.
+      makeSubscribeBody({ chainId, deviceId, endpoint, p256dh = 'b'.repeat(87), auth = 'a'.repeat(43) }) {
+        return { chainId, deviceId, endpoint, keys: { p256dh, auth } }
       },
 
       // Query/url shapes for the GET routes.
@@ -186,6 +199,10 @@ export default {
               deviceId,
             ))?.n ?? 0,
           ),
+        // Wake targets are keyed by endpoint; the egress attack asks whether a
+        // given endpoint is stored at all (dhaupin/gistory#55).
+        endpointStored: async (endpoint) =>
+          Number((await one('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint = ?', endpoint))?.n ?? 0) > 0,
       },
 
       // Real budgets, not guesses: the header-hygiene attack drives the actual

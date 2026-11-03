@@ -154,12 +154,12 @@
     {
       "id": "proto-hygiene/head-get-parity",
       "verdict": "REFUSED",
-      "detail": "6 route(s): HEAD mirrors GET (no throws, no status drift beyond honest 405) + 6 info note(s)"
+      "detail": "7 route(s): HEAD mirrors GET (no throws, no status drift beyond honest 405) + 7 info note(s)"
     },
     {
       "id": "proto-hygiene/request-shape-flood",
       "verdict": "REFUSED",
-      "detail": "6 route(s) x 18 bare shapes (query chaos, path shapes, header casings) all landed 4xx-or-cleaner with case-parity intact"
+      "detail": "7 route(s) x 18 bare shapes (query chaos, path shapes, header casings) all landed 4xx-or-cleaner with case-parity intact"
     },
     {
       "id": "race/double-submit-idempotency",
@@ -278,6 +278,11 @@
       "bound": "the relay cannot validate ciphertext (it is blind by design), so a valid-secret blobs hold the victim watermark — the client-side consequence is a watermark that holds before the poison blob and RETRIES on the next sync, never skips; pinned behaviorally in tests/sync-smoke.ts"
     },
     {
+      "id": "sync-relay-shapes/subscribe-egress-allowlist",
+      "verdict": "REFUSED",
+      "detail": "off-host subscribe 400 (row stored=false); a push-service host is accepted (200)"
+    },
+    {
       "id": "sync-relay-shapes/guard-header-hygiene",
       "verdict": "REFUSED",
       "detail": "a shaped 429 carries Cache-Control: no-store"
@@ -391,6 +396,7 @@
     "sync-relay-shapes/phantom-device-rows",
     "sync-relay-shapes/waf-body-shapes",
     "sync-relay-shapes/parser-query-shapes",
+    "sync-relay-shapes/subscribe-egress-allowlist",
     "sync-relay-shapes/guard-header-hygiene",
     "taxonomy/abuse-not-5xx",
     "taxonomy/errors-stay-impersonal",

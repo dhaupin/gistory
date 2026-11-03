@@ -114,7 +114,12 @@ triggers one — the wake is redirected there instead.
 
 **Observability.** Wake outcomes appear in `npx wrangler pages deployment
 tail`: every `pruned` / `failed` / budget-`skip` outcome always logs (with
-the push service hostname only — endpoints carry a subscription token);
+the push service hostname only — endpoints carry a subscription token). A
+wake only ever targets an allowed push-service host: the endpoint's host
+must match the relay's allow-list (`fcm.googleapis.com`, autopush,
+`*.push.apple.com`, `*.notify.windows.com`) at subscribe time and again
+before every fetch, so a secretless subscribe cannot aim the relay's egress
+at an arbitrary host;
 a round summary logs when a `DEBUG_WAKE=1` variable is added to the Pages
 project.
 

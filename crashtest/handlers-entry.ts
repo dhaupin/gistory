@@ -17,6 +17,12 @@ export { onRequestPost as pushHandler } from '../functions/sync/push'
 export { onRequestGet as pullHandler } from '../functions/sync/pull'
 export { onRequestGet as statusHandler } from '../functions/sync/status'
 
+// The wake-target route. POST is the subscribe surface (the SSRF egress rule
+// lives here, dhaupin/gistory#55); GET is the wiring-state read. DELETE is not
+// exported — the pack probes subscribe/refuse, not unsubscribe.
+export { onRequestPost as subscribeHandler } from '../functions/sync/subscribe'
+export { onRequestGet as subscribeGetHandler } from '../functions/sync/subscribe'
+
 // Agent crypto, for building REAL bodies into the relay's push shape.
 // Real bodies matter: junk ciphertext would make every attack indistinguishable
 // from an ordinary malformed-write, and the pack's point is abusing *valid-looking*

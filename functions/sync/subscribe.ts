@@ -17,8 +17,10 @@
 //     INTO their own device, and the fan budget in step 4 bounds how many
 //     wakes any chain can generate. Writes to DATA remain secret-gated.
 //   • interpret `endpoint` beyond shape. It is an opaque URL minted by the
-//     push service (FCM/autopush); the relay only checks it is https and
-//     bounded so a stored junk URL cannot sit in every response.
+//     push service (FCM/autopush); the relay checks it is https, bounded, and
+//     on an allowed push-service host — the host allow-list is what stops a
+//     caller from aiming the relay's wake egress at an arbitrary host
+//     (dhaupin/gistory#55).
 
 import {
   errorResponse,
@@ -30,23 +32,22 @@ import {
   readJson,
 } from '../_shared/sync'
 import { POLICIES, guardRoute, inspectBody, withBreaker } from '../_shared/guards'
-import { vapidFromEnv } from '../_shared/push-fanout'
+import { vapidFromEnv, isAllowedPushEndpoint } from '../_shared/push-fanout'
 
 const ENDPOINT_MAX_CHARS = 1024
 // Key material is bounded by the regex in isValidPushKey (16..256 chars); no
 // separate constant is needed, keep the endpoint cap as the only literal.
 
-/** Push endpoints are https URLs handed out by FCM/autopush. */
+/**
+ * Push endpoints are https URLs handed out by a push service (FCM/autopush).
+ * Beyond the https + length shape, the HOST must be an allowed push service
+ * (`isAllowedPushEndpoint`) — a bare "https URL" check let a caller aim the
+ * relay's wake egress at any host (the SSRF surface of dhaupin/gistory#55).
+ */
 function isValidEndpoint(endpoint: unknown): endpoint is string {
   if (typeof endpoint !== 'string') return false
   if (endpoint.length > ENDPOINT_MAX_CHARS || endpoint.length < 12) return false
-  if (!endpoint.startsWith('https://')) return false
-  try {
-    const url = new URL(endpoint)
-    return url.protocol === 'https:'
-  } catch {
-    return false
-  }
+  return isAllowedPushEndpoint(endpoint)
 }
 
 /** Both Web Push client keys arrive base64url and are bounded, never parsed. */
