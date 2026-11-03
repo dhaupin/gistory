@@ -12,6 +12,15 @@ Conventions
 
 ## Now
 
+**v1.0.0 release notes + announcements (2026-11-03)**: the release-post tree is
+complete for both lines - `docs/discussions/announcing-v0.9.0.md` and
+`docs/discussions/announcing-v1.0.0.md`, both named in the index. Version truth
+reconciled after the bump: `package-lock.json` re-derived (root version
+0.9.0 -> 1.0.0, a version-only diff) and the AGENTS release prose made era-free
+(it still called 0.9.0 "current"). Tarball re-verified at 1.0.0: 23 files,
+`/packs` present (3 entries, 2 under `/packs/public`). Gates: `npm test` (31),
+`lint`, `lint:docs` (15 pages), `lint:version`, `lint:language` all green.
+
 **v1.0.0 release prep (2026-11-03)**: the engine moves 0.9.0 -> 1.0.0 ahead of
 its first OIDC publish. `packs/` now rides the published tarball (`package.json`
 `files`, poststruct#79), so the `sync-relay-shapes` pack the crashtest gate arms
