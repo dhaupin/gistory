@@ -191,5 +191,8 @@ jobs:
           V="$(node -p "require('./package.json').version")"
           EXPECTED_EXPORTS="$(node -p "Object.keys(require('./package.json').exports).join(',')")"
           GS_PROBE="const m=require('gistory-sync');for(const n of ['SyncAgent','mergePayload','mergeRegistry','SyncQos','pruneView','emptyVariables'])if(!(n in m))process.exit(1)"
-          node scripts/verify-release.cjs --npm --version "$V" --exports "$EXPECTED_EXPORTS" --probe "$GS_PROBE"
+          # gistory-sync ships its crashtest scenario packs (packs/, poststruct#79 -
+          # the verdict packs ride the published tarball so a consumer can run
+          # them), so packs/ is permitted by name in the forbidden scan.
+          node scripts/verify-release.cjs --npm --version "$V" --exports "$EXPECTED_EXPORTS" --allow packs/ --probe "$GS_PROBE"
           node scripts/verify-release.cjs --gh --tag "v$V" --asset "gistory-sync-$V.tgz"

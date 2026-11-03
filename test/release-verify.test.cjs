@@ -34,6 +34,9 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 // from the checkout's package.json, and the engine probe is the frozen
 // consumer marker this repo's install must answer.
 const exportsKeys = Object.keys(pkg.exports).join(',')
+// gistory-sync ships its crashtest scenario packs in the tarball (packs/,
+// poststruct#79), so the forbidden scan is told to permit the prefix by name.
+const allow = 'packs/'
 const gsProbe = "const m=require('gistory-sync');for(const n of ['SyncAgent','mergePayload','mergeRegistry','SyncQos','pruneView','emptyVariables'])if(!(n in m))process.exit(1)"
 
 function buildLib() {
@@ -66,7 +69,7 @@ test('the pack ladder verifies real npm pack output (contents + identity + consu
   buildLib()
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'release-verify-'))
   const tgz = packTree(work)
-  const r = spawnSync('node', [script, '--pack', tgz, '--version', pkg.version, '--exports', exportsKeys, '--probe', gsProbe], { cwd: root, encoding: 'utf8', timeout: 300000 })
+  const r = spawnSync('node', [script, '--pack', tgz, '--version', pkg.version, '--exports', exportsKeys, '--allow', allow, '--probe', gsProbe], { cwd: root, encoding: 'utf8', timeout: 300000 })
   const out = `${r.stdout}\n${r.stderr}`
   assert.equal(r.status, 0, `pack ladder failed (${r.status}):\n${out}`)
   assert.ok(out.includes('PASS forbidden scan'), 'forbidden scan never ran')
@@ -194,7 +197,7 @@ test('the pack ladder survives a phone npm whose --dry-run --json probe is empty
     '',
   ].join('\n'))
   fs.chmodSync(shim, 0o755)
-  const r = spawnSync('node', [script, '--pack', tgz, '--version', pkg.version, '--exports', exportsKeys, '--probe', gsProbe], {
+  const r = spawnSync('node', [script, '--pack', tgz, '--version', pkg.version, '--exports', exportsKeys, '--allow', allow, '--probe', gsProbe], {
     cwd: root,
     encoding: 'utf8',
     timeout: 300000,

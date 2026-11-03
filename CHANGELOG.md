@@ -10,6 +10,8 @@ versions converge in one chain.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-03
+
 ### Security
 
 - **Wake-target subscribe now enforces a push-service egress allow-list
