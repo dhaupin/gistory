@@ -37,10 +37,10 @@ const NAV = `- title: Home
   url: /gistory/
 `
 
-function run(urlValue) {
+function run(urlValue, { page = PAGE } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gistory-docs-'))
   fs.mkdirSync(path.join(dir, '_data'), { recursive: true })
-  fs.writeFileSync(path.join(dir, 'index.md'), PAGE)
+  fs.writeFileSync(path.join(dir, 'index.md'), page)
   fs.writeFileSync(path.join(dir, '_data', 'nav.yml'), NAV)
   fs.writeFileSync(path.join(dir, 'freestruct.config.yml'), `site:\n  name: Gistory Docs\n  url: ${urlValue}\nbasePath: /gistory\noutputDir: _site\n`)
   const res = spawnSync(process.execPath, [gate, '--docs', dir], { encoding: 'utf8' })
@@ -59,4 +59,17 @@ test('a site.url that already ends in basePath is refused by name', () => {
   assert.equal(res.status, 1)
   assert.match(res.stderr, /already ends in basePath "\/gistory"/)
   assert.match(res.stderr, /doubles the prefix/)
+})
+
+test('a page-relative internal link is refused (resolves one level off)', () => {
+  const page = PAGE.replace('Body.', 'See [release](./announcing-v1.0.0).')
+  const res = run('https://docs.creadev.org', { page })
+  assert.equal(res.status, 1)
+  assert.match(res.stderr, /must be root-absolute/)
+})
+
+test('a root-absolute link to a real page passes', () => {
+  const page = PAGE.replace('Body.', 'See [release](/gistory/).')
+  const res = run('https://docs.creadev.org', { page })
+  assert.equal(res.status, 0, res.stderr)
 })

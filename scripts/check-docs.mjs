@@ -115,18 +115,29 @@ if (!existsSync(navFile)) {
 }
 
 // ---- 3. internal links -----------------------------------------------------
-// Pages may carry Jekyll escaping ({{ '{{' }}) — strip render directives so
-// href checks see what the browser will.
+// Internal links are ROOT-ABSOLUTE ("/gistory/...") — the shape every page in
+// this repo already uses. A page-relative link resolves against the SERVED
+// page URL at render time, and this repo's index pages carry a no-slash
+// permalink (permalink: /discussions), so the browser sees /gistory/discussions
+// as a FILE and "./announcing-v0.9.0" resolves to /gistory/announcing-v0.9.0 —
+// a 404 (the exact break this session fixed; the old regex only matched
+// leading-slash targets, so it never saw the relative link). External links
+// are the author's business; every other target must be a root-absolute
+// /gistory link to a real page.
 for (const file of pages) {
   const src = readFileSync(file, 'utf8')
   // eslint-disable-next-line no-useless-escape -- kramdown's exact escape sequence
   const body = src.replace(/\{\{\s*'\{\{'\s*\}\}|{{ '\{\{'' }}'/g, '{{ ').replace(/\{\{\s*'\}\}'\s*\}\}|{{ '\}\}'' }}'/g, ' }}')
-  const hrefs = [...body.matchAll(/\]\((\/[^)#\s]*)[#\s)]?/g)].map(m => m[1])
-  for (const href of hrefs) {
-    if (!href.startsWith(NAV_URL_PREFIX)) { err(file, 1, `internal link "${href}" should start with ${NAV_URL_PREFIX}`); continue }
-    const bare = href.replace(NAV_URL_PREFIX, '') || '/'
+  const targets = [...body.matchAll(/\]\(([^)\s]+)\)/g)].map(m => m[1])
+  for (const raw of targets) {
+    const target = raw.split('#')[0].split('?')[0]
+    if (!target) continue
+    if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('//')) continue // external / scheme
+    if (!target.startsWith('/')) { err(file, 1, `internal link "${target}" must be root-absolute (start with ${NAV_URL_PREFIX}/), not page-relative — a relative link resolves against the served URL and lands one level off on a no-slash permalink page`); continue }
+    if (!target.startsWith(NAV_URL_PREFIX)) { err(file, 1, `internal link "${target}" should start with ${NAV_URL_PREFIX}`); continue }
+    const bare = target.replace(NAV_URL_PREFIX, '') || '/'
     const home = bare === '/' ? '/' : bare.replace(/\/$/, '')
-    if (!permalinks.has(bare) && !permalinks.has(home)) err(file, 1, `internal link "${href}" has no page`)
+    if (!permalinks.has(bare) && !permalinks.has(home)) err(file, 1, `internal link "${target}" has no page`)
   }
 }
 
