@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### The docs-lane consolidation (2026-11-04)
+
+The family built docs from four topologies; the two reusable lanes had drifted (ruby 3.2 vs 3.4, pagefind `latest` scrape vs npm pin). The docs lane is now ONE canonical reusable workflow in `dhaupin/freestruct`, and this repo is a thin caller of it.
+
+- `.github/workflows/docs.yml` calls `dhaupin/freestruct/.github/workflows/docs-lane.yml@22bb7e9b2634d6cdd966963d9e25c7f892577276`, keeping only the trigger, permissions, concurrency, and this repo pins.
+- ruby 3.4; the docs truth gates (`scripts/check-docs.mjs`) stay in `ci.yml` (via `bun run lint`), since a caller cannot carry extra steps.
+- No version bump; a workflow consolidation, not a released surface.
+
 ### Security
 
 - **Pins, never floats (packstruct#69).** Every GitHub Action `uses:` in `.github/workflows/` names a 40-hex commit SHA (tag kept in the trailing comment), never a floating `@v4`/`@v1`. A new guard, `scripts/check-action-pins.cjs`, refuses any floating ref, a branch, or a `docker://` image; it runs as `npm run lint:pins` inside the `prepublishOnly` gate and CI, and its own battery (`test/check-action-pins.test.cjs`) proves it bites both ways.
