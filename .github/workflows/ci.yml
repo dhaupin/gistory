@@ -92,6 +92,13 @@ jobs:
       - name: Ship lane test (phone publish runner)
         run: node --test test/ship-from-download.test.cjs
 
+      # Pins, never floats (packstruct#69): every Action ref must be a 40-hex
+      # SHA, so a floating tag can never drift the CI runner under us. The
+      # guard's own battery rides the same step (it rides `npm test` too, but
+      # CI runs the legs explicitly).
+      - name: Action pin guard + its battery (pins, never floats)
+        run: node scripts/check-action-pins.cjs && node --test test/check-action-pins.test.cjs
+
       # The real Pages Functions against real SQLite — no Cloudflare account and
       # no network needed. This is what catches a broken guard or merge rule.
       - name: Sync smoke test

@@ -5,6 +5,7 @@ This file documents deep mechanics for anyone working on the codebase.
 ## Family Laws
 
 - **Prose flow (#49).** Living prose never hard-wraps at commit time: paragraphs flow, and `scripts/unwrap-prose.cjs` joins hard-wrapped prose without touching frontmatter, fences, indented code, tables, headings, thematic breaks, or HTML blocks. Dated history keeps its era wording.
+- **Pins, never floats (packstruct#69).** Every GitHub Action `uses:` names a 40-hex commit SHA (tag kept in the trailing comment), never `@v4`/`@v1`. `npm run lint:pins` (`scripts/check-action-pins.cjs`) refuses a floating ref, so the rule is mechanical; it rides the `prepublishOnly` gate (after `lint`) and CI. New pins take the family canon SHA the sibling repos already carry.
 
 **The walk-exit rule** (the promotion rule, family law 2026-10-28, eyestruct@70dfbea): a manual walk is not done until nothing it found is uncommissioned. A probe that only ever lived in prose is a one-mortem; the walk's exit criterion is that every finding became permanent in the same session (a battery leg, a pack verdict row, or a named docket row) so future walks only see fresh ground. Walks DISCOVER classes; the battery REMEMBERS them.
 
