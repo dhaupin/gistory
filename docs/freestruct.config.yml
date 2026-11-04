@@ -2,7 +2,7 @@
 # Shipped via the init kit; filled in for gistory.
 site:
   name: Gistory Docs
-  url: https://docs.creadev.org/gistory
+  url: https://docs.creadev.org
   description: >-
     Documentation for Gistory: a personal prompt manager with variable
     filling and end-to-end encrypted sync.

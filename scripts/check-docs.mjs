@@ -15,15 +15,22 @@
 //      the per-page heading both crawlers and the h1-as-title convention
 //      need; a second h1 splits the page's topical signal, a missing one
 //      has Jekyll emit no h-level-1 at all.
+//   5. URL CONTRACT — freestruct.config.yml must not bake the deploy path
+//      into site.url. The engine appends basePath itself
+//      (canonical = site.url + basePath + slug, engine/urls.js), so a url
+//      that already ends in the deploy dir doubles it and 404s every
+//      injected metadata URL (canonical, og:url, og:image, feed).
 //
 //   node scripts/check-docs.mjs   (wired as `npm run lint:docs`)
+//   node scripts/check-docs.mjs --docs <dir>   (test override)
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const docsDir = join(here, '..', 'docs')
+const docsArg = process.argv.indexOf('--docs')
+const docsDir = docsArg !== -1 ? process.argv[docsArg + 1] : join(here, '..', 'docs')
 const NAV_URL_PREFIX = '/gistory'
 const REQUIRED = ['version', 'permalink', 'layout', 'title', 'nav_order']
 
@@ -135,6 +142,28 @@ for (const file of pages) {
   const h1s = [...body.matchAll(/^#\s+[^\n]+/gm)]
   if (h1s.length === 0) err(file, 1, 'page has no markdown h1 ("# …") — every doc page needs one')
   else if (h1s.length > 1) err(file, 1, `page has ${h1s.length} h1s (${h1s.map(h => JSON.stringify(h[0].slice(0, 40))).join(', ')}) — exactly one per page`)
+}
+
+// ---- 5. url contract (no basePath baked into site.url) --------------------
+// freestruct computes canonical = site.url + basePath + slug (engine/urls.js).
+// A site.url that already ends in the deploy dir therefore doubles it
+// (/gistory/gistory/), 404ing every injected metadata URL. The canon shape
+// (the other nine lanes) keeps site.url bare + basePath as the prefix.
+{
+  const cfgFile = join(docsDir, 'freestruct.config.yml')
+  if (!existsSync(cfgFile)) {
+    err(cfgFile, 1, 'missing — the docs lane needs freestruct.config.yml')
+  } else {
+    const cfg = readFileSync(cfgFile, 'utf8')
+    const urlMatch = cfg.match(/^\s*url:\s*(\S+)\s*$/m)
+    const bpMatch = cfg.match(/^\s*basePath:\s*(\S+)\s*$/m)
+    const url = urlMatch ? urlMatch[1].replace(/["']/g, '') : null
+    const bp = bpMatch ? bpMatch[1].replace(/["']/g, '') : null
+    const lineOf = (m) => (m ? cfg.slice(0, m.index).split('\n').length : 1)
+    if (bp && url && (url.replace(/\/+$/, '') === bp || url.replace(/\/+$/, '').endsWith(bp))) {
+      err(cfgFile, lineOf(urlMatch), `site.url "${url}" already ends in basePath "${bp}" — freestruct appends basePath itself, so this doubles the prefix (canonical ${url}${bp === '/' ? '' : bp}/...). Keep site.url bare (the host) and let basePath carry the deploy dir.`)
+    }
+  }
 }
 
 if (errors.length) {
