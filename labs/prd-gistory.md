@@ -1,29 +1,12 @@
 # PRD: gistory (the prompt keeper, and the prototype factory)
 
-**Status:** v0.3 - current (2026-11-02) · Owner: dhaupin
-**Role:** the privacy-first prompt keeper app. gistory's **prototype-factory role retired 2026-11-02**: it proved the staging-tree plus ferry pattern, all three mounts graduated to their own repos, and **railyard** carries the factory from here (govstruct case study 16.6).
-**Package:** the app is `gistory.creadev.org` (private, not an npm package); the reusable engine ships as **`gistory-sync` @ 0.9.0** (node >=18) - repo 0.9.0, npm not yet published.
-**Core law:** the relay stays blind. No plaintext ever leaves a device, and no accounts exist.
-**Family:** the five arms are **govstruct** (govern), **packstruct** (spec),
-**crashtest** (attack), **eyestruct** (watch), **poststruct** (audit). The forges
-are **monoforge** (the repo stamp) and **coreforge** (the site rig); **railyard**
-is the composer. gistory is a **product** governed by the suite; it was also the
-**prototype factory** (govstruct PRD 3.1) - it held the staging trees and ferried
-proven blocks to standalone repos, proving the pattern that **railyard** (the
-real factory) took over 2026-11-02. The interop law: no host imports a sibling to
-check a sibling; it invokes the sibling's public CLI.
+**Status:** v0.3 - current (2026-11-02) · Owner: dhaupin **Role:** the privacy-first prompt keeper app. gistory's **prototype-factory role retired 2026-11-02**: it proved the staging-tree plus ferry pattern, all three mounts graduated to their own repos, and **railyard** carries the factory from here (govstruct case study 16.6). **Package:** the app is `gistory.creadev.org` (private, not an npm package); the reusable engine ships as **`gistory-sync` @ 0.9.0** (node >=18) - repo 0.9.0, npm not yet published. **Core law:** the relay stays blind. No plaintext ever leaves a device, and no accounts exist. **Family:** the five arms are **govstruct** (govern), **packstruct** (spec), **crashtest** (attack), **eyestruct** (watch), **poststruct** (audit). The forges are **monoforge** (the repo stamp) and **coreforge** (the site rig); **railyard** is the composer. gistory is a **product** governed by the suite; it was also the **prototype factory** (govstruct PRD 3.1) - it held the staging trees and ferried proven blocks to standalone repos, proving the pattern that **railyard** (the real factory) took over 2026-11-02. The interop law: no host imports a sibling to check a sibling; it invokes the sibling's public CLI.
 
 ---
 
 ## 1. One-line pitch
 
-**Your prompts, on every device you own, in ciphertext the server cannot read,
-backed up by an offline-capable design that never assumes the network is
-there.** Gistory stores threads (a prompt conversation: a sequence of short
-reusable text messages) organized into projects, with metadata tuned for prompt
-reuse, and keeps all of it end-to-end encrypted while syncing across a user's
-devices with no accounts, no server trust, and no plaintext ever leaving a
-device.
+**Your prompts, on every device you own, in ciphertext the server cannot read, backed up by an offline-capable design that never assumes the network is there.** Gistory stores threads (a prompt conversation: a sequence of short reusable text messages) organized into projects, with metadata tuned for prompt reuse, and keeps all of it end-to-end encrypted while syncing across a user's devices with no accounts, no server trust, and no plaintext ever leaving a device.
 
 ## 2. The two faces of this repo
 
@@ -34,38 +17,21 @@ gistory carries a product and its reusable engine.
 | **product** | the prompt keeper app: React 19 + Vite 6 client, Cloudflare Pages Functions relay, D1 store | `src/`, `functions/`, `schema.sql`, `migrations/` |
 | **engine** | the reusable sync library shipped to npm as `gistory-sync` | `src/sync/*` built by `build:lib` |
 
-The **prototype-factory** face retired 2026-11-02 (govstruct PRD 3.1, case study
-16.6): gistory built and proved the staging-tree + ferry pattern, all three
-mounts (eyestruct, poststruct, monoforge) graduated to their own repos, and
-**railyard** carries the factory from here. The mount registry, the ferry
-scripts, and the staging trees are gone from this repo.
+The **prototype-factory** face retired 2026-11-02 (govstruct PRD 3.1, case study 16.6): gistory built and proved the staging-tree + ferry pattern, all three mounts (eyestruct, poststruct, monoforge) graduated to their own repos, and **railyard** carries the factory from here. The mount registry, the ferry scripts, and the staging trees are gone from this repo.
 
 ## 3. Who it is for
 
-- A person who runs prompt workflows (coding, writing, legal/medical/domain
-  research) and reuses prompts over months.
+- A person who runs prompt workflows (coding, writing, legal/medical/domain research) and reuses prompts over months.
 - They want it **not on someone else's cloud**: no login, no plaintext backup.
-- They use several devices (the target fleet: Android Chrome/Brave phones plus
-  desktops) and expect edits to appear everywhere - including from a closed
-  phone via background sync.
+- They use several devices (the target fleet: Android Chrome/Brave phones plus desktops) and expect edits to appear everywhere - including from a closed phone via background sync.
 
 ## 4. Product principles
 
-1. **The relay is blind.** The server stores only ciphertext. It never receives,
-   derives, or stores anything derived from the passphrase. Today: AES-GCM
-   blobs, chain ids, device rows, sequence numbers, rate-limit buckets.
-   Tomorrow: the same. Any feature that would require the server to understand
-   user content is out of scope by definition.
-2. **No accounts.** Identity is a passphrase plus a chain; pairing is a QR or
-   token. Losing the passphrase loses the data (documented, deliberate).
-3. **Offline-first.** Every device holds the full library locally
-   (IndexedDB-backed), merges what it can pull, and converges by watermark.
-   Nothing in the correctness story requires the relay or the network.
-4. **Open source, single deployment.** Static React app plus Pages Functions
-   plus D1 in one Cloudflare Pages project; no separate worker, no third-party
-   sync service.
-5. **Deletions are permanent and visible.** Tombstones, a synced trash log, and
-   no restore path.
+1. **The relay is blind.** The server stores only ciphertext. It never receives, derives, or stores anything derived from the passphrase. Today: AES-GCM blobs, chain ids, device rows, sequence numbers, rate-limit buckets. Tomorrow: the same. Any feature that would require the server to understand user content is out of scope by definition.
+2. **No accounts.** Identity is a passphrase plus a chain; pairing is a QR or token. Losing the passphrase loses the data (documented, deliberate).
+3. **Offline-first.** Every device holds the full library locally (IndexedDB-backed), merges what it can pull, and converges by watermark. Nothing in the correctness story requires the relay or the network.
+4. **Open source, single deployment.** Static React app plus Pages Functions plus D1 in one Cloudflare Pages project; no separate worker, no third-party sync service.
+5. **Deletions are permanent and visible.** Tombstones, a synced trash log, and no restore path.
 
 ## 5. Feature inventory (what ships today)
 
@@ -94,85 +60,39 @@ scripts, and the staging trees are gone from this repo.
 ### 5.1 Explicitly NOT in the product
 
 - **Accounts / login / email / OAuth.** Nothing knows who you are.
-- **Server-side plaintext** - search, analytics, scraping prompts. Everything
-  searchable happens locally on decrypted data.
-- **PWA install / manifest.** Ruled out by the owner (2026-10-22); Web Push
-  works without it on the target fleet.
-- **A delete-or-restore endpoint on the relay.** Real chains are never deleted
-  server-side; the server cannot tell "on holiday" from "abandoned".
+- **Server-side plaintext** - search, analytics, scraping prompts. Everything searchable happens locally on decrypted data.
+- **PWA install / manifest.** Ruled out by the owner (2026-10-22); Web Push works without it on the target fleet.
+- **A delete-or-restore endpoint on the relay.** Real chains are never deleted server-side; the server cannot tell "on holiday" from "abandoned".
 - **Anything that makes the server smarter than a blind, budgeted store.**
 - No mobile app; the product is the same responsive web app everywhere.
 
 ## 6. The sync system (the product's spine)
 
-Full mechanics live in `AGENTS.md` (Sync Architecture) and `labs/prd-sync.md`;
-the contract level:
+Full mechanics live in `AGENTS.md` (Sync Architecture) and `labs/prd-sync.md`; the contract level:
 
-- **Chains, not accounts.** One passphrase plus one chain id yields one E2EE
-  chain. Key derivation: `passphrase + chainId -> PBKDF2(100k, SHA-256) ->
-  AES-GCM 256`. The passphrase never leaves the device; the server sees only
-  ciphertext.
-- **Write auth.** A 32-byte random write secret per chain, minted at creation
-  and carried in the pairing token; the server stores only SHA-256(secret) and
-  compares constant-time. Every chain is secured at creation (no legacy hole;
-  `claim` is retired, answers 404). Pairing tokens are
-  `GS1-<chainId>.<writeSecret>`.
-- **Protocol.** Full-state push (coalesced about 1.5 s after the last edit via
-  `SyncQos`), server-assigned per-chain `seq`, pull filtered to other devices,
-  merge, push merged state. Watermarks persist per chain and only advance on
-  successfully consumed blobs; a failing decrypt pins the watermark before the
-  bad blob so it retries instead of vanishing.
-- **Merge.** Pure and unit-tested (`src/sync/merge.ts`): LWW on
-  `updatedAt ?? createdAt`, deterministic tie-break on the larger sender
-  deviceId, tombstones for deletes, per-key LWW for view/settings.
-- **Background sync (Web Push, opt-in per device).** After a push the relay
-  sends a silent, VAPID-signed, RFC 8291-encrypted wake to the chain's other
-  subscribed devices. The service worker shares the page's crypto/merge/
-  IndexedDB code; an open app page is nudged and the pull-merge handoff is
-  redirected there (one writer per store, per moment). Correctness never
-  depends on the ping.
-- **Guards (server-side backstop).** Fixed-window D1 throttles per scope, an
-  in-isolate circuit breaker, and a cheap WAF (structure, `__proto__` keys,
-  field caps, payload caps enforced twice). Refused requests never advance
-  their counter. Client QoS honors `Retry-After` and never drops a failed push.
-- **Self-service storage hygiene.** `rate_limits` self-prunes, blobs keep the
-  newest about 5 full-state snapshots per chain, test debris is swept whole,
-  and stale devices are dropped. Real chains are never touched.
+- **Chains, not accounts.** One passphrase plus one chain id yields one E2EE chain. Key derivation: `passphrase + chainId -> PBKDF2(100k, SHA-256) -> AES-GCM 256`. The passphrase never leaves the device; the server sees only ciphertext.
+- **Write auth.** A 32-byte random write secret per chain, minted at creation and carried in the pairing token; the server stores only SHA-256(secret) and compares constant-time. Every chain is secured at creation (no legacy hole; `claim` is retired, answers 404). Pairing tokens are `GS1-<chainId>.<writeSecret>`.
+- **Protocol.** Full-state push (coalesced about 1.5 s after the last edit via `SyncQos`), server-assigned per-chain `seq`, pull filtered to other devices, merge, push merged state. Watermarks persist per chain and only advance on successfully consumed blobs; a failing decrypt pins the watermark before the bad blob so it retries instead of vanishing.
+- **Merge.** Pure and unit-tested (`src/sync/merge.ts`): LWW on `updatedAt ?? createdAt`, deterministic tie-break on the larger sender deviceId, tombstones for deletes, per-key LWW for view/settings.
+- **Background sync (Web Push, opt-in per device).** After a push the relay sends a silent, VAPID-signed, RFC 8291-encrypted wake to the chain's other subscribed devices. The service worker shares the page's crypto/merge/ IndexedDB code; an open app page is nudged and the pull-merge handoff is redirected there (one writer per store, per moment). Correctness never depends on the ping.
+- **Guards (server-side backstop).** Fixed-window D1 throttles per scope, an in-isolate circuit breaker, and a cheap WAF (structure, `__proto__` keys, field caps, payload caps enforced twice). Refused requests never advance their counter. Client QoS honors `Retry-After` and never drops a failed push.
+- **Self-service storage hygiene.** `rate_limits` self-prunes, blobs keep the newest about 5 full-state snapshots per chain, test debris is swept whole, and stale devices are dropped. Real chains are never touched.
 
 ## 7. Data model (client-owned, server-ciphertext)
 
-Defined in `src/lib/models.ts`. All authoring timestamps live on the client;
-ids are client-generated. The merge compares `updatedAt ?? createdAt` - a field
-that forgets to bump `updatedAt` on edit silently loses merges.
+Defined in `src/lib/models.ts`. All authoring timestamps live on the client; ids are client-generated. The merge compares `updatedAt ?? createdAt` - a field that forgets to bump `updatedAt` on edit silently loses merges.
 
-Three satellite stores ride inside the same sync payload: `SyncData.view`
-(arrangement: per-item fractional `rank` and `collapsed`, keyed namespaced by
-the owning surface), `SyncData.settings` (user prefs, merged by LWW), and the
-tombstone registry (`id -> deletedAt` per kind). Deletion is a newer fact, not
-the item's absence; a newer edit resurrects, an older edit does not.
+Three satellite stores ride inside the same sync payload: `SyncData.view` (arrangement: per-item fractional `rank` and `collapsed`, keyed namespaced by the owning surface), `SyncData.settings` (user prefs, merged by LWW), and the tombstone registry (`id -> deletedAt` per kind). Deletion is a newer fact, not the item's absence; a newer edit resurrects, an older edit does not.
 
 ## 8. Security and privacy model
 
-**Protected:** the content of every prompt/message/project (ciphertext
-end-to-end), and the passphrase (never transmitted, never derivable from
-anything stored server-side).
+**Protected:** the content of every prompt/message/project (ciphertext end-to-end), and the passphrase (never transmitted, never derivable from anything stored server-side).
 
-**Deliberately visible** (by design, no content): chain ids, device names and
-ids, timestamped opaque blobs, per-device activity cadence, that a chain exists
-at all. Anyone holding a pairing code can read a chain's ciphertext (useless
-without the passphrase) and write to it with the secret in the token - treat
-tokens like passwords.
+**Deliberately visible** (by design, no content): chain ids, device names and ids, timestamped opaque blobs, per-device activity cadence, that a chain exists at all. Anyone holding a pairing code can read a chain's ciphertext (useless without the passphrase) and write to it with the secret in the token - treat tokens like passwords.
 
-**Membership is the write secret.** The chain id is public, so the device
-roster is gated on the write secret: `handshake` registers a device and returns
-the member list only when the presented secret matches, and `/sync/status`
-reveals the roster only to a registered member. Knowing a chain id is not enough
-to inject a device row, rename a member, or harvest names; a secretless
-handshake is a read-only join (200, no row, no roster).
+**Membership is the write secret.** The chain id is public, so the device roster is gated on the write secret: `handshake` registers a device and returns the member list only when the presented secret matches, and `/sync/status` reveals the roster only to a registered member. Knowing a chain id is not enough to inject a device row, rename a member, or harvest names; a secretless handshake is a read-only join (200, no row, no roster).
 
-**The one guaranteed loss:** a forgotten passphrase means the data is gone.
-There is no recovery, no reset, no server-side escrow. This is marketed as a
-feature and documented in the README.
+**The one guaranteed loss:** a forgotten passphrase means the data is gone. There is no recovery, no reset, no server-side escrow. This is marketed as a feature and documented in the README.
 
 ## 9. Architecture map
 
@@ -194,20 +114,11 @@ Ops
   .github/workflows/{ci,migrate,maintenance}.yml
 ```
 
-Nothing else runs the product. Pages Functions are same-origin beside `dist/`
-(`VITE_SYNC_URL` exists only for running the bare Vite dev server against a
-deployed relay).
+Nothing else runs the product. Pages Functions are same-origin beside `dist/` (`VITE_SYNC_URL` exists only for running the bare Vite dev server against a deployed relay).
 
 ## 10. The factory role (retired 2026-11-02)
 
-gistory was the family's **prototype factory**: it proved the staging-tree plus
-ferry pattern (the `mounts/` registry mirroring vant's `/models` rigging, the
-deterministic snapshot tars, the sha-gated ferries). That role retired
-2026-11-02 - all three mounts graduated to their own repos and each owns its
-tree and CI now, and **railyard** carries the factory (govstruct 16.6). The
-registry, the ferry scripts (`make-staging-tars.sh`, `verify-staging-tars.sh`),
-and the staging trees are gone from this repo; `labs/tar-move-plan.md` stays as
-the historical move-day record.
+gistory was the family's **prototype factory**: it proved the staging-tree plus ferry pattern (the `mounts/` registry mirroring vant's `/models` rigging, the deterministic snapshot tars, the sha-gated ferries). That role retired 2026-11-02 - all three mounts graduated to their own repos and each owns its tree and CI now, and **railyard** carries the factory (govstruct 16.6). The registry, the ferry scripts (`make-staging-tars.sh`, `verify-staging-tars.sh`), and the staging trees are gone from this repo; `labs/tar-move-plan.md` stays as the historical move-day record.
 
 ## 11. Verification (what every change trips through)
 
@@ -221,43 +132,24 @@ the historical move-day record.
 | `bun run ui:audit` / `test:ui` | headless Chromium: every route x 2 themes x 2 viewports, plus interaction flows |
 | `bun run crashtest:run` | the in-repo crashtest pack against the built tree |
 
-CI runs the first four plus build on every push; the browser suites are
-local-only by design. `migrate.yml` applies schema migration with a re-run
-verify gate plus environment protection; `maintenance.yml` runs the daily D1
-prune.
+CI runs the first four plus build on every push; the browser suites are local-only by design. `migrate.yml` applies schema migration with a re-run verify gate plus environment protection; `maintenance.yml` runs the daily D1 prune.
 
 ## 12. Non-negotiables for contributors
 
-1. **Any pinnable/editable model must bump `updatedAt`** on every mutation, or
-   the merge silently reverts it on other devices.
-2. **View-state keys are surface-namespaced.** Compare with `viewKeyItem(key)`,
-   never the raw key.
-3. **Every arrangeable surface needs a drag handle** (pointer plus keyboard);
-   reordering under an active filter switches to full-order splicing.
-4. **The push path must never sit behind an optional chain** - `SyncQos` is
-   created on demand before any `syncNow()` can fire, or the first push after
-   enabling sync is dropped.
-5. **Edit `src/sw/sw.ts`, never its bundles**; the wake path shares the page's
-   crypto/merge modules, and divergent copies corrupt chains.
-6. **Storage passes through `src/sync/idb.ts`.** localStorage is a shadow; the
-   SW reads neither.
+1. **Any pinnable/editable model must bump `updatedAt`** on every mutation, or the merge silently reverts it on other devices.
+2. **View-state keys are surface-namespaced.** Compare with `viewKeyItem(key)`, never the raw key.
+3. **Every arrangeable surface needs a drag handle** (pointer plus keyboard); reordering under an active filter switches to full-order splicing.
+4. **The push path must never sit behind an optional chain** - `SyncQos` is created on demand before any `syncNow()` can fire, or the first push after enabling sync is dropped.
+5. **Edit `src/sw/sw.ts`, never its bundles**; the wake path shares the page's crypto/merge modules, and divergent copies corrupt chains.
+6. **Storage passes through `src/sync/idb.ts`.** localStorage is a shadow; the SW reads neither.
 7. **Migrations are append-only**; `schema.sql` only builds fresh databases.
-8. **The relay stays blind.** Any new feature must not give the server a reason
-   to parse, interpret, or derive anything from chain data.
+8. **The relay stays blind.** Any new feature must not give the server a reason to parse, interpret, or derive anything from chain data.
 
 ## 13. Release truth and the family crossing
 
-- **Two npm names, one product.** The app is private; the engine is
-  `gistory-sync`. The published `gistory` npm package is an unrelated GitHub
-  history tool - never ours.
-- **Engine publish state:** `gistory-sync` @ 0.9.0 is built from the monorepo
-  (`build:lib`) but **not yet on npm** (registry 404). The 0.9.x manual publish
-  is the outstanding release step.
-- **Governed by the suite:** gistory's `packs/` runs under packstruct; its
-  crashtest pack attacks the built tree; poststruct audits the baked output;
-  govstruct's manifest carries gistory as both product and prototype factory,
-  and the factory role is **delegated to railyard** (govstruct 16.6: the real
-  factory takes over).
+- **Two npm names, one product.** The app is private; the engine is `gistory-sync`. The published `gistory` npm package is an unrelated GitHub history tool - never ours.
+- **Engine publish state:** `gistory-sync` @ 0.9.0 is built from the monorepo (`build:lib`) but **not yet on npm** (registry 404). The 0.9.x manual publish is the outstanding release step.
+- **Governed by the suite:** gistory's `packs/` runs under packstruct; its crashtest pack attacks the built tree; poststruct audits the baked output; govstruct's manifest carries gistory as both product and prototype factory, and the factory role is **delegated to railyard** (govstruct 16.6: the real factory takes over).
 
 ## 14. Non-goals
 
@@ -269,10 +161,8 @@ prune.
 
 ## 15. Glossary
 
-- **Chain** - one user's sync universe: a chain id (also the PBKDF2 salt), its
-  devices, and its encrypted blob history.
-- **Device** - one browser instance; `deviceId` is used for authorship
-  filtering, merge tie-breaks, throttles, and the status route.
+- **Chain** - one user's sync universe: a chain id (also the PBKDF2 salt), its devices, and its encrypted blob history.
+- **Device** - one browser instance; `deviceId` is used for authorship filtering, merge tie-breaks, throttles, and the status route.
 - **Watermark** - the highest `seq` a device has fully consumed.
 - **Tombstone** - an `id -> deletedAt` record that makes deletes permanent.
 - **Write secret** - per-chain random write key (server stores its SHA-256).

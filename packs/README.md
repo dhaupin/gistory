@@ -2,14 +2,7 @@
 
 ## What this directory is
 
-This is Gistory's home for [**Crashtest**](https://crashtest.creadev.org)
-scenario packs. Crashtest is adversarial QA for agent-built app code
-("attack the code, not the people"): it drives a seeded, in-process attack
-suite against your **real handler functions** — plain functions or a
-framework app — and produces a hardening ledger your CI refuses to regress.
-No sockets, no staging deploy, no network: each attack hands a real WHATWG
-`Request` to a registered handler inside your own Node process, and every
-attack ends in one of three verdicts:
+This is Gistory's home for [**Crashtest**](https://crashtest.creadev.org) scenario packs. Crashtest is adversarial QA for agent-built app code ("attack the code, not the people"): it drives a seeded, in-process attack suite against your **real handler functions** — plain functions or a framework app — and produces a hardening ledger your CI refuses to regress. No sockets, no staging deploy, no network: each attack hands a real WHATWG `Request` to a registered handler inside your own Node process, and every attack ends in one of three verdicts:
 
 | Verdict | Meaning |
 |---|---|
@@ -17,24 +10,12 @@ attack ends in one of three verdicts:
 | ⚡ `EXPLOITED` | a real weakness — CI fails when one appears for the first time |
 | 🔒 `BOUNDED` | a known, **accepted** risk with a named owner and an explicit bound |
 
-A pack is a bundle you author once and reuse: a `pack.json` manifest plus
-scenario modules whose attacks share the exact contract of crashtest's
-built-in seed libraries (`run(harness, ctx)` → one verdict record). This
-repo keeps two visibility folders under `packs/` (crashtest discovers both
-automatically, no config changes needed):
+A pack is a bundle you author once and reuse: a `pack.json` manifest plus scenario modules whose attacks share the exact contract of crashtest's built-in seed libraries (`run(harness, ctx)` → one verdict record). This repo keeps two visibility folders under `packs/` (crashtest discovers both automatically, no config changes needed):
 
-- `packs/public/` — tracked here, reusable across targets. Anything that
-  names *this* product's vocabulary lives through `moduleCtx`, so another
-  relay project can adopt the pack without editing it.
-- `packs/local/` — gitignored, machine-private (instance lore: real chain
-  ids, private scenarios). Not used here yet. Create one with
-  `npx crashtest packs add <name>`; `--public` moves it to this folder.
+- `packs/public/` — tracked here, reusable across targets. Anything that names *this* product's vocabulary lives through `moduleCtx`, so another relay project can adopt the pack without editing it.
+- `packs/local/` — gitignored, machine-private (instance lore: real chain ids, private scenarios). Not used here yet. Create one with `npx crashtest packs add <name>`; `--public` moves it to this folder.
 
-The committed `labs/crashledger.json` (from gistory's first adopted run) is
-what CI compares against: the gate fails on a *new* `EXPLOITED` verdict or a
-previously-refused surface that regressed. That makes the ledger the
-project's memory that forgets nothing — a fix that slips out lands in CI as
-a red run, not in a doc.
+The committed `labs/crashledger.json` (from gistory's first adopted run) is what CI compares against: the gate fails on a *new* `EXPLOITED` verdict or a previously-refused surface that regressed. That makes the ledger the project's memory that forgets nothing — a fix that slips out lands in CI as a red run, not in a doc.
 
 ## Run it (locally)
 
@@ -49,10 +30,7 @@ CI runs the same gate on every push and pull request (`.github/workflows/crashte
 
 ### `sync-relay-shapes` — chain-relay abuse shapes
 
-**Dialect:** generic HTTP (transport-agnostic: no adapter prefix — it speaks
-push/pull relay, not any one framework). **Vocabulary:** injected entirely
-from `moduleCtx['sync-relay-shapes']`; the pack hard-refuses to run if a key
-is un-armed (an un-armed pack never reads as "everything refused").
+**Dialect:** generic HTTP (transport-agnostic: no adapter prefix — it speaks push/pull relay, not any one framework). **Vocabulary:** injected entirely from `moduleCtx['sync-relay-shapes']`; the pack hard-refuses to run if a key is un-armed (an un-armed pack never reads as "everything refused").
 
 Thirteen attacks over one injected dialect:
 
@@ -72,21 +50,14 @@ Thirteen attacks over one injected dialect:
 | `watermark-pin` | a pusher holding a valid write secret delivers ciphertext the chain's passphrase cannot read (the poison-blob scenario) | accepted, but bounded: the relay is a blind conduit and the client-side consequence is a watermark that *holds and retries*, never skips |
 | `guard-header-hygiene` | drives the handshake throttling budget dry (real limits from `POLICIES`), then reads the shaped 429 | the guard response carries `Cache-Control: no-store` — hand-rolled headers are where cacheability mistakes live |
 
-Six of those are documented accepted risks in gistory's relay (the bounded
-ones): the pack reads their owner + bound from the run root's
-`bounds` vocabulary, so a bound that stops being true in code turns into a
-finding in CI, not into a stale doc line.
+Six of those are documented accepted risks in gistory's relay (the bounded ones): the pack reads their owner + bound from the run root's `bounds` vocabulary, so a bound that stops being true in code turns into a finding in CI, not into a stale doc line.
 
 ## Where the relay handlers live (for Gistory contributors)
 
-- `crashtest.config.js` — the run root: routes, the in-memory D1 fixture,
-  and this pack's vocabulary
-- `crashtest/handlers-entry.ts` + `scripts/build-crashtest.mjs` — the bundle
-  build (the CLI loads plain Node, so the TS handlers ship as one file)
-- `crashtest/fixture.mjs` — the `node:sqlite` fixture the config attaches as
-  `GISTRY_DB` (real SQL, migrations seeded, whole-run shared state)
-- `tests/sync-smoke.ts` — where the behavioral layer lives (this pack
-  replaces the old `tests/redteam.ts`)
+- `crashtest.config.js` — the run root: routes, the in-memory D1 fixture, and this pack's vocabulary
+- `crashtest/handlers-entry.ts` + `scripts/build-crashtest.mjs` — the bundle build (the CLI loads plain Node, so the TS handlers ship as one file)
+- `crashtest/fixture.mjs` — the `node:sqlite` fixture the config attaches as `GISTRY_DB` (real SQL, migrations seeded, whole-run shared state)
+- `tests/sync-smoke.ts` — where the behavioral layer lives (this pack replaces the old `tests/redteam.ts`)
 
 ## Crashtest elsewhere
 

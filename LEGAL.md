@@ -128,8 +128,7 @@ Gistory is a distinct project. To avoid confusion with similarly-named projects:
 - Product names
 - Company/project names
 
-Acceptable: "Built with Gistory" (with attribution)
-Forbidden: "GistoryFlow", "GistoryCloud", "MyGistory", "Gistoryfy"
+Acceptable: "Built with Gistory" (with attribution) Forbidden: "GistoryFlow", "GistoryCloud", "MyGistory", "Gistoryfy"
 
 ---
 
@@ -161,8 +160,7 @@ Derivatives of Gistory must adhere to the following to remain compliant:
 - Product names
 - Company/project names
 
-Acceptable: "Built with Gistory framework" (with attribution)
-Forbidden: "GistoryFlow", "GistoryCloud", "MyGistory"
+Acceptable: "Built with Gistory framework" (with attribution) Forbidden: "GistoryFlow", "GistoryCloud", "MyGistory"
 
 ---
 

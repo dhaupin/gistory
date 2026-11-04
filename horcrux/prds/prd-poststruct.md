@@ -1,8 +1,6 @@
 # PRD: poststruct
 
-**Status:** draft v0.1 — for owner review
-**Author:** echo (Buffy), 2026-10-23 · Owner: dhaupin · Forge colleague: Rook (ops agent, ruling 2026-10-24)
-**Companion repos:** [prestruct#37](https://github.com/dhaupin/prestruct/issues/37) (shared audit core proposal), [freestruct#18](https://github.com/dhaupin/freestruct/issues/18) (freestruct audit proposal — superseded by this PRD)
+**Status:** draft v0.1 — for owner review **Author:** echo (Buffy), 2026-10-23 · Owner: dhaupin · Forge colleague: Rook (ops agent, ruling 2026-10-24) **Companion repos:** [prestruct#37](https://github.com/dhaupin/prestruct/issues/37) (shared audit core proposal), [freestruct#18](https://github.com/dhaupin/freestruct/issues/18) (freestruct audit proposal — superseded by this PRD)
 
 ---
 

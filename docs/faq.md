@@ -8,8 +8,7 @@ nav_order: 6
 
 # FAQ
 
-The same answers ship as FAQPage structured data on the product home page —
-one answer per question, everywhere.
+The same answers ship as FAQPage structured data on the product home page — one answer per question, everywhere.
 
 ## Accounts and data
 
