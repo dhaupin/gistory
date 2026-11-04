@@ -33,7 +33,7 @@ jobs:
   packs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install the repo (esbuild for the bundle step)
         run: npm ci
@@ -42,7 +42,7 @@ jobs:
         run: node scripts/build-crashtest.mjs
 
       - name: Run the packs (ledger gate)
-        uses: dhaupin/crashtest@v1.0.0
+        uses: dhaupin/crashtest@b4db994f8e938e131d369c3b2eea78915218a652 # v1.0.0
         with:
           config: crashtest.config.js
           run-tests: 'false'
