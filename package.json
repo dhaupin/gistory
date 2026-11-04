@@ -75,7 +75,7 @@
     "build:lib": "node scripts/build-lib.mjs && tsc -p tsconfig.lib.json",
     "build:og": "node scripts/build-og.mjs",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.functions.json && tsc -p tsconfig.test.json",
-    "lint": "npm run lint:eslint && npm run lint:language && npm run lint:docs && npm run lint:version",
+    "lint": "npm run lint:prestruct-pins && npm run lint:eslint && npm run lint:language && npm run lint:docs && npm run lint:version",
     "lint:version": "node scripts/check-version-truth.mjs",
     "lint:docs": "node scripts/check-docs.mjs",
     "lint:packs": "packstruct lint packs --deep",
@@ -109,7 +109,8 @@
     "test": "node --test test/*.test.cjs",
     "release:verify": "node --test test/release-verify.test.cjs",
     "preview": "vite preview",
-    "icons:adopt": "node scripts/adopt-icons.mjs"
+    "icons:adopt": "node scripts/adopt-icons.mjs",
+    "lint:prestruct-pins": "node scripts/check-prestruct-pins.cjs"
   },
   "overrides": {
     "prestruct": {

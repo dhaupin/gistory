@@ -99,6 +99,12 @@ jobs:
       - name: Action pin guard + its battery (pins, never floats)
         run: node scripts/check-action-pins.cjs && node --test test/check-action-pins.test.cjs
 
+      # The family prestruct floor: every declaration must sit at or above
+      # ^1.2.0 and the lock must resolve it. Rides `npm run lint` too, but CI
+      # runs the legs explicitly (same shape as the action-pin guard above).
+      - name: Prestruct pin guard + its battery (family floor)
+        run: node scripts/check-prestruct-pins.cjs && node --test test/check-prestruct-pins.test.cjs
+
       # The real Pages Functions against real SQLite — no Cloudflare account and
       # no network needed. This is what catches a broken guard or merge rule.
       - name: Sync smoke test
