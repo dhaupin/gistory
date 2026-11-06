@@ -164,19 +164,21 @@ jobs:
           # The registry read replica can lag the publish by seconds; poll
           # (bounded) instead of racing it (the crashtest 1.2.0 cut read
           # ETARGET: no matching version right after publish).
-          for i in $(seq 1 24); do
+          for i in $(seq 1 60); do
             if npm pack "gistory-sync@$BLOCK_VERSION" --pack-destination "$RUNNER_TEMP" > /dev/null 2>&1; then break; fi
-            if [ "$i" = "24" ]; then echo "the registry never served gistory-sync@$BLOCK_VERSION (24 attempts)"; exit 1; fi
-            echo "waiting for gistory-sync@$BLOCK_VERSION on the registry (attempt $i/24)"; sleep 5
+            if [ "$i" = "60" ]; then echo "the registry never served gistory-sync@$BLOCK_VERSION (60 attempts)"; exit 1; fi
+            echo "waiting for gistory-sync@$BLOCK_VERSION on the registry (attempt $i/60)"; sleep 5
           done
           gh release upload "$BLOCK_TAG" "$RUNNER_TEMP/gistory-sync-$BLOCK_VERSION.tgz" --clobber
 
-  # No `needs` on release here by design under the if: the verify leg runs
-  # after release on a real cut, but ALSO stands alone in verify-only mode
+  # The verify leg judges what the registry and GitHub actually serve, so it
+  # must wait for release to cut the object and attach the tarball - a bare
+  # `needs: publish` let verify race release and red-flag a cut that landed
+  # (the packstruct 1.1.0 first run). It ALSO stands alone in verify-only mode
   # (publish skipped, release skipped, the ladder judged against what is
   # already served and released).
   verify:
-    needs: publish
+    needs: [publish, release]
     if: >-
       always() &&
       (needs.publish.result == 'success' ||
