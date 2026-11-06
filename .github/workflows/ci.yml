@@ -161,7 +161,7 @@ jobs:
       # (the committed labs/.eyes/ ledger: 0 unexplained drift, all rows
       # explained). Family exit contract; skips are NAMED, never fake
       # passes.
-      # Eyestruct: the npm pin. The devDependencies carry eyestruct@1.0.0
+      # Eyestruct: the npm pin. The devDependencies carry eyestruct@1.1.0
       # EXACT (the packstruct discipline; 1.0.0 is the freeze release), so
       # the root `npm ci` above lands the tool in node_modules and the legs
       # resolve it there - no checkout, no env knobs.

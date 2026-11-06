@@ -30,7 +30,7 @@ Receipts:
 Receipts:
 
 - `scripts/check-docs.mjs` gates every page: the 5 frontmatter fields, one entry in `_data/nav.yml` per permalink (a page the nav forgets is a page nobody reaches), internal links resolving, and exactly one h1 per page.
-- after the build, `npx --yes freestruct@1.2.0 --strict` refuses an SSG source tree, a broken link, or a head hygiene miss.
+- after the build, `npx --yes freestruct@1.3.0 --strict` refuses an SSG source tree, a broken link, or a head hygiene miss.
 - pagefind indexes LAST, over the final freestruct-injected output.
 
 ## 3. The family self-audit gate
