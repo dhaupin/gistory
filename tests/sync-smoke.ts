@@ -236,12 +236,6 @@ const b64OfBuf = (buf: ArrayBuffer | Uint8Array): string => {
   bytes.forEach(b => { s += String.fromCharCode(b) })
   return Buffer.from(s, 'binary').toString('base64')
 }
-const b64ToBytes = (b64: string): Uint8Array => {
-  const s = Buffer.from(b64, 'base64').toString('binary')
-  const bytes = new Uint8Array(s.length)
-  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i)
-  return bytes
-}
 
 const roundTripTight = await decryptPayload<any>(ciphertext, keyA2)
 check('small payloads round-trip regardless of the compression decision', roundTripTight.n === 42)
@@ -274,20 +268,28 @@ if (hasStreams) {
 // very first version of encryptPayload did. It has no tag byte (and cannot:
 // JSON starts with `\u007b`, which is neither tag), so it decrypts forever.
 const legacyIv = crypto.getRandomValues(new Uint8Array(12))
+const legacyPlaintext = new TextEncoder().encode(
+  JSON.stringify({ hello: 'legacy', from: 'the first version' }),
+)
 const legacyCt = await crypto.subtle.encrypt(
   { name: 'AES-GCM', iv: legacyIv },
   keyA1,
-  new TextEncoder().encode(JSON.stringify({ hello: 'legacy', from: 'the first version' })),
+  legacyPlaintext,
 )
 const legacyBack = await decryptPayload<any>(
   b64OfBuf(legacyIv) + '.' + b64OfBuf(new Uint8Array(legacyCt)), keyA2,
 )
 check('tag-less legacy payloads still decrypt', legacyBack.hello === 'legacy')
-const legacyFirstByte = b64ToBytes(b64OfBuf(new Uint8Array(legacyCt)))[0]
+// The tag byte (TAG_RAW 0x01 / TAG_DEFLATE 0x02) rides at the front of the
+// PLAINTEXT the engine encrypts, so it can never collide with a legacy blob's
+// first byte: legacy plaintext is JSON and starts with `{` (0x7b). Asserting
+// this on the CIPHERTEXT instead flaked — AES-GCM output is indistinguishable
+// from random, so its first byte lands on 0x01/0x02 about 0.8% of runs
+// regardless of the tag scheme.
 check(
   'a legacy blob and a tagged blob never collide on the first byte',
-  legacyFirstByte !== 1 && legacyFirstByte !== 2,
-  String(legacyFirstByte),
+  legacyPlaintext[0] !== 1 && legacyPlaintext[0] !== 2,
+  `0x${legacyPlaintext[0].toString(16)}`,
 )
 
 // --- 2. merge semantics ------------------------------------------------------
