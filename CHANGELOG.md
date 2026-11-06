@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+
+- **Family devDependency pins advance to the current cuts.** `crashtest` `^1.1.0 -> ^1.3.0`, `eyestruct` `1.0.0 -> 1.1.0`, `freestruct` `^1.2.0 -> ^1.3.0`, `packstruct` `1.0.0 -> 1.1.0`, and `prestruct` `^1.2.0 -> ^1.3.0`. The committed `labs/crashledger.json` + `labs/run-meta.json` were regenerated under crashtest 1.3.0: the verdict set gains three REFUSED rows and nothing regresses (0 new, 0 regressed, 0 verdict changes).
+- **The crashtest CI action is pinned, and its version input is now set.** `crashtest.yml` moves off the v1.0.0 action ref to the v1.3.0 commit (`8738287`) and now passes `version: '1.3.0'` - without it the action installed `crashtest` latest, a float, so the gate could drift under a passing run.
+- **The docs-lane caller SHA moves to freestruct v1.3.0 (`7dfb172`)** with `freestruct-version` `1.2.0 -> 1.3.0`; the living `docs/ci.md` + `docs/playbooks/index.md` freestruct references move with it.
+- **The family prestruct floor moves to `^1.3.0`.** `scripts/check-prestruct-pins.cjs` refuses any declaration below 1.3.0 (the SSRF-guard security round), and the guard's own battery gains the inverse case - the old `^1.2.0` floor now fails.
+
 ## [1.1.0] - 2026-11-06
 
 The hardening round since v1.0.0. The hash router - the app's entry point - no longer crashes on a malformed shared link, and the docs lane folded into the family's one reusable workflow. Every fix is battery-pinned.

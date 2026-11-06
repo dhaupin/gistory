@@ -413,7 +413,7 @@ Rules worth keeping:
 | `scripts/db-migrate.mjs` | Migration runner: applies pending files, records checksums |
 | `scripts/db-maintain.mjs` | D1 maintenance: prune rate_limits, blob retention, live-test cleanup, stale devices, stale wake targets (`--subs-days`); `--check` self-verifies the SQL on in-memory SQLite |
 | `tests/sync-smoke.ts` | End-to-end smoke test (bun + in-memory SQLite) |
-| `packs/public/sync-relay-shapes/` | Crashtest pack: 13 chain-relay attacks (takeover, races, oracles, floods, watermark pin, WAF probes); vocabulary injected from `moduleCtx`. Spec-linted by `packstruct@1.0.0` (EXACT pin — `packstruct lint packs --deep`, the family lane) |
+| `packs/public/sync-relay-shapes/` | Crashtest pack: 13 chain-relay attacks (takeover, races, oracles, floods, watermark pin, WAF probes); vocabulary injected from `moduleCtx`. Spec-linted by `packstruct@1.1.0` (EXACT pin — `packstruct lint packs --deep`, the family lane) |
 | `crashtest.config.js` | Crashtest run root — native env.d1 FakeD1 plan + the pack's vocabulary, incl. the accepted-risk bounds (a bound gone false is a CI finding) |
 | `crashtest/` | Handlers bundle entry (`handlers-entry.ts` → `handlers.mjs`, built before every run). The hand-built `node:sqlite` D1 fixture was retired on crashtest v1.1.0 — FakeD1 v0.2/v0.3 covers every statement the relay runs; oracles read the same binding via a first-request capture |
 | `labs/crashledger.json` | Committed crashtest baseline — CI fails on a new EXPLOITED or a regression; adopt new bounds by re-running |
