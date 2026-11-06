@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **The docs-lane caller SHA moves to freestruct v1.3.0 (`7dfb172`)** with `freestruct-version` `1.2.0 -> 1.3.0`; the living `docs/ci.md` + `docs/playbooks/index.md` freestruct references move with it.
 - **The family prestruct floor moves to `^1.3.0`.** `scripts/check-prestruct-pins.cjs` refuses any declaration below 1.3.0 (the SSRF-guard security round), and the guard's own battery gains the inverse case - the old `^1.2.0` floor now fails.
 
+### Fixed
+
+- **Two legacy `labs/.eyes` ledger rows point at the artifact, not the slot directory.** `row-0005` and `row-0006` named `home/desktop-1280-dark` and `settings/desktop-1280-dark` - slot DIRECTORIES, the pre-`adopt <route>/current.png` form. eyestruct 1.1.0's gate reads the ledger with lstat truth, so a row pointing at a non-file is `DANGLING_ROW` (the class eyestruct#17 fixed on the write side), and the pin advance turned that latent defect into a red `eyes-mem` leg on a clean tree. Both rows now name `<slot>/current.png`, the shape their sibling rows already use; the gate reports `2 visual artifact(s) all explained by 12 ledger row(s)`.
+
 ## [1.1.0] - 2026-11-06
 
 The hardening round since v1.0.0. The hash router - the app's entry point - no longer crashes on a malformed shared link, and the docs lane folded into the family's one reusable workflow. Every fix is battery-pinned.
