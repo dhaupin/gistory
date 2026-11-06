@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+
+- **Family devDependency pins advance to the current cuts.** `crashtest` `^1.1.0 -> ^1.3.0`, `eyestruct` `1.0.0 -> 1.1.0`, `freestruct` `^1.2.0 -> ^1.3.0`, `packstruct` `1.0.0 -> 1.1.0`, and `prestruct` `^1.2.0 -> ^1.3.0`. The committed `labs/crashledger.json` + `labs/run-meta.json` were regenerated under crashtest 1.3.0: the verdict set gains three REFUSED rows and nothing regresses (0 new, 0 regressed, 0 verdict changes).
+- **The crashtest CI action is pinned, and its version input is now set.** `crashtest.yml` moves off the v1.0.0 action ref to the v1.3.0 commit (`8738287`) and now passes `version: '1.3.0'` - without it the action installed `crashtest` latest, a float, so the gate could drift under a passing run.
+- **The docs-lane caller SHA moves to freestruct v1.3.0 (`7dfb172`)** with `freestruct-version` `1.2.0 -> 1.3.0`; the living `docs/ci.md` + `docs/playbooks/index.md` freestruct references move with it.
+- **The family prestruct floor moves to `^1.3.0`.** `scripts/check-prestruct-pins.cjs` refuses any declaration below 1.3.0 (the SSRF-guard security round), and the guard's own battery gains the inverse case - the old `^1.2.0` floor now fails.
+
+### Fixed
+
+- **Two legacy `labs/.eyes` ledger rows point at the artifact, not the slot directory.** `row-0005` and `row-0006` named `home/desktop-1280-dark` and `settings/desktop-1280-dark` - slot DIRECTORIES, the pre-`adopt <route>/current.png` form. eyestruct 1.1.0's gate reads the ledger with lstat truth, so a row pointing at a non-file is `DANGLING_ROW` (the class eyestruct#17 fixed on the write side), and the pin advance turned that latent defect into a red `eyes-mem` leg on a clean tree. Both rows now name `<slot>/current.png`, the shape their sibling rows already use; the gate reports `2 visual artifact(s) all explained by 12 ledger row(s)`.
+- **The `sync-smoke` legacy first-byte check no longer flakes.** `tests/sync-smoke.ts` asserted that a legacy blob's first byte is never the tag byte by reading the first byte of the *ciphertext* - but AES-GCM output is indistinguishable from random, so it landed on `0x01`/`0x02` about 0.8% of runs and reddened `CI/verify` on a clean tree (two consecutive failures on the pin-advance PR, ~0.006% if truly random). The tag byte (`TAG_RAW 0x01` / `TAG_DEFLATE 0x02`) rides at the front of the *plaintext*, and legacy plaintext is JSON starting with `{` (`0x7b`), so the invariant holds by construction. The check now reads the plaintext fixture it already builds - deterministic, same intent, and it still bites if the engine's legacy framing ever collides.
+
 ## [1.1.0] - 2026-11-06
 
 The hardening round since v1.0.0. The hash router - the app's entry point - no longer crashes on a malformed shared link, and the docs lane folded into the family's one reusable workflow. Every fix is battery-pinned.
