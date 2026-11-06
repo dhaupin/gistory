@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Fixed
 
 - **Two legacy `labs/.eyes` ledger rows point at the artifact, not the slot directory.** `row-0005` and `row-0006` named `home/desktop-1280-dark` and `settings/desktop-1280-dark` - slot DIRECTORIES, the pre-`adopt <route>/current.png` form. eyestruct 1.1.0's gate reads the ledger with lstat truth, so a row pointing at a non-file is `DANGLING_ROW` (the class eyestruct#17 fixed on the write side), and the pin advance turned that latent defect into a red `eyes-mem` leg on a clean tree. Both rows now name `<slot>/current.png`, the shape their sibling rows already use; the gate reports `2 visual artifact(s) all explained by 12 ledger row(s)`.
+- **The `sync-smoke` legacy first-byte check no longer flakes.** `tests/sync-smoke.ts` asserted that a legacy blob's first byte is never the tag byte by reading the first byte of the *ciphertext* - but AES-GCM output is indistinguishable from random, so it landed on `0x01`/`0x02` about 0.8% of runs and reddened `CI/verify` on a clean tree (two consecutive failures on the pin-advance PR, ~0.006% if truly random). The tag byte (`TAG_RAW 0x01` / `TAG_DEFLATE 0x02`) rides at the front of the *plaintext*, and legacy plaintext is JSON starting with `{` (`0x7b`), so the invariant holds by construction. The check now reads the plaintext fixture it already builds - deterministic, same intent, and it still bites if the engine's legacy framing ever collides.
 
 ## [1.1.0] - 2026-11-06
 
