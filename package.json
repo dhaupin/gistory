@@ -1,7 +1,7 @@
 {
   "name": "gistory-sync",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "E2EE multi-device sync engine for prompt libraries: agent crypto, merge rules (LWW + tombstones), QoS scheduling, and the storage seam — the same code the app and its service worker run.",
   "license": "MIT",
   "type": "module",
