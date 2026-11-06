@@ -17,6 +17,8 @@ gistory is a local-first project history that syncs as a mergeable chain. v1.1.0
 
 **The docs lane is one lane.** The family built docs from four topologies and the reusable lanes had drifted (ruby 3.2 vs 3.4, pagefind `latest` scrape vs npm pin). The lane is now one canonical reusable workflow in `dhaupin/freestruct`, and this repo is a thin caller of it. A prestruct-pin floor guard joined the battery alongside it.
 
+**The release ladder's `verify` job waits for `release`.** `verify` declares `needs: [publish, release]` (was a bare `needs: publish`), closing a race where it ran CONCURRENTLY with the release mint: on a fresh cut the registry read replicas had not settled and the tarball was not yet attached, so a publish that in fact succeeded failed red and needed a manual re-run (first seen on the packstruct 1.1.0 cut). The release-attach poll widened 120s -> 300s and the registry poll 120s -> 360s, and the release-lane test pins the dependency so a regression fails by name.
+
 ## Quality layer
 
 The full suite passes at 44 tests, plus `typecheck` and `lint`. The router fix was reproduced first (a failing pin), then corrected, then re-pinned.
