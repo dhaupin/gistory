@@ -1,5 +1,15 @@
 // Simple hash-based router
 
+/** decodeURIComponent that never throws: a malformed percent-escape in a
+ * shared URL returns the raw text instead of a URIError. */
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
 export function parseRoute(hash: string) {
   const [path, query] = hash.slice(1).split('?')
   const params: Record<string, string> = {}
@@ -7,7 +17,11 @@ export function parseRoute(hash: string) {
   if (query) {
     query.split('&').forEach(pair => {
       const [key, value] = pair.split('=')
-      params[key] = decodeURIComponent(value || '')
+      // A malformed percent-escape in a shared link (`#/project?id=100%`) makes
+      // decodeURIComponent throw URIError - an uncaught crash at app init and
+      // on every hashchange (white screen), from a URL a user pasted. Fall back
+      // to the raw value, the same guard the serve/probe layers already carry.
+      params[key] = safeDecode(value || '')
     })
   }
   

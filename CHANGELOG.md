@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Fixed
+
+- **The hash router no longer crashes on a malformed URL.** `parseRoute` decoded each query value with a bare `decodeURIComponent`, which throws `URIError` on a bad percent-escape - so a shared link like `#/project?id=100%` threw at app init and on every `hashchange`, uncaught, into a white screen. Decoding now goes through a `safeDecode` that falls back to the raw text (the same guard the serve/probe layers already carry), so a pasted URL degrades to a literal value instead of a crash. `test/router.test.cjs` pins it against the real source (transpiled with the repo's own TypeScript) and bites both ways.
+
 ### The docs-lane consolidation (2026-11-04)
 
 The family built docs from four topologies; the two reusable lanes had drifted (ruby 3.2 vs 3.4, pagefind `latest` scrape vs npm pin). The docs lane is now ONE canonical reusable workflow in `dhaupin/freestruct`, and this repo is a thin caller of it.
