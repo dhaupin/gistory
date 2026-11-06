@@ -27,4 +27,5 @@ Prose on these pages flows - paragraphs keep their natural length, and nothing i
 | post | version | live |
 | --- | --- | --- |
 | [Announcing gistory v0.9.0](/gistory/discussions/announcing-v0.9.0) | 0.9.0 | yes - the app line and the `gistory-sync` bootstrap release; drops to Discussions when the package lands on the registry |
+| [Announcing gistory v1.1.0](/gistory/discussions/announcing-v1.1.0) | 1.1.0 | staged for the v1.1.0 tag |
 | [Announcing gistory v1.0.0](/gistory/discussions/announcing-v1.0.0) | 1.0.0 | 2026-11-03 on npm |
