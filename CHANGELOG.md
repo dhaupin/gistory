@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### 2026-11-03 - breadcrumbs on (engine + this site)
+
+Google Search Console showed the family's properties under a breadcrumbs enhancement with 0 results. Recon split the fleet: the docs sites run freestruct (auto BreadcrumbList since 1.1.0); the product sites run prestruct, whose `buildJsonLd()` is site-wide by contract and could never emit a per-route trail. prestruct gained engine-level `breadcrumb: true` (injectMeta owns the route path), and this repo turned the discovery surface on in its configs.
+
+- `docs/freestruct.config.yml` - `breadcrumb: true` (freestruct carries auto BreadcrumbList since 1.1.0).
+- `ssr.config.js` - `breadcrumb: true` (active once the prestruct engine feature ships).
+- Receipts: docs config validates against the pinned engine; docs sync:check PASS where generated.
+- No version bump; a discovery-surface opt-in.
+
+
 ### Changed
 
 - **Family devDependency pins advance to the current cuts.** `crashtest` `^1.1.0 -> ^1.3.0`, `eyestruct` `1.0.0 -> 1.1.0`, `freestruct` `^1.2.0 -> ^1.3.0`, `packstruct` `1.0.0 -> 1.1.0`, and `prestruct` `^1.2.0 -> ^1.3.0`. The committed `labs/crashledger.json` + `labs/run-meta.json` were regenerated under crashtest 1.3.0: the verdict set gains three REFUSED rows and nothing regresses (0 new, 0 regressed, 0 verdict changes).

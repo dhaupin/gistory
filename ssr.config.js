@@ -49,6 +49,7 @@ export const FAQ_ITEMS = [
 export default {
   siteUrl: 'https://gistory.creadev.org',
   siteName: 'Gistory',
+  breadcrumb: true,
   author: 'dhaupin',
   tagline: 'Every prompt you write, kept, found, and filled in.',
   keywords: 'prompt manager, AI prompt library, prompt templates, encrypted sync, prompt organizer, ChatGPT prompts, Claude prompts, prompt variables',
