@@ -29,9 +29,7 @@
     (function () {
       var t = null
       try { t = localStorage.getItem('gistory_docs_theme') } catch (e) {}
-      if (t !== 'dark' && t !== 'light') {
-        t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-      }
+      if (t !== 'dark' && t !== 'light') t = 'light'
       document.documentElement.setAttribute('data-theme', t)
     })()
   </script>

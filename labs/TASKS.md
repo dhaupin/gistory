@@ -431,3 +431,24 @@ The family carried four docs topologies - freestruct's `docs-lane.yml`, coreforg
 
 
 - **The .gitignore docs block carries the in-tree Jekyll + pagefind products (2026-11-10 sweep, coreforge#48).** Propagated from the coreforge adopter sweep (dhaupin/coreforge#52): a local `npm run docs` / `bundle exec jekyll build` + pagefind run drops its products beside the source, and the belt-and-suspenders block named only some of them. It now carries `docs/.jekyll-cache/`, `docs/.jekyll-metadata`, `docs/pagefind/`, and `docs/pagefind*`, so a local build leaves no untracked noise. No version bump.
+
+---
+
+### 2026-11-03 - session: breadcrumbs on (engine + this site)
+
+Google Search Console showed the family's properties under a breadcrumbs enhancement with 0 results. Recon split the fleet: the docs sites run freestruct (auto BreadcrumbList since 1.1.0); the product sites run prestruct, whose `buildJsonLd()` is site-wide by contract and could never emit a per-route trail. prestruct gained engine-level `breadcrumb: true` (injectMeta already owns the route path); this repo turned the discovery surface on.
+
+- `docs/freestruct.config.yml` + `ssr.config.js` - `breadcrumb: true`.
+- Receipts: docs config validates against the pinned engine; docs sync:check PASS where generated; prestruct's own `example/` build proves emission (BreadcrumbList on a sub-route, none on `/`).
+- No version bump; a discovery-surface opt-in.
+
+---
+
+### 2026-11-10 - light mode by default (web + docs)
+
+Owner directive: the family defaults to light. The product sites and docs sites shipped dark-first (a persisted `light` was the opt-in); now light is the first paint and a persisted `dark` theme is the opt-in. Shape: `<html>` pins `data-theme="light"`, the pre-paint bootstrap applies only a persisted `dark`, and the `theme-color` meta flips to the light paper. The CSS token blocks are untouched (the light block is already the second half of one set), so no palette, toggle handler, or gate changed.
+
+- `docs/_layouts/default.html` - the pre-paint bootstrap drops the OS-preference fallback for a `light` default (a persisted `dark` still wins).
+- `src/index.css` - the 404 page drops its `prefers-color-scheme: dark` override, so a JS-less 404 is light unless the app's persisted dark is applied.
+- No change to the app: `src/index.css` was already light-first (`:root` light, `body.dark`).
+- Receipts: `npm test` 60/60; `npm run lint:docs` PASS.
