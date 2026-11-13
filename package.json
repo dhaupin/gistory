@@ -2,7 +2,7 @@
   "name": "gistory-sync",
   "private": false,
   "version": "1.1.1",
-  "description": "E2EE multi-device sync engine for prompt libraries: agent crypto, merge rules (LWW + tombstones), QoS scheduling, and the storage seam — the same code the app and its service worker run.",
+  "description": "E2EE multi-device sync engine for prompt libraries: agent crypto, merge rules (LWW + tombstones), QoS scheduling, and the storage seam \u2014 the same code the app and its service worker run.",
   "license": "MIT",
   "type": "module",
   "homepage": "https://gistory.creadev.org",
@@ -42,15 +42,16 @@
   "engines": {
     "node": ">=18"
   },
-  "//dependencies": "NONE — the published bundle is self-contained ESM. The app's UI deps (react, react-dom, react-router-dom, lucide-react, qrcode.react) live in devDependencies: the Pages/CF build and CI install dev deps too, and keeping them out of dependencies keeps `npm install gistory-sync` free of a React tree it never uses.",
+  "//dependencies": "NONE \u2014 the published bundle is self-contained ESM. The app's UI deps (react, react-dom, react-router-dom, lucide-react, qrcode.react) live in devDependencies: the Pages/CF build and CI install dev deps too, and keeping them out of dependencies keeps `npm install gistory-sync` free of a React tree it never uses.",
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "^1.4.2",
     "@types/react": "^19.0.6",
     "@types/react-dom": "^19.0.3",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.3.0",
     "crashtest": "^1.3.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.16",
@@ -59,15 +60,15 @@
     "globals": "^15.14.0",
     "lucide-react": "^1.17.0",
     "packstruct": "1.1.0",
-    "prestruct": "^1.3.0",
+    "prestruct": "^1.5.0",
     "puppeteer": "^25.12.0",
     "qrcode.react": "^4.2.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.18.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",
-    "vite": "^6.0.5"
+    "vite": "^8.3.7"
   },
   "scripts": {
     "dev": "vite",

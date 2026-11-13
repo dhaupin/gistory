@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+
+### 2026-11-13 - the /web family matrix (React 19 + Vite 8, prestruct ^1.5.0)
+
+The app moves onto the matrix prestruct 1.5.0 published: `vite` `^6.0.5 -> ^8.3.7`, `@vitejs/plugin-react` `^4.3.4 -> ^6.3.0`, `prestruct` `^1.3.0 -> ^1.5.0`, `react`/`react-dom` `^19.0.0 -> ^19.3.1`, `react-router-dom` `^7.18.4 -> ^7.18.5`. (This tree is a root-level Vite app, not a `/web` subdir; the router `ssr.noExternal` guard on vite 8 is unchanged.) The site bakes 6/6 pages with a clean audit on the new matrix; typecheck + lint + tests stay green.
+
+- **vite 8 is rolldown-based and unbundles esbuild.** Three build scripts import `esbuild` directly (`scripts/build-sw.mjs`, `scripts/build-crashtest.mjs`, `scripts/build-lib.mjs`); they had been riding vite's transitive tree, so `esbuild ^0.28.2` is now a declared devDependency.
+
+No version bump; the app's own build lane, not the shipped surface.
+
+
 ## [1.1.1] - 2026-11-12
 
 ### 2026-11-12 - the Dependabot flow lands (railyard#31)
