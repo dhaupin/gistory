@@ -13,6 +13,7 @@ import { useEffect } from 'react'
 import { Copy, Cloud, Tags, GitFork, Command, ShieldCheck, FileClock, Lock, Star, Check, ArrowRight, ChevronDown } from 'lucide-react'
 import { FAQ_ITEMS } from '../../ssr.config.js'
 import Footer from './Footer'
+import SiteNav from './SiteNav'
 
 // One real prompt sample for the Prism treatment (see the effect inside the
 // component) — a template literal so the {{placeholders}} survive JSX and the
@@ -159,19 +160,7 @@ export default function Lander() {
 
   return (
     <div className="lander">
-      <header className="lander-nav">
-        <span className="lander-brand">Gistory</span>
-        <nav className="lander-nav-links">
-          <a href="/why" className="lander-link">Why</a>
-          <a href="/what" className="lander-link">What it is</a>
-          <a href="/about" className="lander-link">About</a>
-          <a href="/terms" className="lander-link">Terms</a>
-          <a href="/privacy" className="lander-link">Privacy</a>
-          <a href="#/" className="btn btn-primary btn-small lander-cta">
-            Open the app <ArrowRight size={14} />
-          </a>
-        </nav>
-      </header>
+      <SiteNav />
 
       <section className="lander-hero">
         <p className="lander-kicker">Your prompts, remembered</p>

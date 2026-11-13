@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 
+### 2026-11-13 - the public nav grows a phone burger (the family nav canon)
+
+The public pages (the lander plus why/what/about/terms/privacy) each hand-rolled the same six-link header, and on a 390px phone that row overflowed the header. The nav is now one shared `SiteNav` component the six pages render, with the family's mobile shape: the link row collapses behind a burger at `max-width: 640px`, and the burger opens a right-side drawer over a dimming overlay — Escape and the overlay both dismiss it, and the closed drawer's links stay out of the tab order (`visibility`). The component is SSR-safe (no router, no `window` at render time; the drawer is closed on first render, so the prerendered HTML never ships an open menu), and the links are plain `<a href>` because each public page is its own prerendered document. Mirrors coreforge's site-nav canon. New `tests/ui/mobile-nav.mjs` (23 checks) guards the burger, the drawer, both dismiss paths, the prerendered link landing, and the 390px no-overflow law.
+
 ### 2026-11-13 - the /web family matrix (React 19 + Vite 8, prestruct ^1.5.0)
 
 The app moves onto the matrix prestruct 1.5.0 published: `vite` `^6.0.5 -> ^8.3.7`, `@vitejs/plugin-react` `^4.3.4 -> ^6.3.0`, `prestruct` `^1.3.0 -> ^1.5.0`, `react`/`react-dom` `^19.0.0 -> ^19.3.1`, `react-router-dom` `^7.18.4 -> ^7.18.5`. (This tree is a root-level Vite app, not a `/web` subdir; the router `ssr.noExternal` guard on vite 8 is unchanged.) The site bakes 6/6 pages with a clean audit on the new matrix; typecheck + lint + tests stay green.

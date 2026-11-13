@@ -6,19 +6,12 @@
 // scattered across chats and notes, and the good ones are lost.
 
 import Footer from './Footer'
+import SiteNav from './SiteNav'
 
 export default function WhyPage() {
   return (
     <div className="legal-page">
-      <header className="lander-nav">
-        <a href="/" className="lander-brand">Gistory</a>
-        <nav className="lander-nav-links">
-          <a href="/" className="lander-link">Home</a>
-          <a href="/what" className="lander-link">What it is</a>
-          <a href="/about" className="lander-link">About</a>
-          <a href="#/" className="btn btn-primary btn-small lander-cta">Open the app</a>
-        </nav>
-      </header>
+      <SiteNav />
 
       <article className="legal-body">
         <h1>Why Gistory</h1>

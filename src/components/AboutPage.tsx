@@ -5,19 +5,12 @@
 // the struct family it belongs to, and the license and provenance terms.
 
 import Footer from './Footer'
+import SiteNav from './SiteNav'
 
 export default function AboutPage() {
   return (
     <div className="legal-page">
-      <header className="lander-nav">
-        <a href="/" className="lander-brand">Gistory</a>
-        <nav className="lander-nav-links">
-          <a href="/" className="lander-link">Home</a>
-          <a href="/why" className="lander-link">Why</a>
-          <a href="/what" className="lander-link">What it is</a>
-          <a href="#/" className="btn btn-primary btn-small lander-cta">Open the app</a>
-        </nav>
-      </header>
+      <SiteNav />
 
       <article className="legal-body">
         <h1>About</h1>
