@@ -2,8 +2,9 @@
 // Bundle the REAL service worker (src/sw/sw.ts) into dist/sw.js.
 //
 // The SW must share the page's exact agent crypto + merge logic, so it is a
-// bundle, not a hand-copied script. esbuild (already in the dependency tree
-// through vite) produces a self-contained IIFE at dist/sw.js — same path the
+// bundle, not a hand-copied script. esbuild (a declared devDependency - it
+// rode vite's tree until vite 8 unbundled it) produces a self-contained IIFE
+// at dist/sw.js — same path the
 // page registers — OVERWRITING the passive placeholder copied from public/.
 // Call order in `bun run build` matters: after `vite build`, never before.
 //

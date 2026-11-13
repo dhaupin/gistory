@@ -468,3 +468,16 @@ The family release-readiness pass (owner-driven). This repo's cut:
 - **Changelog.** `## [Unreleased]` cut to `## [1.1.1] - 2026-11-12`; entries stay verbatim.
 - **Announcement.** `docs/discussions/announcing-v1.1.1.md` + the index row.
 - **Release.** Branch -> PR -> `staging` -> PR -> `main`, then the `v1.1.1` tag drives the OIDC ladder.
+
+
+---
+
+### 2026-11-13 - session: the /web family matrix (React 19 + Vite 8, prestruct ^1.5.0)
+
+Unblocked by prestruct 1.5.0 (peer ceilings widened to `react`/`react-dom` `>=18 <20`, `vite` `>=5 <9`). This tree is a root-level Vite app (no `/web` subdir), so the transform is the dependency block only.
+
+- **package.json.** `vite` `-> ^8.3.7`, `@vitejs/plugin-react` `-> ^6.3.0`, `prestruct` `-> ^1.5.0`, `react`/`react-dom` `-> ^19.3.1`, `react-router-dom` `-> ^7.18.5`.
+- **esbuild declared.** `scripts/build-sw.mjs`, `scripts/build-crashtest.mjs`, `scripts/build-lib.mjs` import `esbuild` directly; they rode vite's transitive tree, which vite 8 no longer provides, so `esbuild ^0.28.2` is a devDependency now (the build-sw comment corrected).
+- **vite.config.ts unchanged.** The `environments.ssr.resolve.noExternal` router guard still holds on vite 8.
+- **Proof.** The site bakes 6/6 pages, audit 0 failures; `typecheck` + `lint` (0 errors) + `test` green.
+- **No version bump.**
