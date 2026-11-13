@@ -452,3 +452,19 @@ Owner directive: the family defaults to light. The product sites and docs sites 
 - `src/index.css` - the 404 page drops its `prefers-color-scheme: dark` override, so a JS-less 404 is light unless the app's persisted dark is applied.
 - No change to the app: `src/index.css` was already light-first (`:root` light, `body.dark`).
 - Receipts: `npm test` 60/60; `npm run lint:docs` PASS.
+
+### 2026-11-12 - session: the Dependabot flow lands (railyard#31)
+
+- **Change.** Added `.github/dependabot.yml` (weekly Monday, grouped minor/patch, majors alone, plus the `github-actions` ecosystem). npm directories `/`.
+- **Shape (receipt).** `dhaupin/creadev` PR #38 (`fca49c6`); the family-wide rollout is tracked on `dhaupin/railyard#31`.
+- **Guard.** railyard's `scripts/check-dependabot.cjs` (the shape) + `scripts/check-dependabot.test.cjs` (it bites), wired into railyard CI.
+- **No version bump.**
+
+### 2026-11-12 - session: the v1.1.1 cut
+
+The family release-readiness pass (owner-driven). This repo's cut:
+
+- **Version.** `1.1.0 -> 1.1.1` (package.json; the README H1 carries no number, so the version-truth census is a one-surface move). A patch: two honesty fixes (the sync-smoke first-byte check, two dangling `.eyes` ledger rows) plus the family floor moves.
+- **Changelog.** `## [Unreleased]` cut to `## [1.1.1] - 2026-11-12`; entries stay verbatim.
+- **Announcement.** `docs/discussions/announcing-v1.1.1.md` + the index row.
+- **Release.** Branch -> PR -> `staging` -> PR -> `main`, then the `v1.1.1` tag drives the OIDC ladder.
