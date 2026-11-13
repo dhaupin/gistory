@@ -4,18 +4,12 @@
 // content only, no browser APIs at render time.
 
 import Footer from './Footer'
+import SiteNav from './SiteNav'
 
 export default function PrivacyPage() {
   return (
     <div className="legal-page">
-      <header className="lander-nav">
-        <a href="/" className="lander-brand">Gistory</a>
-        <nav className="lander-nav-links">
-          <a href="/" className="lander-link">Home</a>
-          <a href="/terms" className="lander-link">Terms</a>
-          <a href="#/" className="btn btn-primary btn-small lander-cta">Open the app</a>
-        </nav>
-      </header>
+      <SiteNav />
 
       <article className="legal-body">
         <h1>Privacy Policy</h1>
