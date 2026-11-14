@@ -7,11 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 
-### 2026-11-13 - the release posts take the trailing-slash permalink (a correction)
+### 2026-11-13 - the release posts join the sitemap (noindex removed + trailing-slash permalinks)
 
-Every `docs/discussions/announcing-vX.Y.Z.md` carried a dotted, slashless permalink (`permalink: /discussions/announcing-v1.0.0`). Jekyll reads the `.0` as a file extension, so it emitted the page EXTENSIONLESS on disk - a URL shape that leans on the host's directory-index behavior and 301s to the slash form. All four posts now carry the trailing slash (`/discussions/announcing-v1.0.0/`), which emits `<slug>/index.html`; the index's stale "staged for the tag" markers on 1.1.0 and 1.1.1 (both on npm) are corrected. Two biting tests in `test/check-docs-post-permalinks.test.cjs`. Ported from eyestruct.
+Two changes, one end: the announcement trail is part of the SEO surface, not a private copy source.
 
-**A correction to the first draft of this entry.** It claimed the slashless posts were "invisible to the entire post-build layer - no sitemap `<loc>`, no og/canonical". That was wrong for gistory. The posts are `noindex, nofollow` BY DESIGN: `docs/_layouts/default.html` noindexes every `/discussions/` page (a release post is a copy source for a community announcement, not a docs destination), and freestruct honors noindex, so their absence from the sitemap is intended. The live posts do carry the full head seam - `og:url` and `rel=canonical` both present on `announcing-v1.0.0/`. The permalink fix stands on its own (a clean, canonical URL shape) but it was never what kept these pages out of the sitemap.
+- **The noindex is gone.** `docs/_layouts/default.html` carried an unconditional `{% if page.permalink contains '/discussions/' %}<meta name="robots" content="noindex, nofollow">` - every release post was excluded from sitemap/feed/search by design, because freestruct honors a noindex meta. That design is retired: the posts are indexable destinations now, and the layout injects no robots meta. The comment records why.
+- **The permalinks take the trailing slash.** Every post carried a dotted, slashless permalink (`permalink: /discussions/announcing-v1.0.0`); Jekyll reads the `.0` as a file extension and emits the page EXTENSIONLESS on disk - a URL shape that leans on the host's directory-index behavior and 301s to the slash form. All four posts now carry the slash (`/discussions/announcing-v1.0.0/`), which emits `<slug>/index.html`; the index's stale "staged for the tag" markers on 1.1.0 and 1.1.1 (both on npm) are corrected.
+
+**A note on the first draft of this entry.** It claimed the slashless posts were "invisible to the entire post-build layer - no sitemap `<loc>`, no og/canonical". Half wrong: freestruct found the posts fine - the live posts carried `og:url` + `rel=canonical` - and only the sitemap listing was affected, which was the noindex, not the permalink. Both are fixed together now.
+
+Tests: `test/check-docs-post-permalinks.test.cjs` (every post permalink ends with `/`; the index lists exactly the post files) and `test/check-docs-discussions-indexable.test.cjs` (no layout noindexes the discussions path; no post sets `noindex`). Both bite.
 
 ### 2026-11-13 - the /web family matrix (React 19 + Vite 8, prestruct ^1.5.0)
 
