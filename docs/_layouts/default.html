@@ -7,13 +7,10 @@
   <!-- freestruct injects description/OG/Twitter/canonical/JSON-LD post-build
        (docs/_freestruct templates). The Jekyll head stays meta-free on purpose:
        the engine deletes conflicting tags it did not write (missing-only gate). -->
-  {% if page.permalink contains '/discussions/' %}
-  <!-- Release-draft page: a copy source for community announcements, not a
-       docs destination. freestruct already keeps it out of sitemap/feed/search
-       (noindex-honoring filter, issue #5) — this meta is what makes the page
-       itself carry the noindex so the filter's classification is true. -->
-  <meta name="robots" content="noindex, nofollow">
-  {% endif %}
+  <!-- Release posts under /discussions/ are indexable: the announcement trail
+       is part of the SEO surface, not a private copy source. freestruct honors
+       a noindex meta, so one here would drop every post from sitemap/feed/
+       search - the posts carry no such meta on purpose. -->
   <link rel="icon" type="image/svg+xml" href="{{ '/favicon.svg' | relative_url }}">
   <link rel="apple-touch-icon" href="{{ '/apple-touch-icon.png' | relative_url }}">
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">

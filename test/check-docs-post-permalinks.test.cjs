@@ -2,11 +2,10 @@
 //
 // A dotted, slashless permalink (permalink: /discussions/announcing-v1.0.0)
 // makes Jekyll emit an EXTENSIONLESS file: Ruby reads the ".0" as a file
-// extension, so Jekyll skips appending ".html". freestruct's page scanner
-// matches only `.html`/`.htm`, so the page is invisible to the whole SEO
-// pipeline - no sitemap <loc>, no og/canonical/JSON-LD - even though it serves
-// 200. The trailing-slash form emits <slug>/index.html and is seen. Ported
-// from eyestruct, the same bug fixed there first.
+// extension, so Jekyll skips appending ".html". The URL then leans on the
+// host's directory-index behavior and 301s to the slash form. The
+// trailing-slash form emits <slug>/index.html - the clean, canonical shape
+// every post carries. Ported from eyestruct.
 //
 // Two legs, per the house rule: every post permalink carries the slash, and
 // the index lists exactly the post files (one row each, linking the slash
