@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### 2026-11-14 - the npm package link joins every surface (parity pass)
+
+The package is `gistory-sync`; the docs never linked it. The docs footer now carries the npm link (the docs nav checker forbids external URLs by design, so the footer is the lawful home). A new `test/npm-parity.test.cjs` proves the footer links the published `package.json` name (`gistory-sync`), so a rename or a dropped surface reds instead of shipping a package nobody can find. No version bump.
+
 
 ### 2026-11-13 - the release posts join the sitemap (noindex removed + trailing-slash permalinks)
 

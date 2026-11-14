@@ -492,3 +492,14 @@ Found in eyestruct, fixed there first, swept across the family. Same cause, same
 - **The fix.** Trailing-slash the permalinks (`/discussions/announcing-vX.Y.Z/`) so Jekyll emits `<slug>/index.html`. The index's stale "staged for the tag" markers on 1.1.0 and 1.1.1 (both on npm: 2026-11-06, 2026-11-13) are corrected, and the rows are ordered newest first.
 - **The test that bites.** `test/check-docs-post-permalinks.test.cjs`: every post permalink must end with the slash, and the index must list exactly the post files. Bite proven by reverting one permalink.
 - **Gates.** `npm run lint:docs` green (17 pages).
+
+---
+
+### 2026-11-14 - session: the npm link parity pass
+
+Every family project publishes to npm; the project's own surfaces did not always say so. This session closes that gap and holds it with a test.
+
+- **Footer.** The docs footer carries the npm link (`gistory-sync`, the published name) beside FAQ.
+- **Nav.** The docs nav checker forbids external URLs by design (`scripts/check-docs.mjs`), so the footer is the lawful home; the nav is untouched.
+- **Proof.** `test/npm-parity.test.cjs` proves the footer links the published `package.json` name; battery 67/67 green.
+- **No version bump.**
