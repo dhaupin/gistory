@@ -481,3 +481,14 @@ Unblocked by prestruct 1.5.0 (peer ceilings widened to `react`/`react-dom` `>=18
 - **vite.config.ts unchanged.** The `environments.ssr.resolve.noExternal` router guard still holds on vite 8.
 - **Proof.** The site bakes 6/6 pages, audit 0 failures; `typecheck` + `lint` (0 errors) + `test` green.
 - **No version bump.**
+
+---
+
+### 2026-11-13 (cont.) - session: the release posts were invisible to the sitemap (the permalink-shape bug, family sweep)
+
+Found in eyestruct, fixed there first, swept across the family. Same cause, same one-line fix.
+
+- **The cause.** Every `announcing-vX.Y.Z.md` carried a dotted, slashless permalink. Jekyll reads the `.0` as a file extension and emits the page extensionless; freestruct's scanner only matches `.html`/`.htm`, so the post was invisible to the whole SEO pipeline (no sitemap `<loc>`, no og/canonical) though it served 200. All four gistory posts were missing from the live sitemap.
+- **The fix.** Trailing-slash the permalinks (`/discussions/announcing-vX.Y.Z/`) so Jekyll emits `<slug>/index.html`. The index's stale "staged for the tag" markers on 1.1.0 and 1.1.1 (both on npm: 2026-11-06, 2026-11-13) are corrected, and the rows are ordered newest first.
+- **The test that bites.** `test/check-docs-post-permalinks.test.cjs`: every post permalink must end with the slash, and the index must list exactly the post files. Bite proven by reverting one permalink.
+- **Gates.** `npm run lint:docs` green (17 pages).
