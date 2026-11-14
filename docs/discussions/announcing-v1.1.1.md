@@ -1,6 +1,6 @@
 ---
 version: '1.1'
-permalink: /discussions/announcing-v1.1.1
+permalink: /discussions/announcing-v1.1.1/
 layout: default
 title: Announcing gistory v1.1.1
 comments: false
