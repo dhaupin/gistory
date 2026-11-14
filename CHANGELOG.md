@@ -7,9 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 
-### 2026-11-13 - the release posts were invisible to the SEO pipeline (permalink shape)
+### 2026-11-13 - the release posts take the trailing-slash permalink (a correction)
 
-Every `docs/discussions/announcing-vX.Y.Z.md` carried a dotted, slashless permalink (`permalink: /discussions/announcing-v1.0.0`). Jekyll reads the `.0` as a file extension, so it emitted the page EXTENSIONLESS on disk; freestruct's page scanner matches only `.html`/`.htm`, so the post was invisible to the entire post-build layer - no sitemap `<loc>`, no og/canonical/JSON-LD - even though it served 200. None of the four posts was in the live sitemap. The trailing-slash form (`permalink: /discussions/announcing-v1.0.0/`) emits `<slug>/index.html` and is seen. All four posts now carry the slash, and the index's stale "staged for the tag" markers on 1.1.0 and 1.1.1 (both on npm) are corrected to their publish dates. Two biting tests in `test/check-docs-post-permalinks.test.cjs`. Ported from eyestruct (the same bug, fixed there first).
+Every `docs/discussions/announcing-vX.Y.Z.md` carried a dotted, slashless permalink (`permalink: /discussions/announcing-v1.0.0`). Jekyll reads the `.0` as a file extension, so it emitted the page EXTENSIONLESS on disk - a URL shape that leans on the host's directory-index behavior and 301s to the slash form. All four posts now carry the trailing slash (`/discussions/announcing-v1.0.0/`), which emits `<slug>/index.html`; the index's stale "staged for the tag" markers on 1.1.0 and 1.1.1 (both on npm) are corrected. Two biting tests in `test/check-docs-post-permalinks.test.cjs`. Ported from eyestruct.
+
+**A correction to the first draft of this entry.** It claimed the slashless posts were "invisible to the entire post-build layer - no sitemap `<loc>`, no og/canonical". That was wrong for gistory. The posts are `noindex, nofollow` BY DESIGN: `docs/_layouts/default.html` noindexes every `/discussions/` page (a release post is a copy source for a community announcement, not a docs destination), and freestruct honors noindex, so their absence from the sitemap is intended. The live posts do carry the full head seam - `og:url` and `rel=canonical` both present on `announcing-v1.0.0/`. The permalink fix stands on its own (a clean, canonical URL shape) but it was never what kept these pages out of the sitemap.
 
 ### 2026-11-13 - the /web family matrix (React 19 + Vite 8, prestruct ^1.5.0)
 
