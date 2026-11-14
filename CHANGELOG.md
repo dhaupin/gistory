@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 
+### 2026-11-13 - the release posts were invisible to the SEO pipeline (permalink shape)
+
+Every `docs/discussions/announcing-vX.Y.Z.md` carried a dotted, slashless permalink (`permalink: /discussions/announcing-v1.0.0`). Jekyll reads the `.0` as a file extension, so it emitted the page EXTENSIONLESS on disk; freestruct's page scanner matches only `.html`/`.htm`, so the post was invisible to the entire post-build layer - no sitemap `<loc>`, no og/canonical/JSON-LD - even though it served 200. None of the four posts was in the live sitemap. The trailing-slash form (`permalink: /discussions/announcing-v1.0.0/`) emits `<slug>/index.html` and is seen. All four posts now carry the slash, and the index's stale "staged for the tag" markers on 1.1.0 and 1.1.1 (both on npm) are corrected to their publish dates. Two biting tests in `test/check-docs-post-permalinks.test.cjs`. Ported from eyestruct (the same bug, fixed there first).
+
 ### 2026-11-13 - the /web family matrix (React 19 + Vite 8, prestruct ^1.5.0)
 
 The app moves onto the matrix prestruct 1.5.0 published: `vite` `^6.0.5 -> ^8.3.7`, `@vitejs/plugin-react` `^4.3.4 -> ^6.3.0`, `prestruct` `^1.3.0 -> ^1.5.0`, `react`/`react-dom` `^19.0.0 -> ^19.3.1`, `react-router-dom` `^7.18.4 -> ^7.18.5`. (This tree is a root-level Vite app, not a `/web` subdir; the router `ssr.noExternal` guard on vite 8 is unchanged.) The site bakes 6/6 pages with a clean audit on the new matrix; typecheck + lint + tests stay green.
