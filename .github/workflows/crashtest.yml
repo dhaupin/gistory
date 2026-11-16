@@ -33,7 +33,7 @@ jobs:
   packs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install the repo (esbuild for the bundle step)
         run: npm ci
@@ -42,7 +42,7 @@ jobs:
         run: node scripts/build-crashtest.mjs
 
       - name: Run the packs (ledger gate)
-        uses: dhaupin/crashtest@873828743d7cc715893619e6295cb0a81251a439 # v1.3.0
+        uses: dhaupin/crashtest@7d56caf79af6fb9b5a925e46000530d09e87ab1f # v1.4.0
         with:
           version: '1.3.0'
           config: crashtest.config.js
