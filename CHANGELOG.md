@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Fixed: the npm parity gate had no teeth (it passed with the link deleted)
+
+The gate claimed to prove every surface advertises the package on npm, but it
+asked only whether *any* of several surfaces carried a link
+(`hits.length > 0`). A footer rewrite or a rebrand sweep that drops the link
+from the docs layout left the test green, because a nav file still had one.
+Measured, not assumed: deleting the npm link from `docs/_layouts/default.html`
+and rerunning the old gate gave 3 pass, 0 fail.
+
+The gate is now one predicate over an explicit `REQUIRED` list, so each named
+surface is checked on its own, and it resolves all three lawful link shapes to
+their real source of truth: the literal URL, `{ site.npm_url }` against
+`docs/_config.yml`, and `{ site.title }` against the docs title. A templated
+link is only accepted while the value it interpolates names the package.
+Two mutation tests prove it bites: a stripped surface is refused, and a link
+naming another package is refused.
+
+Measured after the change: clean tree 6 pass / 0 fail, and the same deleted-link
+fixture now gives 2 fail. gistory publishes as `gistory-sync` while the docs title is `gistory`, so its footer must carry the literal; the resolver accepts that and would catch a templated link that resolved to the wrong name.
+
+### 2026-11-14 - the npm package link joins every surface (parity pass)
+
+The package is `gistory-sync`; the docs never linked it. The docs footer now carries the npm link (the docs nav checker forbids external URLs by design, so the footer is the lawful home). A new `test/npm-parity.test.cjs` proves the footer links the published `package.json` name (`gistory-sync`), so a rename or a dropped surface reds instead of shipping a package nobody can find. No version bump.
+
 
 ### 2026-11-13 - the release posts join the sitemap (noindex removed + trailing-slash permalinks)
 
